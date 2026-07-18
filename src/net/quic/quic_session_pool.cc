@@ -24,7 +24,6 @@
 #include "base/metrics/histogram_macros.h"
 #include "base/no_destructor.h"
 #include "base/numerics/safe_conversions.h"
-#include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
@@ -50,6 +49,7 @@
 #include "net/cert/cert_verifier.h"
 #include "net/dns/host_resolver.h"
 #include "net/dns/public/secure_dns_policy.h"
+#include "net/http/http_auth_controller.h"
 #include "net/http/http_proxy_connect_job.h"
 #include "net/log/net_log.h"
 #include "net/log/net_log_capture_mode.h"
@@ -1917,16 +1917,12 @@ int QuicSessionPool::CreateSessionOnProxyStream(
   const ProxyChain& proxy_chain = key.session_key().proxy_chain();
   const ProxyServer& last_proxy = proxy_chain.Last();
   const quic::QuicServerId& server_id = key.server_id();
-  const std::string encocded_host =
-      base::EscapeQueryParamValue(last_proxy.GetHost().c_str(), false);
-  GURL url(base::StringPrintf("https://%s:%d/.well-known/masque/udp/%s/%d/",
-                              last_proxy.GetHost().c_str(),
-                              last_proxy.GetPort(), server_id.host().c_str(),
-                              server_id.port()));
+  GURL url = QuicProxyDatagramClientSocket::BuildConnectUdpUrl(
+      last_proxy, HostPortPair(server_id.host(), server_id.port()));
 
   auto socket = std::make_unique<QuicProxyDatagramClientSocket>(
       url, key.session_key().proxy_chain(), user_agent, net_log,
-      proxy_delegate_);
+      /*auth_controller=*/nullptr, proxy_delegate_);
   QuicProxyDatagramClientSocket* socket_ptr = socket.get();
 
   socket->ApplySocketTag(key.session_key().socket_tag());

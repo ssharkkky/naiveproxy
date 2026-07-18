@@ -11,6 +11,7 @@
 #include <string_view>
 
 #include "base/memory/advanced_memory_safety_checks.h"
+#include "base/memory/ref_counted.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/ip_endpoint.h"
 #include "net/base/net_export.h"
@@ -27,7 +28,10 @@
 
 namespace net {
 
+class HostPortPair;
+class HttpAuthController;
 class ProxyDelegate;
+class ProxyServer;
 
 // A client socket that uses a QUIC proxy as the transport layer.
 //
@@ -42,6 +46,12 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
   ADVANCED_MEMORY_SAFETY_CHECKS();
 
  public:
+  // Builds the default CONNECT-UDP request URL defined by RFC 9298 section 2.
+  // Keeping this expansion next to the CONNECT-UDP socket makes it reusable by
+  // callers that acquire their own proxy QUIC stream.
+  static GURL BuildConnectUdpUrl(const ProxyServer& proxy_server,
+                                 const HostPortPair& target);
+
   // Initializes a QuicProxyDatagramClientSocket with the provided network
   // log (source_net_log) and destination URL. The destination URL is
   // derived from a URI Template containing the variables "target_host"
@@ -54,6 +64,7 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
                                 const ProxyChain& proxy_chain,
                                 const std::string& user_agent,
                                 const NetLogWithSource& source_net_log,
+                                scoped_refptr<HttpAuthController> auth_controller,
                                 ProxyDelegate* proxy_delegate);
 
   QuicProxyDatagramClientSocket(const QuicProxyDatagramClientSocket&) = delete;
@@ -135,6 +146,8 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
  private:
   enum State {
     STATE_DISCONNECTED,
+    STATE_GENERATE_AUTH_TOKEN,
+    STATE_GENERATE_AUTH_TOKEN_COMPLETE,
     STATE_CALCULATE_HEADERS,
     STATE_CALCULATE_HEADERS_COMPLETE,
     STATE_SEND_REQUEST,
@@ -159,6 +172,8 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
       base::expected<HttpRequestHeaders, Error> result);
 
   int DoLoop(int last_io_result);
+  int DoGenerateAuthToken();
+  int DoGenerateAuthTokenComplete(int result);
   int DoCalculateHeaders();
   int DoCalculateHeadersComplete(int result);
   int DoSendRequest();
@@ -210,6 +225,7 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
   HttpRequestInfo request_;
   HttpResponseInfo response_;
 
+  HttpRequestHeaders authorization_headers_;
   HttpRequestHeaders proxy_delegate_headers_;
 
   quiche::HttpHeaderBlock response_header_block_;
@@ -227,6 +243,11 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
   // The proxy chain this socket represents: `stream_` is a connection to the
   // last proxy in this chain.
   const ProxyChain proxy_chain_;
+
+  // Optional because Chromium's generic nested-QUIC caller does not currently
+  // provide proxy authentication. Naive supplies this controller so cached
+  // credentials can be used preemptively on the first CONNECT-UDP request.
+  scoped_refptr<HttpAuthController> auth_;
 
   // This delegate must outlive this proxy client socket.
   const raw_ptr<ProxyDelegate> proxy_delegate_;

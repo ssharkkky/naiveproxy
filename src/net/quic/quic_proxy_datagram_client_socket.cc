@@ -8,6 +8,7 @@
 #include "base/feature_list.h"
 #include "base/functional/bind.h"
 #include "base/functional/callback_helpers.h"
+#include "base/strings/escape.h"
 #include "base/strings/strcat.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/stringprintf.h"
@@ -16,9 +17,12 @@
 #include "base/values.h"
 #include "net/base/completion_once_callback.h"
 #include "net/base/features.h"
+#include "net/base/host_port_pair.h"
 #include "net/base/net_errors.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_delegate.h"
+#include "net/base/proxy_server.h"
+#include "net/http/http_auth_controller.h"
 #include "net/http/http_log_util.h"
 #include "net/http/http_request_headers.h"
 #include "net/http/http_response_headers.h"
@@ -28,14 +32,28 @@
 
 namespace net {
 
+// static
+GURL QuicProxyDatagramClientSocket::BuildConnectUdpUrl(
+    const ProxyServer& proxy_server,
+    const HostPortPair& target) {
+  const std::string escaped_target_host =
+      base::EscapeQueryParamValue(target.host(), false);
+  return GURL(base::StringPrintf(
+      "https://%s/.well-known/masque/udp/%s/%d/",
+      proxy_server.host_port_pair().ToString().c_str(),
+      escaped_target_host.c_str(), target.port()));
+}
+
 QuicProxyDatagramClientSocket::QuicProxyDatagramClientSocket(
     const GURL& url,
     const ProxyChain& proxy_chain,
     const std::string& user_agent,
     const NetLogWithSource& source_net_log,
+    scoped_refptr<HttpAuthController> auth_controller,
     ProxyDelegate* proxy_delegate)
     : url_(url),
       proxy_chain_(proxy_chain),
+      auth_(std::move(auth_controller)),
       proxy_delegate_(proxy_delegate),
       user_agent_(user_agent),
       net_log_(NetLogWithSource::Make(
@@ -83,7 +101,7 @@ int QuicProxyDatagramClientSocket::ConnectViaStream(
   datagram_visitor_registered_ = true;
 
   DCHECK_EQ(STATE_DISCONNECTED, next_state_);
-  next_state_ = STATE_CALCULATE_HEADERS;
+  next_state_ = auth_ ? STATE_GENERATE_AUTH_TOKEN : STATE_CALCULATE_HEADERS;
 
   int rv = DoLoop(OK);
   if (rv == ERR_IO_PENDING) {
@@ -355,9 +373,14 @@ int QuicProxyDatagramClientSocket::DoLoop(int last_io_result) {
   do {
     State state = next_state_;
     next_state_ = STATE_DISCONNECTED;
-    // TODO(crbug.com/326437102): Add support for generate auth token request
-    // and complete states.
     switch (state) {
+      case STATE_GENERATE_AUTH_TOKEN:
+        DCHECK_EQ(OK, rv);
+        rv = DoGenerateAuthToken();
+        break;
+      case STATE_GENERATE_AUTH_TOKEN_COMPLETE:
+        rv = DoGenerateAuthTokenComplete(rv);
+        break;
       case STATE_CALCULATE_HEADERS:
         DCHECK_EQ(OK, rv);
         rv = DoCalculateHeaders();
@@ -403,10 +426,33 @@ int QuicProxyDatagramClientSocket::DoLoop(int last_io_result) {
   return rv;
 }
 
+int QuicProxyDatagramClientSocket::DoGenerateAuthToken() {
+  CHECK(auth_);
+  next_state_ = STATE_GENERATE_AUTH_TOKEN_COMPLETE;
+  return auth_->MaybeGenerateAuthToken(
+      &request_,
+      base::BindOnce(&QuicProxyDatagramClientSocket::OnIOComplete,
+                     weak_factory_.GetWeakPtr()),
+      net_log_);
+}
+
+int QuicProxyDatagramClientSocket::DoGenerateAuthTokenComplete(int result) {
+  DCHECK_NE(ERR_IO_PENDING, result);
+  if (result == OK) {
+    next_state_ = STATE_CALCULATE_HEADERS;
+  }
+  return result;
+}
+
 int QuicProxyDatagramClientSocket::DoCalculateHeaders() {
   next_state_ = STATE_CALCULATE_HEADERS_COMPLETE;
 
+  authorization_headers_.Clear();
   proxy_delegate_headers_.Clear();
+
+  if (auth_ && auth_->HaveAuth()) {
+    auth_->AddAuthorizationHeader(&authorization_headers_);
+  }
 
   if (proxy_delegate_) {
     ASSIGN_OR_RETURN(
@@ -433,8 +479,7 @@ int QuicProxyDatagramClientSocket::DoCalculateHeadersComplete(int result) {
   }
   next_state_ = STATE_SEND_REQUEST;
 
-  // TODO(crbug.com/326437102):  Add Proxy-Authentication headers.
-
+  request_.extra_headers.MergeFrom(authorization_headers_);
   request_.extra_headers.MergeFrom(proxy_delegate_headers_);
 
   return result;

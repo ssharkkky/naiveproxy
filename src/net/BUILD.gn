@@ -2050,6 +2050,8 @@ executable("naive") {
     "tools/naive/naive_command_line.h",
     "tools/naive/naive_config.cc",
     "tools/naive/naive_config.h",
+    "tools/naive/naive_connect_udp_tunnel.cc",
+    "tools/naive/naive_connect_udp_tunnel.h",
     "tools/naive/naive_connection.cc",
     "tools/naive/naive_connection.h",
     "tools/naive/naive_padding_framer.cc",
@@ -2058,6 +2060,8 @@ executable("naive") {
     "tools/naive/naive_padding_socket.h",
     "tools/naive/naive_protocol.cc",
     "tools/naive/naive_protocol.h",
+    "tools/naive/naive_quic_proxy_stream_request.cc",
+    "tools/naive/naive_quic_proxy_stream_request.h",
     "tools/naive/naive_proxy_bin.cc",
     "tools/naive/naive_proxy_delegate.cc",
     "tools/naive/naive_proxy_delegate.h",
@@ -2084,5 +2088,71 @@ executable("naive") {
 
   if (is_apple) {
     deps += [ "//base/allocator:early_zone_registration_apple" ]
+  }
+}
+
+# Local interoperability tools for the native UDP development plan. These
+# binaries intentionally reuse the exact QUICHE revision vendored by Chromium
+# so M1 can validate CONNECT-UDP and HTTP/3 DATAGRAM without another QUIC stack.
+if (is_posix && !is_ios) {
+  executable("naive_connect_udp_runner") {
+    sources = [
+      "cert/mock_cert_verifier.cc",
+      "tools/naive/naive_connect_udp_runner_bin.cc",
+      "tools/naive/naive_connect_udp_tunnel.cc",
+      "tools/naive/naive_connect_udp_tunnel.h",
+      "tools/naive/naive_padding_framer.cc",
+      "tools/naive/naive_padding_framer.h",
+      "tools/naive/naive_protocol.cc",
+      "tools/naive/naive_protocol.h",
+      "tools/naive/naive_proxy_delegate.cc",
+      "tools/naive/naive_proxy_delegate.h",
+      "tools/naive/naive_quic_proxy_stream_request.cc",
+      "tools/naive/naive_quic_proxy_stream_request.h",
+      "tools/naive/padding_utils.cc",
+      "tools/naive/padding_utils.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+      "//url",
+    ]
+
+    if (is_apple) {
+      deps += [ "//base/allocator:early_zone_registration_apple" ]
+    }
+  }
+
+  executable("naive_masque_server") {
+    sources = [ "tools/naive/naive_masque_server_bin.cc" ]
+
+    deps = [
+      ":net",
+      "//net/third_party/quiche",
+      "//net/third_party/quiche:quiche_tool_support",
+    ]
+  }
+
+  executable("naive_masque_client") {
+    sources = [
+      "third_party/quiche/src/quiche/quic/masque/masque_client_bin.cc",
+    ]
+
+    deps = [
+      ":net",
+      "//net/third_party/quiche",
+      "//net/third_party/quiche:quiche_tool_support",
+    ]
+  }
+
+  executable("naive_masque_probe") {
+    sources = [ "tools/naive/naive_masque_probe_bin.cc" ]
+
+    deps = [
+      ":net",
+      "//net/third_party/quiche",
+      "//net/third_party/quiche:quiche_tool_support",
+    ]
   }
 }

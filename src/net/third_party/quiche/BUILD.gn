@@ -92,6 +92,41 @@ component("quiche") {
   defines = [ "IS_QUICHE_IMPL" ]
 }
 
+# QUICHE's Chromium integration normally omits standalone CLI tools. Keep the
+# upstream-maintained support source lists available to local interoperability
+# binaries without adding them to the browser-facing component.
+source_set("quiche_tool_support") {
+  visibility = [ "//net:*" ]
+
+  sources = quiche_tool_support_hdrs + quiche_tool_support_srcs +
+            masque_support_hdrs + masque_support_srcs + io_tool_support_hdrs +
+            io_tool_support_srcs + default_platform_impl_tool_support_hdrs +
+            default_platform_impl_tool_support_srcs
+  sources -= [
+    # Chromium's minimized checkout does not carry the standalone quic_trace
+    # protobuf, and the MASQUE client/server tools do not use this visitor.
+    "src/quiche/quic/core/quic_trace_visitor.cc",
+    "src/quiche/quic/core/quic_trace_visitor.h",
+    # The include path selects Chromium's platform override headers, so link
+    # their matching implementations instead of QUICHE's Abseil CLI defaults.
+    "src/quiche/common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.cc",
+    "src/quiche/common/platform/default/quiche_platform_impl/quiche_command_line_flags_impl.h",
+    "src/quiche/common/platform/default/quiche_platform_impl/quiche_default_proof_providers_impl.cc",
+    "src/quiche/common/platform/default/quiche_platform_impl/quiche_default_proof_providers_impl.h",
+  ]
+  sources += [
+    "overrides/quiche_platform_impl/quiche_command_line_flags_impl.cc",
+    "overrides/quiche_platform_impl/quiche_command_line_flags_impl.h",
+    "overrides/quiche_platform_impl/quiche_default_proof_providers_impl.cc",
+    "overrides/quiche_platform_impl/quiche_default_proof_providers_impl.h",
+  ]
+
+  configs += [ ":quiche_internal_config" ]
+  all_dependent_configs = [ ":quiche_config" ]
+
+  deps = [ ":quiche" ]
+}
+
 proto_library("net_quic_proto") {
   visibility = [ ":quiche" ]
 
