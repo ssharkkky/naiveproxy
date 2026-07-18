@@ -2,6 +2,9 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
+Documentation entry point: [`README.md`](README.md). Active milestone plan:
+[`m3-execution-plan.md`](m3-execution-plan.md).
+
 This is the execution ledger for the native UDP project. The development plan
 defines scope and design; this file records what has actually been built and
 verified. Update it at every completed G target and milestone.
@@ -485,6 +488,7 @@ history and deferred low-priority observations are recorded in
 M1 has been committed as `e11a7733` (`Complete native UDP M1 foundation`) on
 `codex/native-udp-foundation`. M2 has been committed as `fe817a87` (`Complete
 SOCKS5 UDP ingress M2`) after all local gates and the independent audit passed.
-M3 is planned and ready for G0; implementation has not started. Generated
+The reviewed M3 execution plan is committed as `8720c912` (`Plan native UDP M3
+execution`). M3 is ready for G0; implementation has not started. Generated
 `.DS_Store` and `tmp/` entries remain unrelated and must not be included in
 future feature commits.
