@@ -89,6 +89,13 @@ Or `quic://user:pass@example.com`, if it works better. See also [parameter usage
 
 Do not use the master branch to track updates, as it rebases from a new root commit for every new Chrome release. Use stable releases and the associated tags to track new versions, where short release notes are also provided.
 
+## Native UDP development
+
+This fork is developing SOCKS5 UDP proxying over RFC 9298 CONNECT-UDP and
+HTTP/3 DATAGRAM on `codex/native-udp-foundation`. Start with the
+[native UDP documentation index](docs/README.md) for the current milestone,
+verified status, execution plan, test commands, and agent handoff rules.
+
 ## Padding protocol, an informal specification
 
 The design of this padding protocol opts for low overhead and easier implementation, in the belief that proliferation of expendable, improvised circumvention protocol designs is a better logistical impediment to censorship research than sophisicated designs.

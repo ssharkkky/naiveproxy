@@ -1,5 +1,9 @@
 # NaiveProxy Native UDP Development Plan
 
+Documentation entry point: [`README.md`](README.md). Current verified state:
+[`native-udp-status.md`](native-udp-status.md). Active milestone plan:
+[`m3-execution-plan.md`](m3-execution-plan.md).
+
 ## 1. Goal
 
 Add native UDP proxying alongside the existing TCP proxy path while retaining
@@ -64,7 +68,10 @@ Development must follow stable NaiveProxy tags. Do not merge or continuously
 track `master`, because upstream replaces its root commit for new Chromium
 releases.
 
-## 4. Current source findings
+## 4. M0 source findings (historical baseline)
+
+These findings drove M1 and M2. Completion and any later corrections are
+recorded in the status ledger and active milestone plan.
 
 1. `NaiveProxy::DoConnect()` accepts a TCP socket, wraps SOCKS listeners in
    `Socks5ServerSocket`, and always constructs `NaiveConnection`. UDP needs a
@@ -381,16 +388,32 @@ memory-safety issue remains, and maintainers approve the Chromium API boundary.
 
 ## 9. Estimated effort and decision gate
 
-The initial planning range is 38–68 person-days for a maintainable release
-candidate, excluding long cross-platform soak time. The range should be revised
-after M1 because the Chromium request-stream boundary is the dominant client
-integration uncertainty.
+The original pre-M1 estimate was 38–68 person-days for a maintainable release
+candidate, excluding long cross-platform soak time. M1 retired the dominant
+Chromium request-stream uncertainty, and M2 completed the local SOCKS ingress.
+Those completed milestones are now tracked by evidence and commits rather than
+future estimates.
 
-Do not schedule the complete implementation before M1 exits. If M1 proves that
-the vendored Chromium API requires a broad session-pool fork, choose between a
-narrow upstreamable Chromium API change and reducing v1 scope before continuing.
+Current remaining planning ranges:
+
+| Milestone | Range | Current decision gate |
+| --- | ---: | --- |
+| M3 client composition | 12–20 person-days | Execute G0–G6 in `m3-execution-plan.md` |
+| M4 production server | 7–12 person-days | Keep Caddy/`forwardproxy` separate from the client fixture |
+| M5 end-to-end MVP | 5–8 person-days | Begin after production client and server paths exist |
+| M6 hardening/release | 10–20 person-days | Begin after the MVP matrix passes |
+
+The remaining range is therefore approximately 34–60 person-days, excluding
+long cross-platform soak time. Re-estimate after M3 because target-entry
+ownership, failure isolation, and resource pressure are now the main client
+uncertainties. If M3 requires modifying `QuicSessionPool`, replacing Chromium
+QUIC, altering `NaiveConnection`, or adding a private UDP protocol, stop and
+revise scope before continuing.
 
 ## 10. Current status and next actions
+
+The operational source of truth is `native-udp-status.md`; this checklist is a
+roadmap snapshot and should not duplicate per-gate evidence.
 
 Completed:
 

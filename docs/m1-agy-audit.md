@@ -46,7 +46,12 @@ No remaining blocking, high, or medium severity findings.
 - The four standalone MASQUE scripts use distinct default ports with
   environment overrides. Dynamic port allocation should be considered before
   parallel CI execution.
-- M2/M3 must use the same empty/transient `NetworkAnonymizationKey` for auth
-  cache preload and tunnel creation if partitioning behavior changes.
+- M2/M3 must preserve the empty/transient `NetworkAnonymizationKey` selected
+  for the QUIC session and tunnel.
+
+Clarification recorded on 2026-07-19: Chromium proxy credentials in
+`HttpAuthCache` are not partitioned by `NetworkAnonymizationKey`. M3 therefore
+tests same-NAK session/tunnel propagation and cached Basic authentication as
+separate properties; it does not claim NAK-partitioned proxy credentials.
 
 Neither observation blocks the M1 integration-spike exit criteria.

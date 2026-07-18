@@ -2,6 +2,9 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
+Documentation entry point: [`README.md`](README.md). Current verified state:
+[`native-udp-status.md`](native-udp-status.md).
+
 ## 1. Mission and completion boundary
 
 M3 composes the two already verified halves of the client:
