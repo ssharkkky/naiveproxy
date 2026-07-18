@@ -30,6 +30,19 @@ struct NetworkTrafficAnnotationTag;
 // Currently no SOCKSv5 authentication is supported.
 class Socks5ServerSocket : public StreamSocket {
  public:
+  enum class Command : uint8_t {
+    kConnect = 0x01,
+    kBind = 0x02,
+    kUdpAssociate = 0x03,
+    kUnsupported = 0xff,
+  };
+
+  enum class Reply : uint8_t {
+    kSuccess = 0x00,
+    kGeneralFailure = 0x01,
+    kCommandNotSupported = 0x07,
+  };
+
   Socks5ServerSocket(std::unique_ptr<StreamSocket> transport_socket,
                      const std::string& user,
                      const std::string& pass,
@@ -42,6 +55,15 @@ class Socks5ServerSocket : public StreamSocket {
   Socks5ServerSocket& operator=(const Socks5ServerSocket&) = delete;
 
   const HostPortPair& request_endpoint() const;
+  Command command() const;
+  bool request_parsed() const;
+
+  // Two-stage handshake used by NaiveProxy to inspect the SOCKS command and,
+  // for UDP ASSOCIATE, bind the relay before sending BND.ADDR/BND.PORT.
+  int ReadRequest(CompletionOnceCallback callback);
+  int WriteReply(Reply reply,
+                 const IPEndPoint& bound_endpoint,
+                 CompletionOnceCallback callback);
 
   // StreamSocket implementation.
 
@@ -73,6 +95,13 @@ class Socks5ServerSocket : public StreamSocket {
   int GetLocalAddress(IPEndPoint* address) const override;
 
  private:
+  enum class Operation {
+    kNone,
+    kAutomaticConnect,
+    kReadRequest,
+    kWriteReply,
+  };
+
   enum State {
     STATE_GREET_READ,
     STATE_GREET_READ_COMPLETE,
@@ -99,6 +128,8 @@ class Socks5ServerSocket : public StreamSocket {
   void DoCallback(int result);
   void OnIOComplete(int result);
   void OnReadWriteComplete(CompletionOnceCallback callback, int result);
+  int StartRequestRead(Operation operation, CompletionOnceCallback callback);
+  void FinishOperation(int result);
 
   int DoLoop(int last_io_result);
   int DoGreetRead();
@@ -136,6 +167,9 @@ class Socks5ServerSocket : public StreamSocket {
   // This becomes true when the SOCKS handshake has completed and the
   // overlying connection is free to communicate.
   bool completed_handshake_;
+  bool request_parsed_ = false;
+  bool connect_net_log_active_ = false;
+  Operation operation_ = Operation::kNone;
 
   // Contains the bytes sent by the SOCKS handshake.
   size_t bytes_sent_;
@@ -152,6 +186,8 @@ class Socks5ServerSocket : public StreamSocket {
   uint8_t auth_method_;
   uint8_t auth_status_;
   uint8_t reply_;
+  Command command_ = Command::kConnect;
+  IPEndPoint bound_endpoint_;
 
   HostPortPair request_endpoint_;
 

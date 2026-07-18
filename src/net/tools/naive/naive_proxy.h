@@ -20,6 +20,7 @@
 #include "net/tools/naive/naive_connection.h"
 #include "net/tools/naive/naive_protocol.h"
 #include "net/tools/naive/preamble_getter.h"
+#include "net/tools/naive/socks5_udp_datagram_backend.h"
 
 namespace net {
 
@@ -27,6 +28,8 @@ class ClientSocketHandle;
 class HttpNetworkSession;
 class NaiveConnection;
 class ServerSocket;
+class Socks5ServerSocket;
+class Socks5UdpAssociation;
 class StreamSocket;
 struct NetworkTrafficAnnotationTag;
 class RedirectResolver;
@@ -43,7 +46,8 @@ class NaiveProxy {
              RedirectResolver* resolver,
              HttpNetworkSession* session,
              const NetworkTrafficAnnotationTag& traffic_annotation,
-             const std::vector<PaddingType>& supported_padding_types);
+             const std::vector<PaddingType>& supported_padding_types,
+             Socks5UdpBackendFactory udp_backend_factory = {});
   ~NaiveProxy();
   NaiveProxy(const NaiveProxy&) = delete;
   NaiveProxy& operator=(const NaiveProxy&) = delete;
@@ -67,6 +71,8 @@ class NaiveProxy {
     std::unique_ptr<PreambleGetter> url_getter;
   };
 
+  struct PendingSocksHandshake;
+
   void OnIOComplete(int result);
   int DoLoop(int last_io_result);
   int DoAccept();
@@ -74,6 +80,20 @@ class NaiveProxy {
   int DoPreamble();
   int DoPreambleComplete(int result);
   int DoConnect();
+  void OnSocksRequestRead(unsigned int connection_id, int result);
+  void HandleSocksRequestRead(unsigned int connection_id, int result);
+  void OnSocksReplyWritten(unsigned int connection_id, int result);
+  void HandleSocksReplyWritten(unsigned int connection_id, int result);
+  void StartTcpConnection(
+      unsigned int connection_id,
+      std::unique_ptr<PaddingType> negotiated_client_padding,
+      const NetworkAnonymizationKey& network_anonymization_key,
+      std::unique_ptr<StreamSocket> socket);
+  bool CanUseNativeUdp() const;
+  int BindUdpRelay(PendingSocksHandshake* pending);
+  void ClosePendingSocks(unsigned int connection_id, int reason);
+  void OnUdpAssociationComplete(unsigned int connection_id, int result);
+  void CloseUdpAssociation(unsigned int connection_id, int reason);
   void OnConnectComplete(unsigned int connection_id, int result);
   void HandleConnectResult(NaiveConnection* connection, int result);
 
@@ -112,6 +132,12 @@ class NaiveProxy {
   std::vector<Tunnel> tunnels_;
 
   std::map<unsigned int, std::unique_ptr<NaiveConnection>> connection_by_id_;
+  std::map<unsigned int, std::unique_ptr<PendingSocksHandshake>>
+      pending_socks_by_id_;
+  std::map<unsigned int, std::unique_ptr<Socks5UdpAssociation>>
+      udp_association_by_id_;
+
+  Socks5UdpBackendFactory udp_backend_factory_;
 
   const NetworkTrafficAnnotationTag& traffic_annotation_;
 
