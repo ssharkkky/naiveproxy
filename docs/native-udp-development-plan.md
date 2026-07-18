@@ -257,7 +257,7 @@ and existing TCP suite passing before the next begins.
    reran the work, then returned `AUDIT_PASS` with no blocking, high, or medium
    findings. See `docs/m1-agy-audit.md`.
 
-### M2 — SOCKS5 UDP ingress (5–8 person-days)
+### M2 — SOCKS5 UDP ingress (complete and independently audited)
 
 - Split SOCKS request parsing from response writing so the command is available
   to `NaiveProxy` before the command response is sent.
@@ -284,8 +284,10 @@ address, non-QUIC `0x01` rejection, control-channel closure, and `FRAG != 0`.
 
 ### M3 — Native UDP client data path (6–10 person-days)
 
-- Add `Socks5UdpAssociation` and target-keyed tunnel management.
-- Add `NaiveConnectUdpTunnel` around the M1 Chromium boundary.
+- Adapt the M2 `Socks5UdpDatagramBackend` boundary to target-keyed
+  `NaiveConnectUdpTunnel` instances owned by `Socks5UdpAssociation`.
+- Reuse the M1 `NaiveConnectUdpTunnel` and Chromium request-stream boundary;
+  do not add another QUIC implementation.
 - Keep a defensive `quic://` invariant in the datagram backend; the normal
   non-QUIC rejection has already happened with SOCKS5 reply `0x01` in M2.
 - Add bounded queues, association limits, idle timeouts, and cancellation.
@@ -412,3 +414,24 @@ Development environment and M1 foundation:
 - [x] Keep production server work deferred to M4. M1 identified the required
   behavior with a same-repository, vendored-QUICHE endpoint, so no sibling
   repository is needed for the client spike.
+
+M2 SOCKS5 UDP ingress:
+
+- [x] Add the RFC 1928 IPv4/IPv6/domain codec and table-driven boundary tests.
+- [x] Split SOCKS5 request parsing from reply writing without changing the TCP
+  data mover.
+- [x] Branch CONNECT/BIND/UDP ASSOCIATE before `NaiveConnection` construction.
+- [x] Reject non-QUIC or unavailable UDP backends with reply `0x01`.
+- [x] Bind the real relay before success and return its actual IPv4/IPv6 BND
+  endpoint.
+- [x] Add source authorization, wildcard-port learning, bounded queues,
+  control-channel lifetime coupling, and synchronous-I/O reentrancy guards.
+- [x] Pass deterministic codec, handshake and association tests, real-loopback
+  IPv4/IPv6/auth tests, and all 56 existing TCP regressions.
+- [x] Complete an independent continuing-session `agy` audit with
+  `AUDIT_PASS`; see `docs/m2-agy-audit.md`.
+
+Next:
+
+- [ ] Begin M3 by composing the M2 backend interface with the proven M1
+  `NaiveConnectUdpTunnel`; do not add another QUIC stack.

@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-07-18 (Asia/Shanghai)
+Last updated: 2026-07-19 (Asia/Shanghai)
 
 This is the execution ledger for the native UDP project. The development plan
 defines scope and design; this file records what has actually been built and
@@ -11,15 +11,16 @@ verified. Update it at every completed G target and milestone.
 | Milestone | Status | Verified result | Next gate |
 | --- | --- | --- | --- |
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
-| M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | Begin M2 SOCKS5 parsing/branching |
-| M2 — SOCKS5 UDP ingress | Not started | Architecture and protocol decisions documented only | M1 exit |
+| M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
+| M2 — SOCKS5 UDP ingress | Complete and independently audited | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS` | Begin M3 backend composition |
 | M3 — native UDP client data path | Not started | Some tunnel primitives were pulled forward into M1 | M2 fake-backend exit |
 | M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
-| M5 — end-to-end MVP | Not started | No SOCKS5 UDP path exists yet | M2–M4 complete |
+| M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
-M1 is complete as an integration spike, not as a user-visible UDP feature.
-Production ingress remains dormant; the next executable product work is M2.
+M1 is complete as an integration spike. M2 now supplies the local SOCKS5 UDP
+ingress and a test-only echo backend; it deliberately does not connect that
+ingress to the production M1 CONNECT-UDP tunnel. That adapter is M3.
 
 ## M1 detailed status
 
@@ -200,16 +201,202 @@ G5_LIFECYCLE_OK
 - No SOCKS command parsing, `NaiveProxy::DoConnect()` branching, UDP relay,
   production server, or TCP data path was added in M1.
 
+## M2 execution ledger — SOCKS5 UDP ingress
+
+M2 is intentionally limited to a local SOCKS5 UDP ingress path with an
+injected fake `DatagramBackend`. Production CONNECT-UDP backend integration
+remains deferred to M3. The existing TCP data mover is unchanged.
+
+### M2 architecture
+
+```text
+NaiveProxy::DoConnect()
+        |
+        +-- HTTP / redir
+        |      └── existing NaiveConnection path
+        |
+        └-- SOCKS5 two-stage handshake
+                 |
+                 +-- CONNECT
+                 |      └── success response → existing NaiveConnection
+                 |
+                 └-- UDP ASSOCIATE
+                        ├── non-quic:// → reply 0x01 and close
+                        └── quic://
+                               ├── bind local UDP relay
+                               ├── return real BND.ADDR/BND.PORT
+                               └── Socks5UdpAssociation
+                                      └── M2 fake DatagramBackend
+```
+
+`NaiveProxy::DoConnect()` installs an independently owned pending SOCKS
+handshake and immediately resumes accepting. Its request-completion callback
+branches on the parsed command before any `NaiveConnection` is constructed.
+
+### M2-G0 — interface freeze and test skeleton
+
+Status: complete.
+
+Completed:
+
+- Added standalone SOCKS5 UDP test target:
+  - `naive_socks5_udp_test`
+- Added minimal test executable:
+  - `tools/naive/naive_socks5_udp_test_bin.cc`
+- Verified independent build path without touching NaiveProxy runtime.
+
+Verified marker:
+
+```text
+M2_SOCKS5_UDP_TEST_SKELETON_OK
+```
+
+- Added the standalone codec target, deterministic SOCKS state-machine target,
+  real-loopback integration runner, and independent Python RFC 1928 oracle.
+- Defined `Socks5UdpAssociation` and its fake-backend boundary as M2 scope.
+- Kept the real M1 `NaiveConnectUdpTunnel` out of the M2 ingress path.
+- Avoided a dependency on the unavailable full Chromium `net_unittests` graph.
+
+### M2-G1 — RFC 1928 UDP codec
+
+Status: complete.
+
+Implemented:
+
+- Isolated span-based RFC 1928 codec and structured error model.
+- Exact IPv4, IPv6, and domain parsing/serialization.
+- Binary and empty payloads, port `0`/`65535`, and 255-byte domains.
+- Table-driven fixed-wire, round-trip, boundary, malformed, truncation, RSV,
+  FRAG, invalid address and invalid-build cases.
+- Dedicated fragment error so the association can account for drops without
+  logging destinations or payloads.
+
+Verified marker:
+
+```text
+M2_G1_CODEC_OK
+```
+
+### M2-G2 — SOCKS5 two-stage handshake
+
+Status: complete.
+
+- Split request parsing from reply writing through `ReadRequest()` and
+  `WriteReply()` while retaining legacy one-shot `Connect()` behavior.
+- Exposed typed command/reply values and the parsed request endpoint.
+- Serialize the caller-provided IPv4 or IPv6 bound endpoint.
+- A deterministic scripted `StreamSocket` test covers all-sync, all-async,
+  byte-fragmented command reads, partial reply writes, mixed phase modes, and
+  cancellation during pending read/write.
+
+Verified marker:
+
+```text
+M2_G2_DETERMINISTIC_STATE_MACHINE_OK
+```
+
+### M2-G3 — NaiveProxy command branching
+
+Status: complete.
+
+- Allocate the connection ID on entry to `DoConnect()`, before starting any
+  independent SOCKS asynchronous operation.
+- Keep pending handshakes in an ID-keyed owning map while the main accept loop
+  continues.
+- CONNECT writes the byte-identical legacy success response and transfers the
+  same handshaken socket to the existing `NaiveConnection` path.
+- BIND and unknown commands return `0x07`.
+- UDP on a non-QUIC chain, or without an installed backend, writes `0x01` and
+  closes; unsupported UDP is neither acknowledged with success nor left for
+  silent data-path drops.
+
+### M2-G4 — real UDP relay and BND endpoint
+
+Status: complete.
+
+- Freeze the TCP peer before sending success, then bind a UDP relay to the
+  concrete local control address and address family with an ephemeral port.
+- Return that socket's actual `BND.ADDR/BND.PORT`; bind or address lookup
+  failure retains the default `0x01` response and closes.
+- Real IPv4 and IPv6 clients send datagrams to the independently decoded reply
+  endpoint and receive responses.
+
+### M2-G5 — Socks5UdpAssociation and fake backend
+
+Status: complete.
+
+- Own the handshaken TCP control connection, bound UDP relay and injected
+  backend as one association.
+- Match the normalized TCP peer IP, enforce a requested source port, or learn
+  a wildcard port only after the first valid RFC 1928 packet.
+- Drop malformed, fragmented, wrong-port and wrong-IP sources without pinning
+  or terminating a healthy association. Fragment warnings are rate-limited at
+  powers of two.
+- Keep one backend send in flight, serialize relay writes, and cap the response
+  queue at 64 datagrams with observable drops.
+- Post initial pumps, bound synchronous read loops to 32 operations before
+  yielding, and guard synchronous backend callback reentrancy.
+- Closing the TCP control channel terminates the relay; idle cleanup shares the
+  existing proxy cleanup timer.
+- The M2 runner injects a synchronous echo backend only in tests. The
+  production binary has no fake backend and therefore cannot expose fake UDP.
+
+### M2-G6 — cleanup and audit
+
+Status: complete and independently audited.
+
+Verification matrix already passing:
+
+- IPv4, IPv6, and domain targets.
+- Non-QUIC `0x01` response.
+- Correct BND address behavior.
+- `FRAG != 0`.
+- Invalid and truncated datagrams.
+- Spoofed UDP sources.
+- TCP control close cleanup.
+- Multiple concurrent associations.
+- All 56 TCP regression tests.
+- Deterministic pending-I/O cancellation and malformed-datagram lifecycle
+  stress verification.
+
+Independent audit result:
+
+- One continuing `agy` session inspected the complete implementation and
+  independently reran the M1/M2/TCP verification matrix.
+- It found no blocker, high, or medium issue and returned `AUDIT_PASS`.
+- Full evidence is recorded in `docs/m2-agy-audit.md`.
+
+Verified integration markers:
+
+```text
+M2_G2_HANDSHAKE_OK
+M2_G2_AUTHENTICATED_UDP_OK
+M2_G3_BRANCHING_OK
+M2_G4_RELAY_OK
+M2_G4_G5_UDP_ASSOCIATION_OK
+M2_G5_WRONG_SOURCE_IP_OK
+M2_G5_SOURCE_AUTH_OK
+M2_G5_ASSOCIATION_OK
+M2_G5_CONCURRENCY_OK
+M2_G5_LIFECYCLE_OK
+M2_G3_NON_QUIC_REJECTION_OK
+M2_G3_NO_BACKEND_REJECTION_OK
+M2_SOCKS5_UDP_INGRESS_OK
+```
+
 ## Current verification commands
 
 ```bash
 cd src
 ninja -C out/Release naive naive_masque_server naive_masque_client \
-  naive_masque_probe naive_connect_udp_runner
+  naive_masque_probe naive_connect_udp_runner naive_socks5_udp_test \
+  naive_socks5_server_socket_state_test naive_socks5_udp_association_test \
+  naive_socks5_udp_runner
 ../tests/masque_g1_smoke.sh
 ../tests/masque_g2_naive_tunnel.sh
 ../tests/masque_g3_basic_auth.sh
 ../tests/masque_g5_lifecycle.sh
+../tests/socks5_udp_m2.sh
 ../tests/basic.sh out/Release/naive
 git diff --check
 ```
@@ -220,12 +407,20 @@ Expected markers:
 - `G2_NAIVE_TUNNEL_OK`
 - `G3_BASIC_AUTH_OK`
 - `G5_LIFECYCLE_OK`
+- `M2_G1_CODEC_OK`
+- `M2_G2_DETERMINISTIC_STATE_MACHINE_OK`
+- `M2_G4_G5_UDP_ASSOCIATION_OK`
+- `M2_G2_AUTHENTICATED_UDP_OK`
+- `M2_G3_NO_BACKEND_REJECTION_OK`
+- `M2_SOCKS5_UDP_INGRESS_OK`
 - exit code `0` from `tests/basic.sh`
 - `ninja: no work to do` or a successful link
 
-Last full verification on 2026-07-18 passed all five build targets, G1, G2,
-G3, G5, and all 56 existing TCP HTTP/HTTPS/auth/chain cases with exit code
-zero. `git diff --check` also passed.
+The final local verification on 2026-07-19 passed every named M1 and M2 target,
+all M1 scripts, the complete M2 suite, all 56 existing TCP
+HTTP/HTTPS/auth/chain cases, and `git diff --check`. The continuing-session
+independent `agy` audit reran the same required matrix and returned
+`AUDIT_PASS`; see `docs/m2-agy-audit.md`.
 
 The final continuing-session `agy` audit independently reran the same suite
 and returned `AUDIT_PASS` with no blocking, high, or medium findings. The audit
@@ -240,12 +435,14 @@ history and deferred low-priority observations are recorded in
   UDP-over-stream fallback.
 - The QUICHE endpoint is an M1 interoperability fixture, not the production
   server architecture.
-- SOCKS5 command branching, compliant UDP `BND.ADDR/BND.PORT`, non-QUIC reply
-  `0x01`, fragments, association ownership and resource limits remain M2 work.
+- M2's fake backend is test-only. M3 must adapt each validated target to the
+  real M1 CONNECT-UDP tunnel and add production association/tunnel limits.
 - UDP padding remains intentionally out of v1 until traffic-shape measurements
   justify a separate unreliable-datagram design.
 
 ## Working-tree state
 
-The M1 work is currently uncommitted. Generated `.DS_Store` and `tmp/` entries
-are unrelated and must not be included in a future feature commit.
+M1 has been committed as `e11a7733` (`Complete native UDP M1 foundation`) on
+`codex/native-udp-foundation`. M2 is currently an uncommitted working-tree
+change pending its final independent audit. Generated `.DS_Store` and `tmp/`
+entries remain unrelated and must not be included in future feature commits.

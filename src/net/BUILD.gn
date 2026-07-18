@@ -2073,6 +2073,11 @@ executable("naive") {
     "tools/naive/redirect_resolver.h",
     "tools/naive/socks5_server_socket.cc",
     "tools/naive/socks5_server_socket.h",
+    "tools/naive/socks5_udp_association.cc",
+    "tools/naive/socks5_udp_association.h",
+    "tools/naive/socks5_udp_codec.cc",
+    "tools/naive/socks5_udp_codec.h",
+    "tools/naive/socks5_udp_datagram_backend.h",
     "tools/naive/preamble_getter.cc",
     "tools/naive/preamble_getter.h",
   ]
@@ -2088,6 +2093,100 @@ executable("naive") {
 
   if (is_apple) {
     deps += [ "//base/allocator:early_zone_registration_apple" ]
+  }
+}
+
+# Focused M2 SOCKS5 UDP protocol, handshake, lifecycle and real-loopback tests.
+# They remain standalone binaries so this reduced checkout does not need the
+# full Chromium net_unittests dependency graph.
+if (is_posix && !is_ios) {
+  executable("naive_socks5_udp_test") {
+    sources = [
+      "tools/naive/naive_socks5_udp_test_bin.cc",
+      "tools/naive/socks5_udp_codec.cc",
+      "tools/naive/socks5_udp_codec.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+    ]
+  }
+
+  executable("naive_socks5_server_socket_state_test") {
+    sources = [
+      "tools/naive/naive_socks5_server_socket_state_test_bin.cc",
+      "tools/naive/socks5_server_socket.cc",
+      "tools/naive/socks5_server_socket.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+    ]
+  }
+
+  executable("naive_socks5_udp_association_test") {
+    sources = [
+      "tools/naive/naive_socks5_udp_association_test_bin.cc",
+      "tools/naive/socks5_server_socket.cc",
+      "tools/naive/socks5_server_socket.h",
+      "tools/naive/socks5_udp_association.cc",
+      "tools/naive/socks5_udp_association.h",
+      "tools/naive/socks5_udp_codec.cc",
+      "tools/naive/socks5_udp_codec.h",
+      "tools/naive/socks5_udp_datagram_backend.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+    ]
+  }
+
+  executable("naive_socks5_udp_runner") {
+    sources = [
+      "cert/mock_cert_verifier.cc",
+      "tools/naive/http_proxy_server_socket.cc",
+      "tools/naive/http_proxy_server_socket.h",
+      "tools/naive/naive_connection.cc",
+      "tools/naive/naive_connection.h",
+      "tools/naive/naive_padding_framer.cc",
+      "tools/naive/naive_padding_framer.h",
+      "tools/naive/naive_padding_socket.cc",
+      "tools/naive/naive_padding_socket.h",
+      "tools/naive/naive_protocol.cc",
+      "tools/naive/naive_protocol.h",
+      "tools/naive/naive_proxy.cc",
+      "tools/naive/naive_proxy.h",
+      "tools/naive/naive_proxy_delegate.cc",
+      "tools/naive/naive_proxy_delegate.h",
+      "tools/naive/naive_socks5_udp_runner_bin.cc",
+      "tools/naive/padding_utils.cc",
+      "tools/naive/padding_utils.h",
+      "tools/naive/preamble_getter.cc",
+      "tools/naive/preamble_getter.h",
+      "tools/naive/redirect_resolver.cc",
+      "tools/naive/redirect_resolver.h",
+      "tools/naive/socks5_server_socket.cc",
+      "tools/naive/socks5_server_socket.h",
+      "tools/naive/socks5_udp_association.cc",
+      "tools/naive/socks5_udp_association.h",
+      "tools/naive/socks5_udp_codec.cc",
+      "tools/naive/socks5_udp_codec.h",
+      "tools/naive/socks5_udp_datagram_backend.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+      "//components/embedder_support:user_agent",
+      "//url",
+    ]
+
+    if (is_apple) {
+      deps += [ "//base/allocator:early_zone_registration_apple" ]
+    }
   }
 }
 

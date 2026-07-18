@@ -22,12 +22,6 @@
 
 namespace net {
 
-enum SocksCommandType {
-  kCommandConnect = 0x01,
-  kCommandBind = 0x02,
-  kCommandUDPAssociate = 0x03,
-};
-
 static constexpr unsigned int kGreetReadHeaderSize = 2;
 static constexpr unsigned int kAuthReadHeaderSize = 2;
 static constexpr unsigned int kReadHeaderSize = 5;
@@ -39,9 +33,6 @@ static constexpr uint8_t kAuthMethodNoAcceptable = '\xff';
 static constexpr uint8_t kSubnegotiationVersion = '\x01';
 static constexpr uint8_t kAuthStatusSuccess = '\x00';
 static constexpr uint8_t kAuthStatusFailure = '\xff';
-static constexpr uint8_t kReplySuccess = '\x00';
-static constexpr uint8_t kReplyCommandNotSupported = '\x07';
-
 static_assert(sizeof(struct in_addr) == 4, "incorrect system size of IPv4");
 static_assert(sizeof(struct in6_addr) == 16, "incorrect system size of IPv6");
 
@@ -71,6 +62,15 @@ const HostPortPair& Socks5ServerSocket::request_endpoint() const {
   return request_endpoint_;
 }
 
+Socks5ServerSocket::Command Socks5ServerSocket::command() const {
+  DCHECK(request_parsed_);
+  return command_;
+}
+
+bool Socks5ServerSocket::request_parsed() const {
+  return request_parsed_;
+}
+
 int Socks5ServerSocket::Connect(CompletionOnceCallback callback) {
   DCHECK(transport_);
   DCHECK_EQ(STATE_NONE, next_state_);
@@ -81,7 +81,27 @@ int Socks5ServerSocket::Connect(CompletionOnceCallback callback) {
     return OK;
   }
 
+  // Connect() retains the legacy one-shot behavior for callers other than the
+  // NaiveProxy command dispatcher. UDP ASSOCIATE remains unsupported on this
+  // compatibility path.
+  return StartRequestRead(Operation::kAutomaticConnect, std::move(callback));
+}
+
+int Socks5ServerSocket::ReadRequest(CompletionOnceCallback callback) {
+  DCHECK(!completed_handshake_);
+  DCHECK(!request_parsed_);
+  return StartRequestRead(Operation::kReadRequest, std::move(callback));
+}
+
+int Socks5ServerSocket::StartRequestRead(Operation operation,
+                                         CompletionOnceCallback callback) {
+  DCHECK_EQ(STATE_NONE, next_state_);
+  DCHECK(!user_callback_);
+  DCHECK_EQ(operation_, Operation::kNone);
+
   net_log_.BeginEvent(NetLogEventType::SOCKS5_CONNECT);
+  connect_net_log_active_ = true;
+  operation_ = operation;
 
   next_state_ = STATE_GREET_READ;
   buffer_.clear();
@@ -90,19 +110,50 @@ int Socks5ServerSocket::Connect(CompletionOnceCallback callback) {
   if (rv == ERR_IO_PENDING) {
     user_callback_ = std::move(callback);
   } else {
-    net_log_.EndEventWithNetErrorCode(NetLogEventType::SOCKS5_CONNECT, rv);
+    FinishOperation(rv);
+  }
+  return rv;
+}
+
+int Socks5ServerSocket::WriteReply(Reply reply,
+                                   const IPEndPoint& bound_endpoint,
+                                   CompletionOnceCallback callback) {
+  DCHECK(request_parsed_);
+  DCHECK(!completed_handshake_);
+  DCHECK_EQ(STATE_NONE, next_state_);
+  DCHECK(!user_callback_);
+  DCHECK_EQ(operation_, Operation::kNone);
+
+  operation_ = Operation::kWriteReply;
+  reply_ = static_cast<uint8_t>(reply);
+  bound_endpoint_ = bound_endpoint;
+  buffer_.clear();
+  next_state_ = STATE_HANDSHAKE_WRITE;
+  int rv = DoLoop(OK);
+  if (rv == ERR_IO_PENDING) {
+    user_callback_ = std::move(callback);
+  } else {
+    FinishOperation(rv);
   }
   return rv;
 }
 
 void Socks5ServerSocket::Disconnect() {
   completed_handshake_ = false;
+  request_parsed_ = false;
+  weak_ptr_factory_.InvalidateWeakPtrs();
   transport_->Disconnect();
 
   // Reset other states to make sure they aren't mistakenly used later.
   // These are the states initialized by Connect().
   next_state_ = STATE_NONE;
+  operation_ = Operation::kNone;
   user_callback_.Reset();
+  if (connect_net_log_active_) {
+    net_log_.EndEventWithNetErrorCode(NetLogEventType::SOCKS5_CONNECT,
+                                      ERR_ABORTED);
+    connect_net_log_active_ = false;
+  }
 }
 
 bool Socks5ServerSocket::IsConnected() const {
@@ -207,8 +258,19 @@ void Socks5ServerSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_NONE, next_state_);
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
-    net_log_.EndEvent(NetLogEventType::SOCKS5_CONNECT);
+    FinishOperation(rv);
     DoCallback(rv);
+  }
+}
+
+void Socks5ServerSocket::FinishOperation(int result) {
+  const Operation finished_operation = operation_;
+  operation_ = Operation::kNone;
+  const bool request_phase_succeeded =
+      finished_operation == Operation::kReadRequest && result == OK;
+  if (connect_net_log_active_ && !request_phase_succeeded) {
+    net_log_.EndEventWithNetErrorCode(NetLogEventType::SOCKS5_CONNECT, result);
+    connect_net_log_active_ = false;
   }
 }
 
@@ -536,17 +598,21 @@ int Socks5ServerSocket::DoHandshakeReadComplete(int result) {
                                      "version", buffer_[0]);
       return ERR_SOCKS_CONNECTION_FAILED;
     }
-    SocksCommandType command = static_cast<SocksCommandType>(buffer_[1]);
-    if (command == kCommandConnect) {
-      // The proxy replies with success immediately without first connecting
-      // to the requested endpoint.
-      reply_ = kReplySuccess;
-    } else if (command == kCommandBind || command == kCommandUDPAssociate) {
-      reply_ = kReplyCommandNotSupported;
-    } else {
-      net_log_.AddEventWithIntParams(NetLogEventType::SOCKS_UNEXPECTED_COMMAND,
-                                     "commmand", buffer_[1]);
-      return ERR_SOCKS_CONNECTION_FAILED;
+    switch (buffer_[1]) {
+      case static_cast<uint8_t>(Command::kConnect):
+        command_ = Command::kConnect;
+        break;
+      case static_cast<uint8_t>(Command::kBind):
+        command_ = Command::kBind;
+        break;
+      case static_cast<uint8_t>(Command::kUdpAssociate):
+        command_ = Command::kUdpAssociate;
+        break;
+      default:
+        command_ = Command::kUnsupported;
+        net_log_.AddEventWithIntParams(NetLogEventType::SOCKS_UNEXPECTED_COMMAND,
+                                       "command", buffer_[1]);
+        break;
     }
 
     // We check the type of IP/Domain the server returns and accordingly
@@ -598,7 +664,17 @@ int Socks5ServerSocket::DoHandshakeReadComplete(int result) {
       request_endpoint_ = HostPortPair::FromIPEndPoint(endpoint);
     }
     buffer_.clear();
-    next_state_ = STATE_HANDSHAKE_WRITE;
+    request_parsed_ = true;
+    if (operation_ == Operation::kAutomaticConnect) {
+      reply_ = static_cast<uint8_t>(
+          command_ == Command::kConnect ? Reply::kSuccess
+                                        : Reply::kCommandNotSupported);
+      bound_endpoint_ = IPEndPoint();
+      next_state_ = STATE_HANDSHAKE_WRITE;
+    } else {
+      DCHECK_EQ(operation_, Operation::kReadRequest);
+      next_state_ = STATE_NONE;
+    }
     return OK;
   }
 
@@ -611,16 +687,21 @@ int Socks5ServerSocket::DoHandshakeWrite() {
   next_state_ = STATE_HANDSHAKE_WRITE_COMPLETE;
 
   if (buffer_.empty()) {
-    buffer_ = {
-        // clang-format off
-        kSOCKS5Version,
-        reply_,
-        kSOCKS5Reserved,
-        kEndPointResolvedIPv4,
-        0x00, 0x00, 0x00, 0x00,  // BND.ADDR
-        0x00, 0x00,  // BND.PORT
-        // clang-format on
-    };
+    const IPAddress& address = bound_endpoint_.address();
+    const bool use_ipv6 = address.IsIPv6();
+    buffer_ = {kSOCKS5Version, reply_, kSOCKS5Reserved,
+               static_cast<uint8_t>(use_ipv6 ? kEndPointResolvedIPv6
+                                             : kEndPointResolvedIPv4)};
+    if (use_ipv6) {
+      base::Extend(buffer_, address.bytes());
+    } else if (address.IsIPv4()) {
+      base::Extend(buffer_, address.bytes());
+    } else {
+      buffer_.insert(buffer_.end(), sizeof(struct in_addr), 0);
+    }
+    const uint16_t port = bound_endpoint_.port();
+    buffer_.push_back(static_cast<uint8_t>(port >> 8));
+    buffer_.push_back(static_cast<uint8_t>(port & 0xff));
     bytes_sent_ = 0;
   }
 
@@ -644,7 +725,7 @@ int Socks5ServerSocket::DoHandshakeWriteComplete(int result) {
   bytes_sent_ += result;
   if (bytes_sent_ == buffer_.size()) {
     buffer_.clear();
-    if (reply_ == kReplySuccess) {
+    if (reply_ == static_cast<uint8_t>(Reply::kSuccess)) {
       completed_handshake_ = true;
       next_state_ = STATE_NONE;
     } else {
