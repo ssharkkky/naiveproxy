@@ -12,15 +12,16 @@ verified. Update it at every completed G target and milestone.
 | --- | --- | --- | --- |
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
-| M2 — SOCKS5 UDP ingress | Complete and independently audited | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS` | Begin M3 backend composition |
-| M3 — native UDP client data path | Not started | Some tunnel primitives were pulled forward into M1 | M2 fake-backend exit |
+| M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
+| M3 — native UDP client data path | Planned; implementation not started | G0–G6 execution plan freezes composition, ownership, limits, verification, and audit gates | Execute M3-G0 backend contract/context seam |
 | M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
 | M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 now supplies the local SOCKS5 UDP
 ingress and a test-only echo backend; it deliberately does not connect that
-ingress to the production M1 CONNECT-UDP tunnel. That adapter is M3.
+ingress to the production M1 CONNECT-UDP tunnel. That adapter is M3. Its
+executable plan is recorded in `docs/m3-execution-plan.md`.
 
 ## M1 detailed status
 
@@ -384,6 +385,45 @@ M2_G3_NO_BACKEND_REJECTION_OK
 M2_SOCKS5_UDP_INGRESS_OK
 ```
 
+## M3 planning ledger — native UDP client data path
+
+Status: planned; ready to execute G0. No M3 production code has started.
+
+The plan was derived from direct inspection of the M1 tunnel and M2 ingress
+boundaries, then checked by three independent read-only reviews. The reviews
+agreed on these blockers that must be resolved before real-server wiring:
+
+- the zero-argument backend factory must receive the exact transient NAK from
+  `PendingSocksHandshake`;
+- one target needs one generation-safe tunnel owner and continuous read/write
+  pumps;
+- ordinary target, oversize, and queue failures must not close the whole SOCKS
+  association;
+- payload ceiling, zero-length datagram versus EOF, callback-stack retirement,
+  and URL request context destruction order need explicit tests;
+- target, packet, byte, active-association, connect, idle, and cooldown bounds
+  must be frozen before full-path load testing;
+- the full M3 path uses `naive_masque_server` as a controlled compliant
+  endpoint; production Caddy/`forwardproxy` remains M4.
+
+Sequential gates:
+
+```text
+G0  backend context/NAK, contracts, constants, scripted tunnel seam
+G1  cancellation-safe single-target backend
+G2  target routing, bounds, cooldown, and failure isolation
+G3  real M1 adapter and production composition
+G4  controlled IPv4/IPv6/domain/DNS/auth/multi-target interoperability
+G5  lifecycle, recovery, resource pressure, and observability
+G6  full regression plus independent agy AUDIT_PASS
+```
+
+Final aggregate marker: `M3_NATIVE_UDP_CLIENT_OK`.
+
+Planning estimate: 12–20 person-days for an audited M3, approximately 2–4
+elapsed weeks for one engineer plus an agent. The first single-target real path
+is not considered milestone completion.
+
 ## Current verification commands
 
 ```bash
@@ -443,6 +483,8 @@ history and deferred low-priority observations are recorded in
 ## Working-tree state
 
 M1 has been committed as `e11a7733` (`Complete native UDP M1 foundation`) on
-`codex/native-udp-foundation`. M2 is currently an uncommitted working-tree
-change pending its final independent audit. Generated `.DS_Store` and `tmp/`
-entries remain unrelated and must not be included in future feature commits.
+`codex/native-udp-foundation`. M2 has been committed as `fe817a87` (`Complete
+SOCKS5 UDP ingress M2`) after all local gates and the independent audit passed.
+M3 is planned and ready for G0; implementation has not started. Generated
+`.DS_Store` and `tmp/` entries remain unrelated and must not be included in
+future feature commits.
