@@ -282,21 +282,32 @@ Exit criterion: local SOCKS UDP packets reach a fake datagram backend; TCP
 SOCKS tests remain unchanged and passing. Tests verify the returned relay
 address, non-QUIC `0x01` rejection, control-channel closure, and `FRAG != 0`.
 
-### M3 — Native UDP client data path (6–10 person-days)
+### M3 — Native UDP client data path (planned; 12–20 person-days)
 
-- Adapt the M2 `Socks5UdpDatagramBackend` boundary to target-keyed
-  `NaiveConnectUdpTunnel` instances owned by `Socks5UdpAssociation`.
-- Reuse the M1 `NaiveConnectUdpTunnel` and Chromium request-stream boundary;
-  do not add another QUIC implementation.
-- Keep a defensive `quic://` invariant in the datagram backend; the normal
-  non-QUIC rejection has already happened with SOCKS5 reply `0x01` in M2.
-- Add bounded queues, association limits, idle timeouts, and cancellation.
-- Handle datagram-too-large, stream/session shutdown, and async callback
-  ownership safely.
-- Add NetLog events and counters needed for debugging.
+M3 is the composition layer between M2's verified SOCKS ingress and M1's
+verified Chromium CONNECT-UDP tunnel. The detailed, gate-by-gate execution
+plan is in `docs/m3-execution-plan.md`.
 
-Exit criterion: DNS and UDP echo work through a compliant remote server without
-custom stream encapsulation.
+- G0 freezes the per-association backend context, including the exact transient
+  `NetworkAnonymizationKey`, target identity, error/admission semantics,
+  limits, no-replay behavior, and a narrow fakeable tunnel seam.
+- G1 implements a cancellation-safe single-target connect/read/write backend.
+- G2 adds target-keyed routing, queue/byte/association bounds, idle eviction,
+  cooldown, and per-target failure isolation.
+- G3 composes the real M1 tunnel into `naive_proxy_bin` while preserving fake
+  and no-backend test modes, all-QUIC rejection, certificate verification, and
+  URL request context lifetime.
+- G4 proves IPv4, IPv6, domain, DNS, authentication, multiple targets, and
+  concurrent associations against the controlled `naive_masque_server`.
+- G5 closes lifecycle, recovery, oversize, resource pressure, and redacted
+  observability gaps.
+- G6 reruns M1, M2, M3, and all 56 TCP regressions and requires an independent
+  continuing-session `agy` result of `AUDIT_PASS`.
+
+Exit criterion: DNS and UDP echo work through the complete SOCKS5 client path
+against the controlled compliant endpoint via RFC 9298 CONNECT-UDP and HTTP/3
+DATAGRAM, without custom stream encapsulation. M4 remains responsible for the
+production Caddy/`forwardproxy` server.
 
 ### M4 — Server data path (7–12 person-days, separate repository)
 
@@ -433,5 +444,8 @@ M2 SOCKS5 UDP ingress:
 
 Next:
 
-- [ ] Begin M3 by composing the M2 backend interface with the proven M1
-  `NaiveConnectUdpTunnel`; do not add another QUIC stack.
+- [x] Freeze the M3 execution sequence, ownership boundaries, risks, and exit
+  evidence in `docs/m3-execution-plan.md`.
+- [ ] Execute M3-G0: pass the association creation context/NAK into the backend
+  factory, freeze error and limit semantics, and establish the scripted tunnel
+  test seam while keeping every M1/M2/TCP gate green.
