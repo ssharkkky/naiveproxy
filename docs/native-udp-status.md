@@ -17,7 +17,7 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | In progress; G0–G1 complete | Reproducible server baseline plus real Caddy Extended CONNECT/HTTPStreamer/bidirectional H3 Datagram capability are verified | M4-G2 strict protocol and policy layer |
+| M4 — production server path | In progress; G0–G2 complete | Reproducible Caddy H3 Datagram boundary plus strict RFC 9298 target/context codecs, status mapping, and shared DNS/ACL/port policy are verified | M4-G3 bounded UDP association |
 | M5 — end-to-end MVP | Not started | M3 client is complete; production M4 server is absent | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
@@ -728,7 +728,7 @@ Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
 
 ## M4 planning baseline — production server path
 
-Status: in progress; M4-G0/G1 are complete and M4-G2 is next. Detailed gates and contracts are in
+Status: in progress; M4-G0–G2 are complete and M4-G3 is next. Detailed gates and contracts are in
 [`m4-execution-plan.md`](m4-execution-plan.md).
 
 Read-only source inspection recorded these exact reference snapshots:
@@ -815,6 +815,32 @@ G0. M4-G1 must prove that runtime boundary before protocol/relay work begins.
 
 G1 contains no target parser, ACL bypass, UDP socket, or production relay.
 Those start only after G2 freezes strict protocol and policy behavior.
+
+### M4-G2 — strict RFC 9298 protocol and policy: complete
+
+- Forwardproxy commit `f9b40f6` adds an explicit H3 `connect-udp` branch
+  before legacy TCP CONNECT and rejects other Extended CONNECT protocols with
+  the frozen unsupported status.
+- The strict default URI-template parser accepts IPv4, percent-encoded IPv6,
+  ASCII/IDNA domains, and ports 1–65535. It rejects queries, fragments,
+  missing/extra segments, encoded slash/backslash, double encoding, zones,
+  userinfo, bracketed variables, bad labels, and invalid ports.
+- The RFC 9298 application codec accepts only canonical QUIC-varint Context ID
+  `0`, preserves a valid empty payload, and rejects truncated, noncanonical,
+  or unsupported contexts.
+- Target resolution/authorization is factored from TCP dialing. TCP and future
+  UDP use the same domain rules, per-resolved-IP ACL evaluation, allowed-port
+  list, deduplication, and context-aware DNS lookup; legacy TCP status/error
+  mapping and the complete old suite remain green.
+- UDP-facing policy errors are generic and do not contain the target. The
+  frozen `400/403/501/502` protocol/policy mapping and unsupported upstream
+  mode have deterministic tests.
+- Marker `M4_G2_PROTOCOL_POLICY_OK` and the cumulative G0–G2 plus full legacy
+  server suite pass.
+
+G2 deliberately returns `501` after a valid authorized request reaches the
+association boundary. M4-G3 replaces that final stub with the bounded UDP
+association; no packet is silently accepted before the data path exists.
 
 ## Current verification commands
 
