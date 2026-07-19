@@ -17,8 +17,11 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M3 plan commit: `8720c912`.
 - M3 implementation commits: G0 `83904eb8`, G1 `4541f756`, G2 `1bd5789e`,
   G3 `c2352710`, G4 `4927d06a`, G5 `578e3992`.
+- M3 final regression/audit closeout commit: `2bb83aec`.
 - M3 audit record: [`m3-agy-audit.md`](m3-agy-audit.md).
-- Next milestone: plan M4's production Caddy/`forwardproxy` CONNECT-UDP path.
+- M4 production-server execution plan: [`m4-execution-plan.md`](m4-execution-plan.md).
+- Next gate: M4-G0, which creates/pins the separate Caddy/`forwardproxy`
+  server workstream and freezes the reproducible dependency/build tuple.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
@@ -28,14 +31,17 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
    - Current verified facts, milestone ledger, evidence, and canonical test
      commands.
    - This is the operational source of truth.
-2. [`native-udp-development-plan.md`](native-udp-development-plan.md)
+2. [`m4-execution-plan.md`](m4-execution-plan.md)
+   - Active M4 production-server G0–G6 sequence, contracts, decision gates,
+     verification matrix, source ownership, and stop conditions.
+3. [`native-udp-development-plan.md`](native-udp-development-plan.md)
    - Frozen v1 scope, architecture, M0–M6 roadmap, verification matrix, and
      later server/release milestones.
    - Use its M4 section for the next project boundary.
-3. [`m3-execution-plan.md`](m3-execution-plan.md)
+4. [`m3-execution-plan.md`](m3-execution-plan.md)
    - Completed G0–G6 sequence, ownership model, contracts, resource limits,
      stop conditions, and completion markers.
-4. [`m1-agy-audit.md`](m1-agy-audit.md),
+5. [`m1-agy-audit.md`](m1-agy-audit.md),
    [`m2-agy-audit.md`](m2-agy-audit.md), and
    [`m3-agy-audit.md`](m3-agy-audit.md)
    - Historical independent audit evidence for completed milestones.
@@ -75,8 +81,8 @@ Then:
 
 1. Confirm the branch is `codex/native-udp-foundation` and identify any local
    changes before editing.
-2. Read this index, the status ledger, M4 in the development plan, and the M3
-   audit record before planning the next change.
+2. Read this index, the status ledger, the active M4 execution plan, and the
+   M3 audit record before planning the next change.
 3. Inspect the actual M2 factory and association boundary:
 
    ```text
@@ -138,3 +144,24 @@ G6 reran the complete regression matrix, repeated the full M3 lifecycle suite
 three consecutive times, and obtained an independent Gemini 3.1 Pro High
 `AUDIT_PASS` with zero blocker, high, or medium findings. M3 is complete; the
 next architectural boundary is the separate M4 production server path.
+
+## Current M4 planning summary
+
+M4 is planned but no production server code has started. Read-only inspection
+confirmed that current `forwardproxy` rejects the `:scheme/:path` required by
+CONNECT-UDP, its policy/dial helper is TCP-only, and its release workflow has
+floating/version-drifted dependencies. Caddy v2.11.2 does not enable H3
+Datagrams by default, while quic-go v0.59.0 exposes the required server stream
+Datagram API.
+
+The active plan therefore begins with two decision gates:
+
+- G0 pins the exact forwardproxy/Caddy/quic-go/Go/xcaddy build tuple and
+  freezes protocol, policy, ownership, limits, privacy, and test contracts;
+- G1 proves Extended CONNECT visibility and H3 stream access through the real
+  Caddy middleware chain before production relay code is written.
+
+G2–G6 then implement strict protocol/policy handling, the bounded UDP
+association, production integration, independent interoperability, and final
+audit. Production changes live in a separate server fork; this repository
+retains the completed M3 client and cross-project evidence.

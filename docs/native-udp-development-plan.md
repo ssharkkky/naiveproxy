@@ -2,7 +2,7 @@
 
 Documentation entry point: [`README.md`](README.md). Current verified state:
 [`native-udp-status.md`](native-udp-status.md). Active milestone plan:
-[`m3-execution-plan.md`](m3-execution-plan.md).
+[`m4-execution-plan.md`](m4-execution-plan.md).
 
 ## 1. Goal
 
@@ -316,18 +316,36 @@ against the controlled compliant endpoint via RFC 9298 CONNECT-UDP and HTTP/3
 DATAGRAM, without custom stream encapsulation. M4 remains responsible for the
 production Caddy/`forwardproxy` server.
 
-### M4 — Server data path (7–12 person-days, separate repository)
+### M4 — Server data path (planned; 10–18 person-days, separate repository)
 
-- Fork/pin the Naive `forwardproxy` server dependency.
-- Recognize Extended CONNECT with `:protocol = connect-udp`.
-- Parse and validate the RFC 9298 URI template target.
-- Apply existing auth, ACL, probe-resistance, and logging policies.
-- Relay H3 Datagrams to a connected UDP socket and back.
-- Enable HTTP/3 Datagram support in the Caddy/quic-go server configuration.
-- Add timeouts, per-client limits, IPv4/IPv6 behavior, and clean shutdown.
+The detailed sequential plan is in
+[`m4-execution-plan.md`](m4-execution-plan.md):
 
-Exit criterion: a standalone RFC 9298 interoperability test passes in both
-directions, and traditional TCP CONNECT behavior is unchanged.
+- G0 creates/pins the production server fork and exact
+  forwardproxy/Caddy/quic-go/Go/xcaddy build tuple, then freezes protocol,
+  policy, limits, ownership, privacy, and test contracts.
+- G1 enables H3 Datagrams with the smallest Caddy patch and runtime-proves
+  Extended CONNECT visibility plus `HTTPStreamer` access through the real
+  middleware chain before relay code is written.
+- G2 implements strict RFC 9298 classification, URI-template/Context-ID
+  codecs, status mapping, and transport-neutral reuse of existing ACL,
+  allowed-port, DNS, auth, and probe-resistance policy.
+- G3 implements one bounded connected-UDP association per CONNECT-UDP stream,
+  bidirectional pumps, cancellation, idle/queue/byte limits, MTU handling, and
+  no-replay behavior.
+- G4 integrates the new branch without changing legacy TCP CONNECT, padding,
+  normal-site routing, PAC, or active-probing behavior, and closes privacy
+  logging gaps.
+- G5 runs an independent RFC 9298 client against the real pinned Caddy binary
+  across addressing, payload, limits, lifecycle, auth/policy, race, stress,
+  and legacy server regressions.
+- G6 requires a reproducible clean build, patch inventory, complete rerun,
+  and independent `agy` `AUDIT_PASS` with no blocker/high/medium finding.
+
+Exit criterion: `M4_NATIVE_UDP_SERVER_OK`, standalone RFC 9298
+interoperability passes in both directions, traditional TCP/probe-resistance
+behavior is unchanged, and the exact server commits/build tuple are frozen for
+M5.
 
 ### M5 — End-to-end MVP (5–8 person-days)
 
@@ -398,17 +416,17 @@ Current remaining planning ranges:
 
 | Milestone | Range | Current decision gate |
 | --- | ---: | --- |
-| M3 client composition | 12–20 person-days | Execute G0–G6 in `m3-execution-plan.md` |
-| M4 production server | 7–12 person-days | Keep Caddy/`forwardproxy` separate from the client fixture |
+| M4 production server | 10–18 person-days | Execute G0–G6 in `m4-execution-plan.md`; G0 pins the server/build tuple |
 | M5 end-to-end MVP | 5–8 person-days | Begin after production client and server paths exist |
 | M6 hardening/release | 10–20 person-days | Begin after the MVP matrix passes |
 
-The remaining range is therefore approximately 34–60 person-days, excluding
-long cross-platform soak time. Re-estimate after M3 because target-entry
-ownership, failure isolation, and resource pressure are now the main client
-uncertainties. If M3 requires modifying `QuicSessionPool`, replacing Chromium
-QUIC, altering `NaiveConnection`, or adding a private UDP protocol, stop and
-revise scope before continuing.
+The remaining range is therefore approximately 25–46 person-days, excluding
+long cross-platform soak time. M0–M3 are complete; this is 57% by milestone
+count and approximately 50–55% by weighted engineering scope. The client is
+complete, but the product is not production-ready until M4–M6 pass. If M4
+would require replacing standard H3 Datagrams, bypassing existing server
+policy, altering the completed client/TCP path, or adding a private UDP
+protocol, stop and revise scope before continuing.
 
 ## 10. Current status and next actions
 
@@ -475,5 +493,9 @@ Next:
 - [x] Complete M3-G6 full regressions, three consecutive lifecycle stress
   runs, and independent `agy` review with `AUDIT_PASS`; see
   `docs/m3-agy-audit.md`.
-- [ ] Plan and execute M4 in the separate production Caddy/`forwardproxy`
-  server dependency without changing the completed M3 client boundary.
+- [x] Plan M4's G0–G6 production Caddy/`forwardproxy` server sequence in
+  `docs/m4-execution-plan.md` without changing the completed M3 client
+  boundary.
+- [ ] Execute M4-G0: create/pin the separate server workstream, freeze the
+  exact reproducible build tuple and contracts, and establish the server test
+  skeleton before any CONNECT-UDP relay implementation.
