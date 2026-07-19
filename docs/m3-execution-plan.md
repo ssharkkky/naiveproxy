@@ -357,11 +357,11 @@ Estimated effort: 2–3 person-days.
 
 ### M3-G6 — complete regression and independent audit
 
-Status: next.
+Status: complete; independent `agy` result `AUDIT_PASS`.
 
 1. Run the complete M1 test matrix.
 2. Run the complete M2 test matrix.
-3. Run the single M3 integration entry point, planned as
+3. Run the single M3 integration entry point
    `tests/socks5_udp_m3.sh`.
 4. Run all 56 TCP HTTP/HTTPS/auth/chain cases.
 5. Run repeated lifecycle stress; use sanitizer coverage where practical.
@@ -379,6 +379,19 @@ Exit:
 - M3 status and evidence ledger updated before the implementation commit.
 
 Estimated effort: 1–2 person-days.
+
+Verified result:
+
+- complete M1, M2, M3, and 56-case TCP regression matrix passed;
+- the cumulative M3 lifecycle matrix passed three consecutive stress runs;
+- `git diff --check` passed and only unrelated `.DS_Store`/`src/tmp/` remained
+  untracked;
+- a fresh read-only Gemini 3.1 Pro High `agy -p` audit inspected
+  `c6ec957f..578e3992`, independently reran the required matrix, and returned
+  `AUDIT_PASS` with zero blocker, high, or medium findings;
+- final aggregate marker: `M3_NATIVE_UDP_CLIENT_OK`.
+
+See [`m3-agy-audit.md`](m3-agy-audit.md) for the durable audit record.
 
 ## 6. Source and test change map
 

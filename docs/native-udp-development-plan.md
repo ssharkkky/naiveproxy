@@ -289,7 +289,7 @@ Exit criterion: local SOCKS UDP packets reach a fake datagram backend; TCP
 SOCKS tests remain unchanged and passing. Tests verify the returned relay
 address, non-QUIC `0x01` rejection, control-channel closure, and `FRAG != 0`.
 
-### M3 — Native UDP client data path (planned; 12–20 person-days)
+### M3 — Native UDP client data path (complete and independently audited)
 
 M3 is the composition layer between M2's verified SOCKS ingress and M1's
 verified Chromium CONNECT-UDP tunnel. The detailed, gate-by-gate execution
@@ -469,6 +469,11 @@ Next:
 
 - [x] Freeze the M3 execution sequence, ownership boundaries, risks, and exit
   evidence in `docs/m3-execution-plan.md`.
-- [ ] Execute M3-G0: pass the association creation context/NAK into the backend
-  factory, freeze error and limit semantics, and establish the scripted tunnel
-  test seam while keeping every M1/M2/TCP gate green.
+- [x] Execute M3-G0 through G5: compose the exact association context/NAK with
+  the production Chromium tunnel, then verify routing, limits,
+  interoperability, lifecycle, recovery, and redacted observability.
+- [x] Complete M3-G6 full regressions, three consecutive lifecycle stress
+  runs, and independent `agy` review with `AUDIT_PASS`; see
+  `docs/m3-agy-audit.md`.
+- [ ] Plan and execute M4 in the separate production Caddy/`forwardproxy`
+  server dependency without changing the completed M3 client boundary.
