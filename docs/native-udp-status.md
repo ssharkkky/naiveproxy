@@ -17,7 +17,7 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | In progress; G0–G2 complete | Reproducible Caddy H3 Datagram boundary plus strict RFC 9298 target/context codecs, status mapping, and shared DNS/ACL/port policy are verified | M4-G3 bounded UDP association |
+| M4 — production server path | In progress; G0–G3 complete | Real production Handler now owns a bounded fixed-target UDP association with bidirectional Context-ID/H3 Datagram pumps, limits, idle cancellation, MTU drop, and no replay | M4-G4 production auth/policy/privacy integration |
 | M5 — end-to-end MVP | Not started | M3 client is complete; production M4 server is absent | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
@@ -728,7 +728,7 @@ Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
 
 ## M4 planning baseline — production server path
 
-Status: in progress; M4-G0–G2 are complete and M4-G3 is next. Detailed gates and contracts are in
+Status: in progress; M4-G0–G3 are complete and M4-G4 is next. Detailed gates and contracts are in
 [`m4-execution-plan.md`](m4-execution-plan.md).
 
 Read-only source inspection recorded these exact reference snapshots:
@@ -841,6 +841,34 @@ Those start only after G2 freezes strict protocol and policy behavior.
 G2 deliberately returns `501` after a valid authorized request reaches the
 association boundary. M4-G3 replaces that final stub with the bounded UDP
 association; no packet is silently accepted before the data path exists.
+
+### M4-G3 — bounded production UDP association: complete
+
+- Forwardproxy commit `1b6d04b` replaces the valid-request `501` stub with one
+  connected UDP socket per fixed-target CONNECT-UDP stream. Resolution and
+  policy approval select a concrete IP before the HTTP `200`; the target is
+  not re-resolved after authorization.
+- The two pumps decode/prepend canonical Context ID `0`, preserve valid empty
+  UDP payloads, retain one in-flight datagram per direction with no
+  forwardproxy-owned packet queue, yield every 32 datagrams, and never retry
+  an ambiguous write.
+- A live quic-go `DatagramTooLargeError` is an observable drop rather than a
+  stream reset. Other UDP/H3 failures close only that association.
+- Per-handler 256 and per-client 32 active-association caps return the frozen
+  pre-success `503`. Double-safe release, request/stream cancellation,
+  two-minute production idle expiry, connected-socket closure, and pump join
+  prevent resource leaks.
+- Deterministic tests verify bidirectional byte equality, malformed-context
+  drop, no replay, idle shutdown, cap/release behavior, and cancellation. Race
+  coverage passed for association, admission, and real production-path tests.
+- A real independent H3 client traversed the actual forwardproxy Handler to a
+  local IPv4 UDP echo target and back for both non-empty and zero-length
+  payloads. Marker: `M4_G3_UDP_ASSOCIATION_OK`.
+- The complete legacy forwardproxy TCP/auth/ACL/upstream/PAC/probe-resistance
+  suite remains green.
+
+M4-G4 now closes production authentication, policy-status, probe-resistance,
+privacy-safe observability, and full legacy-routing integration evidence.
 
 ## Current verification commands
 

@@ -25,7 +25,8 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M4-G1 capability commit: `121f097`; Caddy Datagram commits `2002a520` and
   `2ff83e69` in `ssharkkky/caddy` branch `codex/enable-h3-datagrams`.
 - M4-G2 protocol/policy commit: `f9b40f6`.
-- Next gate: M4-G3 bounded connected-UDP association and lifecycle.
+- M4-G3 bounded association commit: `1b6d04b`.
+- Next gate: M4-G4 production auth/policy/privacy/TCP integration.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
