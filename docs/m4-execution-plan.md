@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M4-G0 and M4-G1 complete; M4-G2 is the next implementation gate.
+Status: M4-G0 through M4-G2 complete; M4-G3 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
@@ -255,6 +255,8 @@ boundary before G2.
 Estimated effort: 2–4 person-days.
 
 ### M4-G2 — strict protocol, target, and policy layer
+
+Status: complete in forwardproxy commit `f9b40f6`.
 
 Work:
 

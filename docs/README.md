@@ -24,7 +24,8 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
   `ssharkkky/forwardproxy` branch `codex/native-udp-server`.
 - M4-G1 capability commit: `121f097`; Caddy Datagram commits `2002a520` and
   `2ff83e69` in `ssharkkky/caddy` branch `codex/enable-h3-datagrams`.
-- Next gate: M4-G2 strict RFC 9298 protocol, codec, status, and policy layer.
+- M4-G2 protocol/policy commit: `f9b40f6`.
+- Next gate: M4-G3 bounded connected-UDP association and lifecycle.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
