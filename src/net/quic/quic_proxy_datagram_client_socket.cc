@@ -112,6 +112,10 @@ int QuicProxyDatagramClientSocket::ConnectViaStream(
     return ERR_CONNECTION_CLOSED;
   }
 
+  stream_handle_->SetDatagramStreamCloseCallback(base::BindOnce(
+      &QuicProxyDatagramClientSocket::OnStreamClosed,
+      weak_factory_.GetWeakPtr()));
+
   // Register stream to receive HTTP/3 datagrams.
   stream_handle_->RegisterHttp3DatagramVisitor(this);
   datagram_visitor_registered_ = true;
@@ -161,6 +165,7 @@ int QuicProxyDatagramClientSocket::ConnectUsingNetworkAsync(
 }
 
 void QuicProxyDatagramClientSocket::Close() {
+  weak_factory_.InvalidateWeakPtrs();
   connect_callback_.Reset();
   read_callback_.Reset();
   read_buf_len_ = 0;
@@ -354,8 +359,10 @@ int QuicProxyDatagramClientSocket::Write(
     return ERR_SOCKET_NOT_CONNECTED;
   }
 
-  net_log_.AddByteTransferEvent(NetLogEventType::SOCKET_BYTES_SENT, buf_len,
-                                buf->data());
+  // UDP destinations and payload bytes are deliberately excluded from NetLog
+  // at every capture mode. Only the byte count is operationally useful here.
+  net_log_.AddEventWithIntParams(NetLogEventType::SOCKET_BYTES_SENT,
+                                 "byte_count", buf_len);
 
   std::string_view packet(buf->data(), buf_len);
   int rv = stream_handle_->WriteConnectUdpPayload(packet);
@@ -384,6 +391,29 @@ void QuicProxyDatagramClientSocket::OnIOComplete(int result) {
     if (!connect_callback_.is_null()) {
       std::move(connect_callback_).Run(rv);
     }
+  }
+}
+
+void QuicProxyDatagramClientSocket::OnStreamClosed(int result) {
+  // Cancel auth/header continuations before publishing the terminal state.
+  // They may otherwise re-enter OnIOComplete after this close notification.
+  weak_factory_.InvalidateWeakPtrs();
+  next_state_ = STATE_DISCONNECTED;
+  datagram_visitor_registered_ = false;
+  connect_request_sent_ = false;
+  awaiting_connect_response_ = false;
+  read_buf_ = nullptr;
+  read_buf_len_ = 0;
+  last_read_was_datagram_ = false;
+
+  CompletionOnceCallback callback;
+  if (read_callback_) {
+    callback = std::move(read_callback_);
+  } else if (connect_callback_) {
+    callback = std::move(connect_callback_);
+  }
+  if (callback) {
+    std::move(callback).Run(result < 0 ? result : ERR_CONNECTION_CLOSED);
   }
 }
 
@@ -527,12 +557,14 @@ int QuicProxyDatagramClientSocket::DoSendRequest() {
 
   request_.extra_headers.SetHeader("capsule-protocol", "?1");
 
-  // Generate a fake request line for logging purposes.
-  std::string request_line =
-      base::StringPrintf("CONNECT-UDP %s HTTP/3\r\n", url_.GetPath().c_str());
+  // Generate a deliberately redacted request line for logging purposes. The
+  // real :path still goes into the H3 header block below, but the CONNECT-UDP
+  // target must never appear in NetLog.
+  constexpr char kRedactedRequestLine[] =
+      "CONNECT-UDP [redacted] HTTP/3\r\n";
   NetLogRequestHeaders(net_log_,
                        NetLogEventType::HTTP_TRANSACTION_SEND_TUNNEL_HEADERS,
-                       request_line, &request_.extra_headers);
+                       kRedactedRequestLine, &request_.extra_headers);
 
   quiche::HttpHeaderBlock headers;
   CreateSpdyHeadersFromHttpRequestForExtendedConnect(

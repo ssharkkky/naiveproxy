@@ -28,7 +28,19 @@ base::ListValue ElideHttpHeaderBlockForNetLog(
     const quiche::HttpHeaderBlock& headers,
     NetLogCaptureMode capture_mode) {
   base::ListValue headers_list;
+  const auto method = headers.find(":method");
+  const auto protocol = headers.find(":protocol");
+  const bool redact_connect_udp_target =
+      method != headers.end() && method->second == "CONNECT" &&
+      protocol != headers.end() && protocol->second == "connect-udp";
   for (const auto& [key, value] : headers) {
+    // CONNECT-UDP encodes its target in :path. Unlike ordinary request paths,
+    // this proxy destination is never safe to persist, even in kEverything
+    // captures used for transport debugging.
+    if (redact_connect_udp_target && key == ":path") {
+      headers_list.Append(":path: [redacted]");
+      continue;
+    }
     headers_list.Append(NetLogStringValue(base::StrCat(
         {key, ": ", ElideHeaderValueForNetLog(capture_mode, key, value)})));
   }

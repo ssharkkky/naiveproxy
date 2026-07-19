@@ -295,6 +295,8 @@ Estimated effort: 2–3 person-days.
 
 ### M3-G4 — controlled full-path interoperability
 
+Status: complete.
+
 Run the real path against `naive_masque_server` and local UDP fixtures:
 
 ```text
@@ -325,11 +327,15 @@ M3_G4_DOMAIN_OK
 M3_G4_DNS_OK
 M3_G4_AUTH_OK
 M3_G4_MULTI_TARGET_OK
+M3_G4_CONCURRENT_ASSOCIATIONS_OK
+M3_G4_NETLOG_REDACTION_OK
 ```
 
 Estimated effort: 2–3 person-days.
 
 ### M3-G5 — lifecycle, recovery, and observability
+
+Status: next.
 
 Coverage:
 

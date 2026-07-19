@@ -12,11 +12,12 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M0: complete.
 - M1 Chromium CONNECT-UDP integration: complete, audited, commit `e11a7733`.
 - M2 SOCKS5 UDP ingress: complete, audited, commit `fe817a87`.
-- M3 native UDP client composition: G0–G3 complete and locally verified.
+- M3 native UDP client composition: G0–G4 complete and locally verified.
 - M3 plan commit: `8720c912`.
-- M3 implementation commits: G0 `83904eb8`, G1 `4541f756`, G2 `1bd5789e`.
-- Next gate: M3-G4, controlled IPv4/IPv6/domain/DNS/auth/multi-target
-  interoperability.
+- M3 implementation commits: G0 `83904eb8`, G1 `4541f756`, G2 `1bd5789e`,
+  G3 `c2352710`.
+- Next gate: M3-G5 lifecycle, recovery, resource-pressure, and observability
+  hardening.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
@@ -73,7 +74,7 @@ Then:
 
 1. Confirm the branch is `codex/native-udp-foundation` and identify any local
    changes before editing.
-2. Read this index, the status ledger, and M3-G4 in the execution plan.
+2. Read this index, the status ledger, and M3-G5 in the execution plan.
 3. Inspect the actual M2 factory and association boundary:
 
    ```text
@@ -106,7 +107,7 @@ SOCKS5 UDP relay (M2)
   -> Chromium CONNECT-UDP + HTTP/3 DATAGRAM
 ```
 
-G0 through G3 have now resolved the composition boundary:
+G0 through G4 have now resolved the composition and interoperability boundary:
 
 - the exact per-association transient NAK and immutable transport context reach
   a target-keyed, bounded production backend;
@@ -118,8 +119,13 @@ G0 through G3 have now resolved the composition boundary:
   reply `0x01`;
 - controlled IPv4 echo and cached Basic authentication pass through real
   CONNECT-UDP plus HTTP/3 DATAGRAM;
+- controlled IPv6, domain, DNS, same-association multi-target, and concurrent
+  association traffic pass through the same production adapter;
+- even `kEverything` NetLog capture redacts CONNECT-UDP paths and records only
+  byte counts, never UDP destinations or payload bytes;
 - every M1/M2 gate and all 56 existing TCP cases remain green.
 
-G4 broadens controlled interoperability to IPv6, domain, DNS, multi-target,
-and concurrent associations. The complete gate definitions and markers are in
+G5 now exercises session shutdown and reconnect, credential failures, pending
+I/O destruction, zero-length/oversize behavior, resource pressure, and
+rate-limited redacted observability. The complete gate definitions are in
 [`m3-execution-plan.md`](m3-execution-plan.md).

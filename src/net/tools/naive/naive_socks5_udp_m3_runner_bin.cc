@@ -11,6 +11,7 @@
 #include "base/check.h"
 #include "base/command_line.h"
 #include "base/feature_list.h"
+#include "base/files/file_path.h"
 #include "base/functional/bind.h"
 #include "base/process/memory.h"
 #include "base/run_loop.h"
@@ -30,6 +31,8 @@
 #include "net/http/http_request_headers.h"
 #include "net/http/http_transaction_factory.h"
 #include "net/log/net_log.h"
+#include "net/log/file_net_log_observer.h"
+#include "net/log/net_log_capture_mode.h"
 #include "net/proxy_resolution/configured_proxy_resolution_service.h"
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_config_service_fixed.h"
@@ -221,6 +224,19 @@ int main(int argc, char* argv[]) {
   const std::string listen_pass =
       command_line.GetSwitchValueASCII("listen-pass");
 
+  std::unique_ptr<net::FileNetLogObserver> net_log_observer;
+  const std::string net_log_path =
+      command_line.GetSwitchValueASCII("log-net-log");
+  if (!net_log_path.empty()) {
+    const net::NetLogCaptureMode capture_mode =
+        command_line.HasSwitch("net-log-everything")
+            ? net::NetLogCaptureMode::kEverything
+            : net::NetLogCaptureMode::kDefault;
+    net_log_observer = net::FileNetLogObserver::CreateUnbounded(
+        base::FilePath::FromUTF8Unsafe(net_log_path), capture_mode, nullptr);
+    net_log_observer->StartObserving(net::NetLog::Get());
+  }
+
   const net::ProxyChain proxy_chain =
       net::ProxyChain::FromSchemeHostAndPort(
           net::ProxyServer::SCHEME_QUIC, proxy_host,
@@ -270,5 +286,11 @@ int main(int argc, char* argv[]) {
   run_loop.Run();
   proxy.reset();
   std::cout << "M3_RUNNER_PROXY_DESTROYED_BEFORE_CONTEXT" << std::endl;
+  if (net_log_observer) {
+    base::RunLoop flush_loop;
+    net_log_observer->StopObserving(nullptr, flush_loop.QuitClosure());
+    flush_loop.Run();
+    std::cout << "M3_NET_LOG_WRITTEN path=" << net_log_path << std::endl;
+  }
   return EXIT_SUCCESS;
 }

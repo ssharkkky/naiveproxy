@@ -167,6 +167,7 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
 
   // Callback used during connecting
   void OnIOComplete(int result);
+  void OnStreamClosed(int result);
 
   // Callback for stream_->ReadInitialHeaders()
   void OnReadResponseHeadersComplete(int result);
