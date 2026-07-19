@@ -3,7 +3,7 @@
 Last updated: 2026-07-19 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
-[`m3-execution-plan.md`](m3-execution-plan.md).
+[`m4-execution-plan.md`](m4-execution-plan.md).
 
 This is the execution ledger for the native UDP project. The development plan
 defines scope and design; this file records what has actually been built and
@@ -17,7 +17,7 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Plan production server work against the frozen M3 client |
+| M4 — production server path | Planned; G0 next | Source boundary and G0–G6 execution plan are documented; no production server implementation exists | Pin the separate server repository and exact build tuple in M4-G0 |
 | M5 — end-to-end MVP | Not started | M3 client is complete; production M4 server is absent | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
@@ -26,6 +26,30 @@ ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
 that ingress with the real M1 CONNECT-UDP tunnel in production while keeping
 the M2 runner independent, and the independent final audit passed. Remaining
 M4–M6 work is recorded in `docs/native-udp-development-plan.md`.
+
+### Overall progress estimate
+
+- Milestone count: M0–M3 are complete, 4 of 7 milestones, or 57%.
+- Weighted engineering estimate: approximately 50–55% complete. This weights
+  the remaining production server, product-level integration, and release
+  hardening more heavily than a simple milestone count.
+- Chromium-driven native UDP client: 100% complete and independently audited.
+- Production Caddy/`forwardproxy` native UDP server: 0% implementation;
+  planning and source inspection are complete, with M4-G0 next.
+- End-to-end product MVP and release hardening: not started.
+
+Current remaining planning range:
+
+| Remaining milestone | Estimated effort |
+| --- | ---: |
+| M4 — audited production server | 10–18 person-days |
+| M5 — end-to-end MVP | 5–8 person-days |
+| M6 — hardening and release candidate | 10–20 person-days |
+| **Total remaining** | **25–46 person-days** |
+
+These are engineering estimates, not elapsed-calendar guarantees. The product
+is not production-ready: the audited client exists, but the production server
+and end-to-end release evidence do not.
 
 ## M1 detailed status
 
@@ -702,6 +726,47 @@ Final marker: `M3_NATIVE_UDP_CLIENT_OK`.
 
 Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
 
+## M4 planning baseline — production server path
+
+Status: planned; M4-G0 is next. Detailed gates and contracts are in
+[`m4-execution-plan.md`](m4-execution-plan.md).
+
+Read-only source inspection recorded these exact reference snapshots:
+
+- Naive `forwardproxy` branch `naive`, commit
+  `d62c80d3dd2c706b6b87579844d2397bddd18317`;
+- Caddy `v2.11.2`, commit
+  `ffb6ab0644f24c5ee6542aca6bd59b7a1b0a8f91`;
+- quic-go `v0.59.0`, commit
+  `7659dd8e0fa06b41290ad29af323d93d673c6b36`.
+
+Verified source facts, not yet runtime M4 claims:
+
+- current `forwardproxy` rejects H2/H3 CONNECT whenever `:scheme` or `:path`
+  is present, so RFC 9298 needs an explicit Extended CONNECT branch before
+  legacy TCP CONNECT;
+- authentication, probe resistance, and normal-site routing already execute
+  before CONNECT dispatch and must remain common to TCP and CONNECT-UDP;
+- the current authorization/dial helper accepts only TCP, so target
+  authorization/resolution must be factored from transport dialing rather
+  than bypassed for UDP;
+- the declared `forwardproxy` dependencies are Caddy v2.8.4/quic-go v0.44.0,
+  but its release workflow uses floating `xcaddy@latest`, while the inspected
+  Caddy v2.11.2 uses quic-go v0.59.0 and Go 1.25; G0 must freeze one exact
+  reproducible tuple;
+- Caddy v2.11.2 constructs `http3.Server` without `EnableDatagrams: true`;
+- quic-go v0.59.0 exposes `http3.HTTPStreamer` and stream-level
+  `SendDatagram`/`ReceiveDatagram`, but real Caddy middleware visibility and
+  writer unwrapping must be runtime-proven in M4-G1;
+- quic-go owns HTTP/3 quarter-stream-id framing, while the server handler must
+  decode/prepend RFC 9298 Context ID `0` around the UDP payload.
+
+The planned sequence is G0 build/contract freeze, G1 Caddy capability spike,
+G2 strict protocol/policy layer, G3 bounded UDP association, G4 production
+integration, G5 independent server interoperability, and G6 reproducible
+closeout plus independent `agy` audit. No production M4 implementation or
+runtime server marker is claimed yet.
+
 ## Current verification commands
 
 ```bash
@@ -804,8 +869,8 @@ The reviewed M3 execution plan is committed as `8720c912` (`Plan native UDP M3
 execution`). G0, G1, and G2 are committed as `83904eb8`, `4541f756`, and
 `1bd5789e`; G3 production composition is committed as `c2352710`. G4
 interoperability and the post-G3 privacy/lifecycle audit fixes are committed as
-`4927d06a`. G5 lifecycle/recovery/limits work is complete and verified in the
-`578e3992`. G6 regressions, stress verification, and independent audit passed;
-this final documentation/audit-record change closes M3. Generated `.DS_Store`
-and `tmp/` entries remain unrelated and must not be included in future feature
-commits.
+`4927d06a`. G5 lifecycle/recovery/limits work is complete and verified in
+`578e3992`. G6 regressions, stress verification, and independent audit
+closeout is commit `2bb83aec`. M4 is planned with G0 next; no production server
+implementation is present yet. Generated `.DS_Store` and `src/tmp/` entries
+remain unrelated and must not be included in future feature commits.

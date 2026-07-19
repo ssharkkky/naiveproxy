@@ -11,12 +11,14 @@ Read these files in order before changing code:
 
 1. `docs/README.md` — documentation map, authority rules, and handoff checklist.
 2. `docs/native-udp-status.md` — verified current state and exact test commands.
-3. `docs/native-udp-development-plan.md` — v1 scope and the M0–M6 roadmap.
-4. `docs/m3-execution-plan.md` — the completed M3 G0–G6 implementation record.
-5. `docs/m3-agy-audit.md` — independent final M3 audit evidence.
+3. `docs/m4-execution-plan.md` — the active production-server G0–G6 plan.
+4. `docs/native-udp-development-plan.md` — v1 scope and the M0–M6 roadmap.
+5. `docs/m3-execution-plan.md` — the completed M3 G0–G6 implementation record.
+6. `docs/m3-agy-audit.md` — independent final M3 audit evidence.
 
-M1, M2, and M3 are complete and independently audited. The next project task
-is to plan M4's production Caddy/`forwardproxy` server path; the controlled
+M1, M2, and M3 are complete and independently audited. M4 is planned and its
+next gate is M4-G0: create/pin the separate production Caddy/`forwardproxy`
+server workstream and freeze the reproducible build tuple. The controlled
 QUICHE endpoint remains a test fixture, not that server implementation.
 
 ## Frozen engineering boundaries
@@ -30,6 +32,10 @@ QUICHE endpoint remains a test fixture, not that server implementation.
 - The M2 echo backend is test-only. It must never enter the production binary.
 - `naive_masque_server` is a controlled interoperability fixture, not the M4
   production Caddy/`forwardproxy` server.
+- M4 production changes belong in a separately pinned `forwardproxy`/Caddy
+  fork or worktree. Do not vendor that implementation into this repository.
+- Preserve the completed M1–M3 client as M4's interoperability oracle. A
+  separately justified regression fix must pass the complete client matrix.
 - Preserve the exact transient `NetworkAnonymizationKey` assigned to the SOCKS
   connection when constructing its M3 tunnel backend. Chromium proxy
   credentials are not NAK-partitioned; test NAK propagation and cached Basic
@@ -43,28 +49,39 @@ QUICHE endpoint remains a test fixture, not that server implementation.
 - The checkout may contain unrelated untracked `.DS_Store` and `src/tmp/`
   entries. Do not stage, delete, or modify them as part of native UDP work.
 - Stage explicit paths. Do not use `git add -A` in this mixed worktree.
-- Keep each M3 gate as a small green-to-green commit.
+- Keep each M4 gate as a small green-to-green commit in the server repository,
+  followed by a factual status-ledger update here.
 - Treat the status ledger as verified evidence, but inspect the current code
   and diff before relying on a historical statement.
 
-## Required regression loop
+## Required gate loop
 
-M3's gate sequence is complete. Any follow-up fix or later milestone must:
+For each M4 gate:
 
-1. Confirm the branch and worktree with `git status -sb`.
-2. Read the relevant exit criteria, frozen boundaries, risks, and stop
-   conditions in the development plan and completed M3 plan.
-3. Make the narrowest implementation and test changes needed for that work.
-4. Build the affected Release targets and run the focused gate tests.
-5. Rerun all earlier M1/M2 markers, all 56 TCP regressions, and
-   `git diff --check` before declaring the gate complete.
-6. Update `docs/native-udp-status.md` with commands, markers, and verified
-   evidence.
-7. Commit only the intended files.
+1. Confirm this repository and the recorded server repository branch/worktree
+   with `git status -sb` before editing.
+2. Read the gate, exit criteria, contracts, risks, and stop conditions in
+   `docs/m4-execution-plan.md`.
+3. Make the narrowest implementation and test changes needed for that gate in
+   the server repository; keep this repository documentation-only during M4
+   unless a separately justified client regression fix is required.
+4. Build the pinned server tuple and run the focused gate tests plus all
+   existing server TCP/probe-resistance regressions.
+5. At G5/G6, rerun the complete M1–M3 client markers, all 56 Naive TCP
+   regressions, the independent server interoperability matrix, and
+   `git diff --check` in both repositories. If client source changes earlier,
+   run the complete client matrix at every such change.
+6. Update `docs/native-udp-status.md` with exact server commits, commands,
+   markers, and verified evidence. Update the execution plan only if a design
+   decision changes.
+7. Commit only each gate's intended paths; never mix server changes into the
+   NaiveProxy client commit.
 
-The canonical build and verification commands live in
-`docs/native-udp-status.md`. M3-G6's completed independent audit returned
-`AUDIT_PASS` with no blocker, high, or medium finding.
+The current client build and verification commands live in
+`docs/native-udp-status.md`. M4-G0 must add the canonical pinned server build
+and test commands. M4-G6 requires a continuing, read-only `agy` audit over both
+server diffs and the interoperability evidence, ending in `AUDIT_PASS` with no
+blocker, high, or medium finding.
 
 ## Current baseline commits
 
@@ -72,6 +89,7 @@ The canonical build and verification commands live in
 - `fe817a87` — complete SOCKS5 UDP ingress M2.
 - `8720c912` — plan native UDP M3 execution.
 - `83904eb8` through `578e3992` — M3 G0–G5 implementation and hardening.
+- `2bb83aec` — complete M3 regressions, independent audit, and closeout.
 
 If repository state has advanced beyond these commits, trust the current Git
 history and the newest status-ledger update rather than this snapshot.
