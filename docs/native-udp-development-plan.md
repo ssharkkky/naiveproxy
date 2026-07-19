@@ -536,6 +536,9 @@ Next:
 - [x] Execute M5-G0: freeze the dynamic topology, reversible trust fixture,
   independent H3 probe owner/dependencies, marker list, and artifact contract
   before running the first cross-repository echo.
-- [ ] Execute M5-G1: run one authenticated IPv4 SOCKS5 UDP echo through the
+- [x] Execute M5-G1: run one authenticated IPv4 SOCKS5 UDP echo through the
   real M3 production backend and pinned M4 Caddy/forwardproxy server, with
   redacted client/server evidence.
+- [ ] Execute M5-G2: expand the product path to the complete addressing, DNS,
+  payload, multiplexing, concurrency, and independent HTTP/3 application
+  matrix.

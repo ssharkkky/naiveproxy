@@ -25,7 +25,11 @@ test "$(git -C "$caddy_dir" branch --show-current)" = codex/enable-h3-datagrams
 test "$(git -C "$repo_dir" rev-parse --short=10 2bb83aec36)" = "$expected_m3"
 git -C "$repo_dir" diff --quiet 2bb83aec36..HEAD -- src/net
 git -C "$repo_dir" diff --quiet -- src/net
-test "$(git -C "$forwardproxy_dir" rev-parse HEAD)" = "$expected_forwardproxy"
+test "$(git -C "$forwardproxy_dir" rev-parse "$expected_forwardproxy")" = \
+  "$expected_forwardproxy"
+unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
+  "$expected_forwardproxy"..HEAD | sed '/^tests\/m5\//d')
+test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
 git -C "$forwardproxy_dir" diff --quiet
 git -C "$caddy_dir" diff --quiet
@@ -51,9 +55,10 @@ python3 "$script_dir/m5/topology.py" --contract
   "$go_bin" run ./cmd/socks-h3-probe --contract
 )
 
-printf 'M5_G0_INPUTS_OK naive_rev=%s forwardproxy_rev=%s caddy_rev=%s\n' \
+printf 'M5_G0_INPUTS_OK naive_rev=%s forwardproxy_rev=%s forwardproxy_runtime_base=%s caddy_rev=%s\n' \
   "$(git -C "$repo_dir" rev-parse --short=10 HEAD)" \
   "$(git -C "$forwardproxy_dir" rev-parse --short=7 HEAD)" \
+  "$(git -C "$forwardproxy_dir" rev-parse --short=7 "$expected_forwardproxy")" \
   "$(git -C "$caddy_dir" rev-parse --short=8 HEAD)"
 printf 'M5_G0_BINARIES naive=%s sha256=%s runner=%s sha256=%s caddy=%s sha256=%s\n' \
   "$repo_dir/src/out/Release/naive" \
@@ -63,5 +68,4 @@ printf 'M5_G0_BINARIES naive=%s sha256=%s runner=%s sha256=%s caddy=%s sha256=%s
   "$caddy_bin" \
   "$(shasum -a 256 "$caddy_bin" | awk '{print $1}')"
 echo M5_G0_PRODUCT_CONTRACT_OK
-
 "$script_dir/m5/g1_cross_repo_echo.sh"
