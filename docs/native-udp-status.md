@@ -18,7 +18,7 @@ verified. Update it at every completed G target and milestone.
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
-| M5 — end-to-end MVP | In progress; G0 complete | Dynamic topology, reversible trust contract, independent pinned HTTP/3 probe boundary, exact input/artifact contract, and complete earlier regressions pass; no cross-repository echo is claimed yet | M5-G1 |
+| M5 — end-to-end MVP | In progress; G0-G1 complete | Dynamic topology/trust/probe contract plus authenticated IPv4 M3-client-to-production-M4-server echo and redacted H3 Datagram evidence pass | M5-G2 |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -36,8 +36,8 @@ M5–M6 work is recorded in `docs/native-udp-development-plan.md`.
 - Chromium-driven native UDP client: 100% complete and independently audited.
 - Production Caddy/`forwardproxy` native UDP server: 100% complete and
   independently audited.
-- End-to-end product MVP: in progress with G0 complete; release hardening is
-  not started.
+- End-to-end product MVP: in progress with G0-G1 complete; release hardening
+  is not started.
 
 Current remaining planning range:
 
@@ -956,7 +956,8 @@ Caddy product matrix, including product-level reconnect claims.
 
 ## M5 execution baseline — end-to-end MVP
 
-Status: in progress; M5-G0 is complete and M5-G1 is next. The active plan is
+Status: in progress; M5-G0 and G1 are complete and M5-G2 is next. The active
+plan is
 [`m5-execution-plan.md`](m5-execution-plan.md).
 
 M5 inherits these frozen inputs:
@@ -1010,6 +1011,30 @@ may be used for the broad matrix because it shares the production
 backend/factory, but final M5 evidence also requires `out/Release/naive` with
 `CertVerifier::CreateDefault()`. A production certificate-bypass switch is
 forbidden.
+
+### M5-G1 — first audited-client-to-production-server echo: complete
+
+- Added a dynamic production Caddyfile in forwardproxy commit `d922441`; this
+  changes no audited runtime source and retains forwardproxy `8f044e2` as the
+  M4 runtime base and Caddy `cce894a8` as the exact server dependency.
+- Added `tests/m5/g1_cross_repo_echo.sh`. It owns a fresh temporary root,
+  starts the pinned Caddy binary with Basic authentication and H3 Datagrams,
+  starts the M3 runner with the real production factory, negotiates SOCKS5
+  UDP, and sends one IPv4 datagram to a dynamic loopback echo target.
+- The response was byte-identical. Runner evidence proved production-factory
+  eligibility and destruction order; NetLog proved a redacted
+  `QUIC_PROXY_DATAGRAM_CLIENT_SOCKET` send and redacted CONNECT-UDP request;
+  server access/lifecycle logs proved an authenticated target-redacted `200`.
+- Privacy scans found no payload, target path, plain credential, password, or
+  Base64 credential in client/server evidence. Cleanup left no G1 process or
+  temporary root.
+- The focused G1 path passed once, then passed three consecutive fresh-root
+  repetitions. The cumulative `tests/socks5_udp_m5.sh` now emits both the G0
+  contract and `M5_G1_CROSS_REPO_ECHO_OK`.
+
+M5-G2 next expands this verified topology to IPv4/IPv6/domain/DNS, payload
+boundaries, multiple targets and associations, and the independent HTTP/3
+application probe. Shipped-`naive` default-verifier evidence remains G5.
 
 ## Canonical server verification commands
 
@@ -1145,6 +1170,7 @@ closeout is commit `2bb83aec`. M4-G0–G5 are committed in the separate server
 fork through `7243519`; the post-audit CI-pin closure is `8f044e2`. Caddy's
 three audited patches end at `cce894a8`. M4's local verification and audit
 evidence are recorded in `4ec0f8bb9a`. The M5 G0–G6 execution plan now exists;
-M5-G0 has passed and is recorded by the current gate commit in Git history;
-M5-G1 is next. Generated `.DS_Store` and `src/tmp/` entries remain unrelated
+M5-G0 is commit `014cdc4761`; M5-G1 adds the server fixture in forwardproxy
+`d922441` and records the focused product evidence in the current gate commit.
+M5-G2 is next. Generated `.DS_Store` and `src/tmp/` entries remain unrelated
 and must not be included in future feature commits.

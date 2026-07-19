@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M5-G0 complete; M5-G1 is the next implementation gate.
+Status: M5-G0 and M5-G1 complete; M5-G2 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified project state:
 [`native-udp-status.md`](native-udp-status.md). Frozen v1 scope and M0–M6
@@ -202,6 +202,8 @@ Verified result:
 
 ### M5-G1 — first audited-client-to-production-server echo
 
+Status: complete.
+
 Work:
 
 1. Build the current M3 targets and the exact pinned M4 Caddy binary.
@@ -226,7 +228,26 @@ Exit:
 
 Estimated effort: 0.5–1 person-day.
 
+Verified result:
+
+- forwardproxy commit `d922441` adds only the M5 dynamic production Caddyfile;
+  the audited runtime base remains `8f044e2` and Caddy remains `cce894a8`;
+- `tests/m5/g1_cross_repo_echo.sh` starts the pinned production Caddy binary,
+  real M3 production factory/runner, and a dynamic IPv4 UDP echo fixture;
+- SOCKS5 UDP ASSOCIATE returned its real relay endpoint and a byte-identical
+  authenticated payload traversed Chromium CONNECT-UDP/H3 DATAGRAM and the M4
+  server in both directions;
+- client NetLog contains a redacted QUIC proxy datagram send and redacted
+  CONNECT-UDP request; server lifecycle/access evidence confirms an
+  authenticated target-redacted `200` without exposing payload, target, or
+  credentials;
+- the gate passed once during development and three consecutive fresh-root
+  repetitions; cleanup left no child process or temporary test root;
+- marker: `M5_G1_CROSS_REPO_ECHO_OK`.
+
 ### M5-G2 — addressing, DNS, multiplexing, and HTTP/3 application matrix
+
+Status: next.
 
 Work:
 

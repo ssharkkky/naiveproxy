@@ -15,7 +15,8 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   `2bb83aec`.
 - M4 final server marker: `M4_NATIVE_UDP_SERVER_OK`; forwardproxy `8f044e2`,
   Caddy `cce894a8`.
-- Active milestone: M5 end-to-end MVP. M5-G0 is complete and M5-G1 is next.
+- Active milestone: M5 end-to-end MVP. M5-G0 and G1 are complete; M5-G2 is
+  next.
 - Overall progress remains 5 of 7 milestones (71%), approximately 75-80% by
   weighted engineering scope.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
@@ -125,11 +126,11 @@ Then:
 
 ## M5 immediate boundary
 
-M5-G0 froze the dynamic-port topology, temporary artifact/trust ownership,
-independent SOCKS5-UDP-backed HTTP/3 probe, exact marker list, and safe
-production-binary certificate strategy. M5-G1 now owns the first IPv4 echo
-from the real M3 production backend to the pinned M4 Caddy/forwardproxy server.
-It must not modify Caddy/runtime protocol code or claim shipped-binary trust
+M5-G0 froze the topology, trust, application-probe, and evidence contracts.
+M5-G1 then proved an authenticated IPv4 echo from the real M3 production
+backend through pinned M4 Caddy/forwardproxy, with redacted client/server
+evidence. M5-G2 now owns the addressing, DNS, payload, multiplexing, and
+independent HTTP/3 application matrix; it must not claim shipped-binary trust
 evidence yet.
 
 The deterministic M3 runner is valid for the broad M5 matrix because it uses
