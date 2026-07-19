@@ -16,16 +16,16 @@ verified. Update it at every completed G target and milestone.
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
-| M3 — native UDP client data path | G0–G5 complete; G6 next | Full client path, controlled interoperability, session recovery, auth failures, all bounds, pending-I/O destruction, zero/oversize datagrams, and redacted rate-limited NetLog pass | Run full regression/stress and obtain independent `agy` `AUDIT_PASS` |
-| M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
-| M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
+| M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
+| M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Plan production server work against the frozen M3 client |
+| M5 — end-to-end MVP | Not started | M3 client is complete; production M4 server is absent | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
-ingress and retains its test-only echo/no-backend modes. M3 G0–G5 now compose
+ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
 that ingress with the real M1 CONNECT-UDP tunnel in production while keeping
-the M2 runner independent. Its remaining G6 audit work is recorded in
-`docs/m3-execution-plan.md`.
+the M2 runner independent, and the independent final audit passed. Remaining
+M4–M6 work is recorded in `docs/native-udp-development-plan.md`.
 
 ## M1 detailed status
 
@@ -391,9 +391,9 @@ M2_SOCKS5_UDP_INGRESS_OK
 
 ## M3 execution ledger — native UDP client data path
 
-Status: G0 through G5 complete; ready to execute G6. The real backend is
-installed in production `naive`; M2 fake/no-backend behavior remains an
-independent regression surface.
+Status: complete and independently audited. The real backend is installed in
+production `naive`; M2 fake/no-backend behavior remains an independent
+regression surface.
 
 The plan was derived from direct inspection of the M1 tunnel and M2 ingress
 boundaries, then checked by three independent read-only reviews. The reviews
@@ -672,6 +672,36 @@ M3_G5_LIFECYCLE_OK
 M3_G5_LIMITS_OK
 ```
 
+### M3-G6 — complete regression, stress, and independent audit
+
+Status: complete.
+
+Verified:
+
+- Rebuilt the complete named Release target set and reran all M1 scripts, the
+  full M2 entry point, the full M3 entry point, all 56 TCP HTTP/HTTPS/auth/chain
+  cases, and `git diff --check`.
+- Repeated `tests/socks5_udp_m3.sh` three consecutive times against fresh
+  controlled endpoints. Every run produced `M3_G5_RECONNECT_OK`,
+  `M3_G5_LIFECYCLE_OK`, `M3_G5_LIMITS_OK`, and
+  `M3_G0_TEST_SKELETON_OK` with exit code zero.
+- Inspected `c6ec957f..578e3992`: no `NaiveConnection` TCP data-path change,
+  second QUIC stack, UoT/private framing, Caddy/M4 implementation, production
+  certificate bypass, generated artifact, or accidental tracked test output
+  entered M3.
+- Started a fresh Gemini 3.1 Pro High `agy -p` review with permissions prompts
+  disabled and a 30-minute window. The reviewer read the actual diff rather
+  than relying on this ledger, independently reran the complete required
+  matrix, and returned `AUDIT_PASS` with zero blocker, high, or medium
+  findings.
+- The sole low observation was that the frozen 32-target v1 cap may be small
+  for aggressive multi-target clients; the reviewer confirmed bounded graceful
+  drops make it acceptable for v1.
+
+Final marker: `M3_NATIVE_UDP_CLIENT_OK`.
+
+Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
+
 ## Current verification commands
 
 ```bash
@@ -737,19 +767,20 @@ Expected markers:
 - `M3_G5_RECONNECT_OK`
 - `M3_G5_LIFECYCLE_OK`
 - `M3_G5_LIMITS_OK`
+- `M3_NATIVE_UDP_CLIENT_OK`
 - exit code `0` from `tests/basic.sh`
 - `ninja: no work to do` or a successful link
 
-The final local verification on 2026-07-19 passed every named M1 and M2 target,
-all M1 scripts, the complete M2 suite, all 56 existing TCP
-HTTP/HTTPS/auth/chain cases, and `git diff --check`. The continuing-session
-independent `agy` audit reran the same required matrix and returned
-`AUDIT_PASS`; see `docs/m2-agy-audit.md`.
+The final M3 local verification on 2026-07-19 passed every named M1/M2/M3
+target and script, all 56 existing TCP HTTP/HTTPS/auth/chain cases, three
+consecutive M3 lifecycle stress runs, and `git diff --check`. The independent
+M3 `agy` audit reran the required matrix and returned `AUDIT_PASS`; see
+`docs/m3-agy-audit.md`.
 
-The final continuing-session `agy` audit independently reran the same suite
-and returned `AUDIT_PASS` with no blocking, high, or medium findings. The audit
-history and deferred low-priority observations are recorded in
-`docs/m1-agy-audit.md`.
+Historical M1 and M2 independent audits also returned `AUDIT_PASS` with no
+blocking, high, or medium findings. Their audit histories and deferred
+low-priority observations remain in `docs/m1-agy-audit.md` and
+`docs/m2-agy-audit.md`.
 
 ## Frozen boundaries
 
@@ -774,5 +805,7 @@ execution`). G0, G1, and G2 are committed as `83904eb8`, `4541f756`, and
 `1bd5789e`; G3 production composition is committed as `c2352710`. G4
 interoperability and the post-G3 privacy/lifecycle audit fixes are committed as
 `4927d06a`. G5 lifecycle/recovery/limits work is complete and verified in the
-current gate. Generated `.DS_Store` and `tmp/` entries remain unrelated and
-must not be included in future feature commits.
+`578e3992`. G6 regressions, stress verification, and independent audit passed;
+this final documentation/audit-record change closes M3. Generated `.DS_Store`
+and `tmp/` entries remain unrelated and must not be included in future feature
+commits.

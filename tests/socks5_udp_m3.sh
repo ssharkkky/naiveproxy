@@ -415,3 +415,4 @@ echo M3_G3_PRODUCTION_WIRING_OK
 # This cumulative entry point has remained the M3 verification surface since
 # G0 and now covers the full G0-G5 contract.
 echo M3_G0_TEST_SKELETON_OK
+echo M3_NATIVE_UDP_CLIENT_OK
