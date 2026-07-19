@@ -38,7 +38,9 @@
 #include "net/proxy_resolution/proxy_config_service_fixed.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
 #include "net/quic/quic_context.h"
+#include "net/quic/quic_session_pool.h"
 #include "net/socket/tcp_server_socket.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_error_codes.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/tools/naive/naive_connect_udp_backend_factory.h"
 #include "net/tools/naive/naive_protocol.h"
@@ -224,6 +226,20 @@ int main(int argc, char* argv[]) {
   const std::string listen_pass =
       command_line.GetSwitchValueASCII("listen-pass");
 
+  auto read_optional_timeout = [&](const char* name) {
+    unsigned int value = 0;
+    if (!command_line.HasSwitch(name)) {
+      return base::TimeDelta();
+    }
+    CHECK(base::StringToUint(command_line.GetSwitchValueASCII(name), &value));
+    CHECK_GT(value, 0u);
+    return base::Milliseconds(value);
+  };
+  const base::TimeDelta connect_timeout_override =
+      read_optional_timeout("connect-timeout-ms");
+  const base::TimeDelta target_idle_timeout_override =
+      read_optional_timeout("target-idle-timeout-ms");
+
   std::unique_ptr<net::FileNetLogObserver> net_log_observer;
   const std::string net_log_path =
       command_line.GetSwitchValueASCII("log-net-log");
@@ -259,13 +275,25 @@ int main(int argc, char* argv[]) {
   net::IPEndPoint listen_endpoint;
   CHECK_EQ(listen_socket->GetLocalAddress(&listen_endpoint), net::OK);
 
+  net::Socks5UdpBackendFactory backend_factory = base::BindRepeating(
+      [](base::TimeDelta connect_timeout, base::TimeDelta target_idle_timeout,
+         net::Socks5UdpBackendContext context) {
+        if (connect_timeout.is_positive()) {
+          context.connect_timeout = connect_timeout;
+        }
+        if (target_idle_timeout.is_positive()) {
+          context.target_idle_timeout = target_idle_timeout;
+        }
+        return net::CreateNaiveConnectUdpDatagramBackend(std::move(context));
+      },
+      connect_timeout_override, target_idle_timeout_override);
   auto proxy = std::make_unique<net::NaiveProxy>(
       std::move(listen_socket), net::ClientProtocol::kSocks5, listen_user,
       listen_pass, /*concurrency=*/1, /*tunnel_timeout=*/30,
       /*idle_timeout=*/30, /*resolver=*/nullptr, session, kTrafficAnnotation,
       std::vector<net::PaddingType>{net::PaddingType::kVariant1,
                                     net::PaddingType::kNone},
-      base::BindRepeating(&net::CreateNaiveConnectUdpDatagramBackend));
+      std::move(backend_factory));
 
   std::cout << "M3_SOCKS5_UDP_READY host=" << listen_host
             << " port=" << listen_endpoint.port()
@@ -275,6 +303,23 @@ int main(int argc, char* argv[]) {
 
   base::RunLoop run_loop;
   base::OneShotTimer lifetime_timer;
+  base::OneShotTimer session_shutdown_timer;
+  if (command_line.HasSwitch("shutdown-session-after-ms")) {
+    unsigned int shutdown_after_ms = 0;
+    CHECK(base::StringToUint(
+        command_line.GetSwitchValueASCII("shutdown-session-after-ms"),
+        &shutdown_after_ms));
+    CHECK_GT(shutdown_after_ms, 0u);
+    session_shutdown_timer.Start(
+        FROM_HERE, base::Milliseconds(shutdown_after_ms),
+        base::BindOnce(
+            [](net::HttpNetworkSession* session) {
+              session->quic_session_pool()->CloseAllSessions(
+                  net::ERR_ABORTED, quic::QUIC_CONNECTION_CANCELLED);
+              std::cout << "M3_SESSION_SHUTDOWN_ISSUED" << std::endl;
+            },
+            session));
+  }
   unsigned int run_for_ms = 0;
   if (command_line.HasSwitch("run-for-ms")) {
     CHECK(base::StringToUint(command_line.GetSwitchValueASCII("run-for-ms"),

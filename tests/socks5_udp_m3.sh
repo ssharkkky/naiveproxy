@@ -4,7 +4,10 @@ set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
+CCACHE_DIR=${CCACHE_DIR:-"$repo_dir/src/.host_tool_cache"}
+export CCACHE_DIR
 backend_test="$repo_dir/src/out/Release/naive_connect_udp_backend_test"
+association_test="$repo_dir/src/out/Release/naive_socks5_udp_association_test"
 runner="$repo_dir/src/out/Release/naive_socks5_udp_runner"
 m3_runner="$repo_dir/src/out/Release/naive_socks5_udp_m3_runner"
 masque_server="$repo_dir/src/out/Release/naive_masque_server"
@@ -46,8 +49,10 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 ninja -C "$repo_dir/src/out/Release" naive_connect_udp_backend_test \
+  naive_socks5_udp_association_test \
   naive_socks5_udp_runner naive_socks5_udp_m3_runner naive_masque_server naive
 "$backend_test"
+"$association_test"
 
 cap_log="$tmp_dir/association-cap.log"
 "$runner" --listen-host=127.0.0.1 --proxy-scheme=quic \
@@ -256,6 +261,145 @@ run_real_case() {
 run_real_case IPV4
 run_real_case AUTH m3-user m3-pass
 
+start_g5_server() {
+  g5_label=$1
+  shift
+  server_log="$tmp_dir/server-g5-$g5_label.log"
+  "$masque_server" --port="$server_port" \
+    --server_authority="[::1]:$server_port" --masque_mode=open \
+    --certificate_file="$tmp_dir/cert.pem" --key_file="$tmp_dir/key.pk8" \
+    "$@" >"$server_log" 2>&1 &
+  server_pid=$!
+  i=0
+  while [ "$i" -lt 100 ]; do
+    grep -q '^READY ' "$server_log" 2>/dev/null && break
+    kill -0 "$server_pid" 2>/dev/null || {
+      cat "$server_log"
+      exit 1
+    }
+    sleep 0.05
+    i=$((i + 1))
+  done
+  grep -q '^READY ' "$server_log"
+}
+
+start_g5_runner() {
+  g5_label=$1
+  run_for_ms=$2
+  shift 2
+  runner_log="$tmp_dir/runner-g5-$g5_label.log"
+  "$m3_runner" --proxy-host=::1 --proxy-port="$server_port" \
+    --run-for-ms="$run_for_ms" "$@" >"$runner_log" 2>&1 &
+  m3_runner_pid=$!
+  ready=""
+  i=0
+  while [ "$i" -lt 100 ]; do
+    ready=$(grep 'M3_SOCKS5_UDP_READY' "$runner_log" 2>/dev/null || true)
+    [ -n "$ready" ] && break
+    kill -0 "$m3_runner_pid" 2>/dev/null || {
+      cat "$runner_log" "$server_log"
+      exit 1
+    }
+    sleep 0.05
+    i=$((i + 1))
+  done
+  [ -n "$ready" ]
+  port=$(printf '%s\n' "$ready" | sed -n 's/.* port=\([0-9][0-9]*\).*/\1/p')
+}
+
+finish_g5_case() {
+  wait "$m3_runner_pid"
+  m3_runner_pid=""
+  grep -q 'M3_RUNNER_PROXY_DESTROYED_BEFORE_CONTEXT' "$runner_log"
+  kill "$server_pid" 2>/dev/null || true
+  wait "$server_pid" 2>/dev/null || true
+  server_pid=""
+}
+
+start_g5_server session-reconnect
+start_g5_runner session-reconnect 4500 \
+  --shutdown-session-after-ms=1500 \
+  --log-net-log="$tmp_dir/g5-session-netlog.json" --net-log-everything
+python3 "$script_dir/socks5_udp_m3.py" --host 127.0.0.1 --port "$port" \
+  --mode reconnect --echo-port "$echo_port" --pause-seconds 2.7 \
+  --marker M3_G5_SESSION_RECONNECT_OK
+finish_g5_case
+grep -q '^M3_SESSION_SHUTDOWN_ISSUED$' "$runner_log"
+test "$(grep -c 'protocol=connect-udp' "$server_log")" -eq 2
+test "$(grep -c 'hex=6d332d6265666f72652d73687574646f776e$' \
+  "$tmp_dir/echo.log")" -eq 1
+test "$(grep -c 'hex=6d332d61667465722d73687574646f776e$' \
+  "$tmp_dir/echo.log")" -eq 1
+jq -e '
+  (.constants.logEventTypes.NAIVE_CONNECT_UDP_BACKEND_COUNTER) as $counter |
+  any(.events[];
+      .type == $counter and .params.reason == "target_failure" and
+      .params.count == "1" and
+      ((.params | keys | sort) ==
+       ["association_id", "count", "reason"]))
+' "$tmp_dir/g5-session-netlog.json" >/dev/null
+echo M3_G5_RECONNECT_OK
+
+start_g5_server idle-reconnect
+start_g5_runner idle-reconnect 2200 --target-idle-timeout-ms=200
+python3 "$script_dir/socks5_udp_m3.py" --host 127.0.0.1 --port "$port" \
+  --mode reconnect --echo-port "$echo_port" --pause-seconds 0.6 \
+  --marker M3_G5_IDLE_RECONNECT_OK
+finish_g5_case
+test "$(grep -c 'protocol=connect-udp' "$server_log")" -eq 2
+
+start_g5_server payload-policy
+start_g5_runner payload-policy 3000 \
+  --log-net-log="$tmp_dir/g5-policy-netlog.json" --net-log-everything
+python3 "$script_dir/socks5_udp_m3.py" --host 127.0.0.1 --port "$port" \
+  --mode zero-oversize --echo-port "$echo_port"
+python3 "$script_dir/socks5_udp_m3.py" --host 127.0.0.1 --port "$port" \
+  --mode hold-until-proxy-close --echo-port "$echo_port"
+finish_g5_case
+jq -e '
+  (.constants.logEventTypes.NAIVE_CONNECT_UDP_BACKEND_COUNTER) as $counter |
+  [.events[] |
+   select(.type == $counter and .params.reason == "oversize_drop") |
+   .params.count] == ["1", "2", "4"]
+' "$tmp_dir/g5-policy-netlog.json" >/dev/null
+
+start_g5_server connect-timeout --ignore_connect_requests=true
+start_g5_runner connect-timeout 4000 --connect-timeout-ms=200 \
+  --log-net-log="$tmp_dir/g5-timeout-netlog.json" --net-log-everything
+python3 "$script_dir/socks5_udp_m3.py" --host 127.0.0.1 --port "$port" \
+  --mode close-pending-connect --echo-port "$echo_port"
+python3 "$script_dir/socks5_udp_m3.py" --host 127.0.0.1 --port "$port" \
+  --mode target-failure --echo-port "$echo_port" --pause-seconds 1.3 \
+  --marker M3_G5_CONNECT_TIMEOUT_OK
+finish_g5_case
+test "$(grep -c '^CONNECT_ACTION ignored$' "$server_log")" -ge 3
+jq -e '
+  (.constants.logEventTypes.NAIVE_CONNECT_UDP_BACKEND_COUNTER) as $counter |
+  any(.events[];
+      .type == $counter and .params.reason == "connect_timeout")
+' "$tmp_dir/g5-timeout-netlog.json" >/dev/null
+
+run_g5_auth_failure() {
+  auth_label=$1
+  expected_header=$2
+  shift 2
+  start_g5_server "auth-$auth_label" --basic_user=m3-user --basic_pass=m3-pass
+  start_g5_runner "auth-$auth_label" 4000 "$@"
+  python3 "$script_dir/socks5_udp_m3.py" --host 127.0.0.1 --port "$port" \
+    --mode target-failure --echo-port "$echo_port" --pause-seconds 1.2 \
+    --marker "M3_G5_AUTH_${auth_label}_OK"
+  finish_g5_case
+  test "$(grep -c '^AUTH_DECISION rejected$' "$server_log")" -eq 2
+  test "$(grep -c "proxy_authorization=$expected_header" "$server_log")" \
+    -eq 2
+}
+
+run_g5_auth_failure MISSING absent
+run_g5_auth_failure WRONG present --proxy-user=m3-user --proxy-pass=wrong-pass
+echo M3_G5_AUTH_FAILURES_OK
+echo M3_G5_LIFECYCLE_OK
+echo M3_G5_LIMITS_OK
+
 kill "$echo_pid" 2>/dev/null || true
 wait "$echo_pid" 2>/dev/null || true
 echo_pid=""
@@ -268,6 +412,6 @@ dns_pid=""
 
 echo M3_G3_PRODUCTION_WIRING_OK
 
-# G4-G5 append their broader interoperability and lifecycle cases here. This
-# cumulative entry point has remained the M3 verification surface since G0.
+# This cumulative entry point has remained the M3 verification surface since
+# G0 and now covers the full G0-G5 contract.
 echo M3_G0_TEST_SKELETON_OK

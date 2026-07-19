@@ -590,6 +590,15 @@ EVENT_TYPE(SOCKS_CONNECT)
 // The start/end of a SOCKS5 connect().
 EVENT_TYPE(SOCKS5_CONNECT)
 
+// A rate-limited native CONNECT-UDP backend counter. Parameters deliberately
+// exclude the UDP destination and payload:
+//   {
+//     "association_id": <Integer local SOCKS association identifier>,
+//     "reason": <Non-sensitive policy/state reason string>,
+//     "count": <Decimal cumulative counter value>,
+//   }
+EVENT_TYPE(NAIVE_CONNECT_UDP_BACKEND_COUNTER)
+
 // This event is emitted when the SOCKS connect fails because the provided
 // was longer than 255 characters.
 EVENT_TYPE(SOCKS_HOSTNAME_TOO_BIG)

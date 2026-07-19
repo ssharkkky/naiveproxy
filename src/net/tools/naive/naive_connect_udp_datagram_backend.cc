@@ -13,10 +13,13 @@
 #include "base/check.h"
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_runner.h"
 #include "base/timer/timer.h"
+#include "base/values.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
+#include "net/log/net_log_event_type.h"
 
 namespace net {
 namespace {
@@ -90,12 +93,14 @@ int NaiveConnectUdpDatagramBackend::Send(
   if (it == targets_.end()) {
     if (targets_.size() >= Socks5UdpBackendLimits::kMaxTargets) {
       ++stats_.capacity_drops;
+      RecordCounterEvent("target_capacity_drop", stats_.capacity_drops);
       return OK;
     }
     std::unique_ptr<NaiveConnectUdpTargetTunnel> tunnel =
         tunnel_factory_.Run(context_, datagram.destination);
     if (!tunnel) {
       ++stats_.target_failures;
+      RecordCounterEvent("target_factory_failure", stats_.target_failures);
       return OK;
     }
     const uint64_t generation = next_generation_++;
@@ -107,10 +112,12 @@ int NaiveConnectUdpDatagramBackend::Send(
   TargetEntry* entry = it->second.get();
   if (entry->state == TargetEntry::State::kCooldown) {
     ++stats_.cooldown_drops;
+    RecordCounterEvent("cooldown_drop", stats_.cooldown_drops);
     return OK;
   }
   if (entry->state == TargetEntry::State::kRetiring) {
     ++stats_.capacity_drops;
+    RecordCounterEvent("retiring_target_drop", stats_.capacity_drops);
     return OK;
   }
   if (entry->outbound_queue.size() >=
@@ -121,6 +128,7 @@ int NaiveConnectUdpDatagramBackend::Send(
           Socks5UdpBackendLimits::kMaxQueuedPayloadBytesPerAssociation -
               queued_payload_bytes_) {
     ++stats_.capacity_drops;
+    RecordCounterEvent("queue_capacity_drop", stats_.capacity_drops);
     return OK;
   }
 
@@ -210,6 +218,7 @@ void NaiveConnectUdpDatagramBackend::OnTargetConnectTimeout(
     return;
   }
   ++stats_.connect_timeouts;
+  RecordCounterEvent("connect_timeout", stats_.connect_timeouts);
   ScheduleTargetRetirement(key, generation, ERR_TIMED_OUT);
 }
 
@@ -340,6 +349,7 @@ void NaiveConnectUdpDatagramBackend::PumpTargetWrites(
       --queued_datagram_count_;
       entry->outbound_queue.pop_front();
       ++stats_.oversize_drops;
+      RecordCounterEvent("oversize_drop", stats_.oversize_drops);
       continue;
     }
     entry->write_buffer = base::MakeRefCounted<IOBufferWithSize>(
@@ -443,6 +453,7 @@ void NaiveConnectUdpDatagramBackend::OnTargetIdleTimeout(
     return;
   }
   ++stats_.idle_evictions;
+  RecordCounterEvent("idle_eviction", stats_.idle_evictions);
   ScheduleTargetRetirement(key, generation, ERR_TIMED_OUT,
                            /*enter_cooldown=*/false);
 }
@@ -462,6 +473,7 @@ void NaiveConnectUdpDatagramBackend::ScheduleTargetRetirement(
   ClearQueuedDatagrams(entry);
   if (enter_cooldown) {
     ++stats_.target_failures;
+    RecordCounterEvent("target_failure", stats_.target_failures);
   }
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
@@ -519,6 +531,25 @@ void NaiveConnectUdpDatagramBackend::ClearQueuedDatagrams(
     --queued_datagram_count_;
   }
   entry->outbound_queue.clear();
+}
+
+void NaiveConnectUdpDatagramBackend::RecordCounterEvent(
+    std::string_view reason,
+    uint64_t count) const {
+  // Log only powers of two so sustained hostile traffic cannot amplify NetLog
+  // without bound. Neither the target key nor packet bytes are materialized.
+  if (count == 0 || (count & (count - 1)) != 0) {
+    return;
+  }
+  context_.net_log.AddEvent(
+      NetLogEventType::NAIVE_CONNECT_UDP_BACKEND_COUNTER, [&] {
+        base::DictValue params;
+        params.Set("association_id",
+                   static_cast<int>(context_.association_id));
+        params.Set("reason", reason);
+        params.Set("count", base::NumberToString(count));
+        return params;
+      });
 }
 
 }  // namespace net
