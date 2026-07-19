@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M5-G0 through M5-G2 complete; M5-G3 is the next implementation gate.
+Status: M5-G0 through M5-G3 complete; M5-G4 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified project state:
 [`native-udp-status.md`](native-udp-status.md). Frozen v1 scope and M0–M6
@@ -298,7 +298,7 @@ Verified result:
 
 ### M5-G3 — authentication, policy, malformed input, and isolation
 
-Status: next.
+Status: complete.
 
 Work:
 
@@ -328,7 +328,30 @@ M5_G3_PRIVACY_OK
 
 Estimated effort: 1–2 person-days.
 
+Verified result:
+
+- forwardproxy test-only fixture stack through `88ac298` adds only port, ACL,
+  and upstream Caddyfile variants; runtime source remains at the audited M4
+  boundary;
+- correct cached upstream Basic authentication passes; missing and wrong
+  credentials yield no UDP response, while local SOCKS authentication success,
+  missing method, and wrong password are verified independently;
+- production Caddy variants prove port/ACL `403`, DNS lookup `502`, unsupported
+  upstream `501`, and association admission `503`, with later allowed traffic
+  and replacement associations remaining healthy;
+- malformed/truncated input, nonzero `FRAG`, invalid address type, bad reserved
+  bytes, spoofed source port/IP, and a malformed burst are dropped before a
+  later valid datagram succeeds on the same association;
+- direct, H2, mixed, and unavailable native-UDP backends return exact SOCKS
+  reply `0x01` and close the control channel;
+- default client/server evidence contains no target/path/payload, password,
+  Basic credential, or double-Base64 credential sentinel;
+- markers: `M5_G3_AUTH_POLICY_OK`, `M5_G3_NON_QUIC_REJECTION_OK`,
+  `M5_G3_MALFORMED_ISOLATION_OK`, and `M5_G3_PRIVACY_OK`.
+
 ### M5-G4 — lifecycle, restart, reconnect, idle expiry, and no replay
+
+Status: next.
 
 Work:
 
