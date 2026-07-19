@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M4-G0 through M4-G3 complete; M4-G4 is the next implementation gate.
+Status: M4-G0 through M4-G4 complete; M4-G5 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
@@ -311,6 +311,8 @@ Estimated effort: 2–4 person-days.
 
 ### M4-G4 — forwardproxy/Caddy production integration
 
+Status: complete in forwardproxy commit `15c07ab`.
+
 Work:
 
 1. Wire the G2/G3 handler after existing auth/probe-resistance routing and
@@ -334,6 +336,17 @@ Exit:
 - marker: `M4_G4_FORWARDPROXY_INTEGRATION_OK`.
 
 Estimated effort: 1–3 person-days.
+
+Verified result:
+
+- real H3 IPv4, IPv6, domain, missing/wrong/correct Basic auth, exact
+  `400/403/407/501`, and probe-resistance passthrough cases pass;
+- URI redaction preserves downstream camouflage semantics and protects outer
+  Caddy access logging;
+- structured powers-of-two counters contain no destination, path, payload, or
+  credential;
+- the complete legacy suite and race detector remain green;
+- marker: `M4_G4_FORWARDPROXY_INTEGRATION_OK`.
 
 ### M4-G5 — independent production-server interoperability matrix
 
