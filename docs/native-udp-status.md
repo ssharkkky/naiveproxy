@@ -18,7 +18,7 @@ verified. Update it at every completed G target and milestone.
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
-| M5 — end-to-end MVP | In progress; G0-G2 complete | Contract, first production echo, full addressing/DNS/payload/multiplexing matrix, and independent SOCKS5-UDP HTTP/3 application pass | M5-G3 |
+| M5 — end-to-end MVP | In progress; G0-G3 complete | Contract, production echo/application matrix, auth/policy/admission/malformed isolation, non-QUIC rejection, and privacy pass | M5-G4 |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -36,7 +36,7 @@ M5–M6 work is recorded in `docs/native-udp-development-plan.md`.
 - Chromium-driven native UDP client: 100% complete and independently audited.
 - Production Caddy/`forwardproxy` native UDP server: 100% complete and
   independently audited.
-- End-to-end product MVP: in progress with G0-G2 complete; release hardening
+- End-to-end product MVP: in progress with G0-G3 complete; release hardening
   is not started.
 
 Current remaining planning range:
@@ -956,7 +956,7 @@ Caddy product matrix, including product-level reconnect claims.
 
 ## M5 execution baseline — end-to-end MVP
 
-Status: in progress; M5-G0 through G2 are complete and M5-G3 is next. The
+Status: in progress; M5-G0 through G3 are complete and M5-G4 is next. The
 active plan is
 [`m5-execution-plan.md`](m5-execution-plan.md).
 
@@ -1067,9 +1067,30 @@ M5_G2_HTTP3_APPLICATION_OK
 M5_G2_PRODUCT_MATRIX_OK
 ```
 
-M5-G3 is next. It expands the product evidence to local/upstream auth failure,
-server policy/status mapping, malformed/spoofed input isolation, and the full
-cross-layer privacy sentinel set.
+### M5-G3 — authentication, policy, malformed input, and isolation: complete
+
+- forwardproxy test-only policy fixtures end at `88ac298`; audited runtime
+  source remains based at `8f044e2` and Caddy remains `cce894a8`;
+- Correct, missing, and wrong upstream Basic credentials were exercised
+  through production Caddy. Local SOCKS success, missing method, and wrong
+  password were verified independently.
+- Product policy variants returned `403` for port/ACL denial, `502` for DNS
+  failure, `501` for unsupported upstream mode, and `503` for the 33rd active
+  association. Permitted traffic and a replacement association remained
+  healthy.
+- Malformed/truncated input, nonzero `FRAG`, invalid address type, bad RSV,
+  spoofed source port/IP, and a malformed burst were dropped; a later valid
+  datagram on the same association passed.
+- Direct, HTTPS/H2, mixed, and unavailable native-UDP backends returned SOCKS
+  `0x01`. Default NetLog and server logs contained no target, MASQUE path,
+  payload, password, Basic encoding, or double encoding.
+- All four required G3 markers passed in focused and cumulative runs. M1-M3,
+  all 56 TCP cases, forwardproxy normal/race, Caddy HTTP, and every repository
+  `diff --check` remain green; the production M4 idle/restart/privacy suite
+  passed immediately before this test-only gate.
+
+M5-G4 is next: control teardown, server restart, outer QUIC reconnect, real
+idle boundaries, unique sequence evidence, and no ambiguous replay.
 
 ## Canonical server verification commands
 
@@ -1206,6 +1227,7 @@ fork through `7243519`; the post-audit CI-pin closure is `8f044e2`. Caddy's
 three audited patches end at `cce894a8`. M4's local verification and audit
 evidence are recorded in `4ec0f8bb9a`. The M5 G0–G6 execution plan now exists;
 M5-G0 is commit `014cdc4761`; M5-G1 is main commit `67caa8f131` plus the
-forwardproxy fixture commit `d922441`. M5-G2 is recorded by the current gate
-commit and M5-G3 is next. Generated `.DS_Store` and `src/tmp/` entries remain
-unrelated and must not be included in future feature commits.
+forwardproxy fixture commits `d922441` and `88ac298`. M5-G2 is commit
+`eeccb7cb30`; M5-G3 is recorded by the current gate commit and M5-G4 is next.
+Generated `.DS_Store` and `src/tmp/` entries remain unrelated and must not be
+included in future feature commits.

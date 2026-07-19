@@ -542,6 +542,8 @@ Next:
 - [x] Execute M5-G2: expand the product path to the complete addressing, DNS,
   payload, multiplexing, concurrency, and independent HTTP/3 application
   matrix.
-- [ ] Execute M5-G3: verify local/upstream authentication, server policy,
+- [x] Execute M5-G3: verify local/upstream authentication, server policy,
   malformed input recovery, failure isolation, and artifact privacy through
   the complete product path.
+- [ ] Execute M5-G4: verify control teardown, server restart, QUIC and idle
+  reconnection, unique sequence isolation, and no ambiguous replay.

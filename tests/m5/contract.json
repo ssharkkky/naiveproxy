@@ -4,6 +4,7 @@
     "naive_m3_closeout": "2bb83aec36",
     "forwardproxy": "8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7",
     "forwardproxy_m5_fixture": "d922441fda8594ce3250cc1be9e98a0fdefe4cc4",
+    "forwardproxy_m5_security_fixture": "88ac298e9dcfc6d8ffe1619cfcdd90fb7e54397d",
     "caddy": "cce894a8a0e987eb1722cf99729499bdaba6c38d",
     "go": "1.25.12",
     "xcaddy": "0.4.5",
