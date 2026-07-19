@@ -1,8 +1,9 @@
 # NaiveProxy Native UDP Development Plan
 
 Documentation entry point: [`README.md`](README.md). Current verified state:
-[`native-udp-status.md`](native-udp-status.md). Active milestone plan:
-[`m4-execution-plan.md`](m4-execution-plan.md).
+[`native-udp-status.md`](native-udp-status.md). Completed M4 plan and audit:
+[`m4-execution-plan.md`](m4-execution-plan.md) and
+[`m4-agy-audit.md`](m4-agy-audit.md). Next milestone: M5.
 
 ## 1. Goal
 
@@ -316,7 +317,7 @@ against the controlled compliant endpoint via RFC 9298 CONNECT-UDP and HTTP/3
 DATAGRAM, without custom stream encapsulation. M4 remains responsible for the
 production Caddy/`forwardproxy` server.
 
-### M4 — Server data path (planned; 10–18 person-days, separate repository)
+### M4 — Server data path (complete and independently audited)
 
 The detailed sequential plan is in
 [`m4-execution-plan.md`](m4-execution-plan.md):
@@ -346,6 +347,12 @@ Exit criterion: `M4_NATIVE_UDP_SERVER_OK`, standalone RFC 9298
 interoperability passes in both directions, traditional TCP/probe-resistance
 behavior is unchanged, and the exact server commits/build tuple are frozen for
 M5.
+
+Result: all G0-G6 gates passed. The independent audit returned `AUDIT_PASS`
+with zero blocker/high/medium findings; its sole low CI-pin observation was
+closed by the workflow-only forwardproxy commit `8f044e2`. The frozen M5
+server revisions are forwardproxy `8f044e2` and Caddy `cce894a8`. See
+[`m4-agy-audit.md`](m4-agy-audit.md).
 
 ### M5 — End-to-end MVP (5–8 person-days)
 
@@ -416,17 +423,16 @@ Current remaining planning ranges:
 
 | Milestone | Range | Current decision gate |
 | --- | ---: | --- |
-| M4 production server | 10–18 person-days | Execute G0–G6 in `m4-execution-plan.md`; G0 pins the server/build tuple |
-| M5 end-to-end MVP | 5–8 person-days | Begin after production client and server paths exist |
+| M5 end-to-end MVP | 5–8 person-days | Plan and run the full audited-client-to-audited-server product matrix |
 | M6 hardening/release | 10–20 person-days | Begin after the MVP matrix passes |
 
-The remaining range is therefore approximately 25–46 person-days, excluding
-long cross-platform soak time. M0–M3 are complete; this is 57% by milestone
-count and approximately 50–55% by weighted engineering scope. The client is
-complete, but the product is not production-ready until M4–M6 pass. If M4
-would require replacing standard H3 Datagrams, bypassing existing server
-policy, altering the completed client/TCP path, or adding a private UDP
-protocol, stop and revise scope before continuing.
+The remaining range is therefore approximately 15–28 person-days, excluding
+long cross-platform soak time. M0–M4 are complete; this is 71% by milestone
+count and approximately 75–80% by weighted engineering scope. The client and
+production server are independently audited, but the product is not
+production-ready until M5-M6 pass. If M5 would require replacing standard H3
+Datagrams, bypassing existing server policy, altering the completed TCP path,
+or adding a private UDP protocol, stop and revise scope before continuing.
 
 ## 10. Current status and next actions
 
@@ -496,6 +502,12 @@ Next:
 - [x] Plan M4's G0–G6 production Caddy/`forwardproxy` server sequence in
   `docs/m4-execution-plan.md` without changing the completed M3 client
   boundary.
-- [ ] Execute M4-G0: create/pin the separate server workstream, freeze the
-  exact reproducible build tuple and contracts, and establish the server test
-  skeleton before any CONNECT-UDP relay implementation.
+- [x] Execute M4-G0 through G6 in the separate server/Caddy workstreams,
+  including the reproducible build, standalone interoperability matrix,
+  complete regressions, and final `AUDIT_PASS`; see
+  `docs/m4-execution-plan.md` and `docs/m4-agy-audit.md`.
+- [x] Close the audit's sole low stale-Caddy-CI-pin finding in forwardproxy
+  commit `8f044e2` without changing runtime source.
+- [ ] Plan M5's focused product-composition gates, then run the complete
+  SOCKS5-to-Naive-client-to-production-Caddy matrix without weakening the
+  frozen M1-M4 boundaries.
