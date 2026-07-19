@@ -27,7 +27,9 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M4-G2 protocol/policy commit: `f9b40f6`.
 - M4-G3 bounded association commit: `1b6d04b`.
 - M4-G4 production integration commit: `15c07ab`.
-- Next gate: M4-G5 independent pinned-binary interoperability matrix.
+- M4-G5 pinned-binary interoperability commit: `7243519`; Caddy debug-secret
+  redaction commit: `cce894a8`.
+- Next gate: M4-G6 clean rebuild, complete regressions, and independent audit.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
@@ -153,7 +155,7 @@ next architectural boundary is the separate M4 production server path.
 
 ## Current M4 implementation summary
 
-M4-G0 through G4 are complete in the separate forwardproxy/Caddy forks. The
+M4-G0 through G5 are complete in the separate forwardproxy/Caddy forks. The
 pinned Caddy enables both HTTP/3 and QUIC Datagrams; forwardproxy now strictly
 classifies RFC 9298 requests, shares TCP DNS/ACL/allowed-port policy, owns a
 bounded fixed-target connected UDP association, and relays canonical Context
@@ -163,6 +165,8 @@ G4 verified real H3 IPv4, IPv6, domain, authentication, policy status, upstream
 rejection, and probe-resistance behavior. CONNECT-UDP paths are redacted before
 Caddy access logging, and powers-of-two counters contain only association id,
 generic reason, count, and byte count. The complete legacy server suite and
-race detector remain green. G5 must now prove the same contracts through the
-standalone pinned production binary before G6 clean rebuild and independent
-audit.
+race detector remain green. G5 then proved the same contracts through the
+standalone pinned production binary, including deterministic DNS, zero/live
+maximum/oversize behavior, 32-stream admission, production idle expiry,
+active shutdown/restart, repeated stress, and server-log privacy. G6 clean
+rebuild, full client/server regressions, and independent audit remain.
