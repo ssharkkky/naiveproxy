@@ -16,6 +16,7 @@
 #include "base/command_line.h"
 #include "base/feature_list.h"
 #include "base/files/file_path.h"
+#include "base/functional/bind.h"
 #include "base/json/json_file_value_serializer.h"
 #include "base/json/json_writer.h"
 #include "base/logging.h"
@@ -65,6 +66,7 @@
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/tools/naive/naive_command_line.h"
 #include "net/tools/naive/naive_config.h"
+#include "net/tools/naive/naive_connect_udp_backend_factory.h"
 #include "net/tools/naive/naive_protocol.h"
 #include "net/tools/naive/naive_proxy.h"
 #include "net/tools/naive/naive_proxy_delegate.h"
@@ -487,9 +489,12 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  std::vector<std::unique_ptr<net::NaiveProxy>> naive_proxies;
-  std::vector<std::unique_ptr<net::URLRequestContext>> contexts;
+  // Reverse destruction order is intentional: proxies own UDP backends and
+  // CONNECT-UDP tunnels that refer to their URLRequestContext session, and
+  // redir proxies may also refer to the resolver.
   std::unique_ptr<net::RedirectResolver> resolver;
+  std::vector<std::unique_ptr<net::URLRequestContext>> contexts;
+  std::vector<std::unique_ptr<net::NaiveProxy>> naive_proxies;
 
   for (size_t listen_i = 0; listen_i < config.listen.size(); ++listen_i) {
     const net::NaiveListenConfig& listen_config = config.listen[listen_i];
@@ -546,7 +551,9 @@ int main(int argc, char* argv[]) {
         listen_config.pass, config.insecure_concurrency, config.tunnel_timeout,
         config.idle_timeout, resolver.get(), session, kTrafficAnnotation,
         std::vector<net::PaddingType>{net::PaddingType::kVariant1,
-                                      net::PaddingType::kNone});
+                                      net::PaddingType::kNone},
+        base::BindRepeating(
+            &net::CreateNaiveConnectUdpDatagramBackend));
     naive_proxies.push_back(std::move(naive_proxy));
   }
 

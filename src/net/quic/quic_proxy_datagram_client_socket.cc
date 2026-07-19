@@ -78,7 +78,23 @@ const HttpResponseInfo* QuicProxyDatagramClientSocket::GetConnectResponseInfo()
 }
 
 bool QuicProxyDatagramClientSocket::IsConnectedForTesting() const {
-  return next_state_ == STATE_CONNECT_COMPLETE && stream_handle_->IsOpen();
+  return IsConnectedForDatagramIO();
+}
+
+bool QuicProxyDatagramClientSocket::IsConnectedForDatagramIO() const {
+  return next_state_ == STATE_CONNECT_COMPLETE && stream_handle_ &&
+         stream_handle_->IsOpen();
+}
+
+size_t QuicProxyDatagramClientSocket::MaxPayloadSize() const {
+  if (!IsConnectedForDatagramIO() ||
+      !stream_handle_->SupportsH3Datagram()) {
+    return 0;
+  }
+  const size_t max_http_datagram_payload =
+      stream_handle_->GetMaxDatagramSize();
+  // RFC 9298 prepends the one-byte Context ID zero to every UDP payload.
+  return max_http_datagram_payload > 1 ? max_http_datagram_payload - 1 : 0;
 }
 
 int QuicProxyDatagramClientSocket::ConnectViaStream(
@@ -149,6 +165,7 @@ void QuicProxyDatagramClientSocket::Close() {
   read_callback_.Reset();
   read_buf_len_ = 0;
   read_buf_ = nullptr;
+  last_read_was_datagram_ = false;
 
   next_state_ = STATE_DISCONNECTED;
 
@@ -207,6 +224,7 @@ void QuicProxyDatagramClientSocket::OnHttp3Datagram(
 
     read_buf_ = nullptr;
     read_buf_len_ = 0;
+    last_read_was_datagram_ = true;
     std::move(read_callback_).Run(result);
 
   } else {
@@ -289,6 +307,7 @@ int QuicProxyDatagramClientSocket::Read(IOBuffer* buf,
   CHECK(read_callback_.is_null());
   CHECK(!read_buf_);
   CHECK(read_buf_len_ == 0);
+  last_read_was_datagram_ = false;
 
   if (next_state_ == STATE_DISCONNECTED) {
     return ERR_SOCKET_NOT_CONNECTED;
@@ -313,6 +332,7 @@ int QuicProxyDatagramClientSocket::Read(IOBuffer* buf,
       result = bytes_read;
     }
     datagrams_.pop();
+    last_read_was_datagram_ = true;
     return result;
   }
 

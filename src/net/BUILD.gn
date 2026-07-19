@@ -2050,6 +2050,8 @@ executable("naive") {
     "tools/naive/naive_command_line.h",
     "tools/naive/naive_config.cc",
     "tools/naive/naive_config.h",
+    "tools/naive/naive_connect_udp_backend_factory.cc",
+    "tools/naive/naive_connect_udp_backend_factory.h",
     "tools/naive/naive_connect_udp_datagram_backend.cc",
     "tools/naive/naive_connect_udp_datagram_backend.h",
     "tools/naive/naive_connect_udp_tunnel.cc",
@@ -2183,6 +2185,60 @@ if (is_posix && !is_ios) {
       "tools/naive/naive_proxy_delegate.cc",
       "tools/naive/naive_proxy_delegate.h",
       "tools/naive/naive_socks5_udp_runner_bin.cc",
+      "tools/naive/padding_utils.cc",
+      "tools/naive/padding_utils.h",
+      "tools/naive/preamble_getter.cc",
+      "tools/naive/preamble_getter.h",
+      "tools/naive/redirect_resolver.cc",
+      "tools/naive/redirect_resolver.h",
+      "tools/naive/socks5_server_socket.cc",
+      "tools/naive/socks5_server_socket.h",
+      "tools/naive/socks5_udp_association.cc",
+      "tools/naive/socks5_udp_association.h",
+      "tools/naive/socks5_udp_codec.cc",
+      "tools/naive/socks5_udp_codec.h",
+      "tools/naive/socks5_udp_datagram_backend.cc",
+      "tools/naive/socks5_udp_datagram_backend.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+      "//components/embedder_support:user_agent",
+      "//url",
+    ]
+
+    if (is_apple) {
+      deps += [ "//base/allocator:early_zone_registration_apple" ]
+    }
+  }
+
+  executable("naive_socks5_udp_m3_runner") {
+    sources = [
+      "cert/mock_cert_verifier.cc",
+      "tools/naive/http_proxy_server_socket.cc",
+      "tools/naive/http_proxy_server_socket.h",
+      "tools/naive/naive_connect_udp_backend_factory.cc",
+      "tools/naive/naive_connect_udp_backend_factory.h",
+      "tools/naive/naive_connect_udp_datagram_backend.cc",
+      "tools/naive/naive_connect_udp_datagram_backend.h",
+      "tools/naive/naive_connect_udp_tunnel.cc",
+      "tools/naive/naive_connect_udp_tunnel.h",
+      "tools/naive/naive_connection.cc",
+      "tools/naive/naive_connection.h",
+      "tools/naive/naive_padding_framer.cc",
+      "tools/naive/naive_padding_framer.h",
+      "tools/naive/naive_padding_socket.cc",
+      "tools/naive/naive_padding_socket.h",
+      "tools/naive/naive_protocol.cc",
+      "tools/naive/naive_protocol.h",
+      "tools/naive/naive_proxy.cc",
+      "tools/naive/naive_proxy.h",
+      "tools/naive/naive_proxy_delegate.cc",
+      "tools/naive/naive_proxy_delegate.h",
+      "tools/naive/naive_quic_proxy_stream_request.cc",
+      "tools/naive/naive_quic_proxy_stream_request.h",
+      "tools/naive/naive_socks5_udp_m3_runner_bin.cc",
       "tools/naive/padding_utils.cc",
       "tools/naive/padding_utils.h",
       "tools/naive/preamble_getter.cc",

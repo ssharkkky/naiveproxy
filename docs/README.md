@@ -12,9 +12,11 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M0: complete.
 - M1 Chromium CONNECT-UDP integration: complete, audited, commit `e11a7733`.
 - M2 SOCKS5 UDP ingress: complete, audited, commit `fe817a87`.
-- M3 native UDP client composition: planned, implementation not started.
+- M3 native UDP client composition: G0–G3 complete and locally verified.
 - M3 plan commit: `8720c912`.
-- Next gate: M3-G0, backend context/NAK contract and scripted tunnel seam.
+- M3 implementation commits: G0 `83904eb8`, G1 `4541f756`, G2 `1bd5789e`.
+- Next gate: M3-G4, controlled IPv4/IPv6/domain/DNS/auth/multi-target
+  interoperability.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
@@ -71,7 +73,7 @@ Then:
 
 1. Confirm the branch is `codex/native-udp-foundation` and identify any local
    changes before editing.
-2. Read this index, the status ledger, and M3-G0 in the execution plan.
+2. Read this index, the status ledger, and M3-G4 in the execution plan.
 3. Inspect the actual M2 factory and association boundary:
 
    ```text
@@ -92,7 +94,7 @@ Then:
    a structural change. The current local workspace has prepared Release output
    under `src/out/Release`; a fresh clone must build it first.
 
-## Current M3 decision summary
+## Current M3 implementation summary
 
 M3 is a composition layer:
 
@@ -104,17 +106,20 @@ SOCKS5 UDP relay (M2)
   -> Chromium CONNECT-UDP + HTTP/3 DATAGRAM
 ```
 
-The first implementation gate must resolve these items before real-server
-wiring:
+G0 through G3 have now resolved the composition boundary:
 
-- pass an immutable per-association context, including the exact NAK, into the
-  backend factory;
-- freeze target identity, send-admission semantics, fatal versus target/drop
-  failures, resource limits, and no-replay behavior;
-- add a narrow scripted tunnel factory for deterministic synchronous,
-  asynchronous, failure, and destruction tests;
-- preserve fake/no-backend test modes and exact non-QUIC SOCKS reply `0x01`;
-- leave every M1, M2, and TCP regression green.
+- the exact per-association transient NAK and immutable transport context reach
+  a target-keyed, bounded production backend;
+- the backend has deterministic synchronous/asynchronous, routing, limits,
+  cooldown, failure-isolation, empty-datagram, MTU, and destruction tests;
+- production `naive` and a test-only full-path runner share the same real M1
+  adapter/factory;
+- direct, HTTPS/H2, mixed-chain, and no-backend UDP requests return exact SOCKS
+  reply `0x01`;
+- controlled IPv4 echo and cached Basic authentication pass through real
+  CONNECT-UDP plus HTTP/3 DATAGRAM;
+- every M1/M2 gate and all 56 existing TCP cases remain green.
 
-The complete gate definitions and markers are in
+G4 broadens controlled interoperability to IPv6, domain, DNS, multi-target,
+and concurrent associations. The complete gate definitions and markers are in
 [`m3-execution-plan.md`](m3-execution-plan.md).
