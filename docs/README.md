@@ -22,8 +22,9 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M4 production-server execution plan: [`m4-execution-plan.md`](m4-execution-plan.md).
 - M4-G0 server baseline commit: `bf092e6` in
   `ssharkkky/forwardproxy` branch `codex/native-udp-server`.
-- Next gate: M4-G1, which proves Extended CONNECT visibility and bidirectional
-  H3 Datagrams through the real patched Caddy middleware chain.
+- M4-G1 capability commit: `121f097`; Caddy Datagram commits `2002a520` and
+  `2ff83e69` in `ssharkkky/caddy` branch `codex/enable-h3-datagrams`.
+- Next gate: M4-G2 strict RFC 9298 protocol, codec, status, and policy layer.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
