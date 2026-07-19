@@ -16,15 +16,16 @@ verified. Update it at every completed G target and milestone.
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
-| M3 — native UDP client data path | G0–G2 complete; G3 next | Single/multi-target state machine, all queue/byte/target/association bounds, timeout/idle/cooldown, generation-safe retirement, failure isolation and no-replay tests pass | Execute M3-G3 real M1 adapter and production wiring |
+| M3 — native UDP client data path | G0–G3 complete; G4 next | Production `naive` shares the real M1 adapter with a controlled runner; IPv4 H3 datagram echo, cached auth, eligibility, bounds, lifecycle, and all regressions pass | Execute M3-G4 controlled full-path interoperability matrix |
 | M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
 | M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
-M1 is complete as an integration spike. M2 now supplies the local SOCKS5 UDP
-ingress and a test-only echo backend; it deliberately does not connect that
-ingress to the production M1 CONNECT-UDP tunnel. That adapter is M3. Its
-executable plan is recorded in `docs/m3-execution-plan.md`.
+M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
+ingress and retains its test-only echo/no-backend modes. M3 G0–G3 now compose
+that ingress with the real M1 CONNECT-UDP tunnel in production while keeping
+the M2 runner independent. Its remaining G4–G6 work is recorded in
+`docs/m3-execution-plan.md`.
 
 ## M1 detailed status
 
@@ -390,9 +391,9 @@ M2_SOCKS5_UDP_INGRESS_OK
 
 ## M3 execution ledger — native UDP client data path
 
-Status: G0 through G2 complete; ready to execute G3. The backend is compiled
-but is not installed in the production binary; M2 fake/no-backend behavior is
-unchanged.
+Status: G0 through G3 complete; ready to execute G4. The real backend is
+installed in production `naive`; M2 fake/no-backend behavior remains an
+independent regression surface.
 
 The plan was derived from direct inspection of the M1 tunnel and M2 ingress
 boundaries, then checked by three independent read-only reviews. The reviews
@@ -535,6 +536,51 @@ M3_G2_FAILURE_ISOLATION_OK
 M3_G2_ACTIVE_ASSOCIATION_LIMIT_OK
 ```
 
+### M3-G3 — real M1 adapter and production composition
+
+Status: complete.
+
+Completed:
+
+- Added a production target adapter that owns `NaiveConnectUdpTunnel` and
+  forwards the backend context's session, complete proxy chain, exact NAK,
+  NetLog source, traffic annotation, and fixed target without substituting a
+  second QUIC implementation.
+- Added defensive production-factory checks for a live session, non-empty
+  transient NAK, positive timeouts, a valid non-direct chain, and every proxy
+  hop being `quic://`. The SOCKS handshake keeps its independent eligibility
+  check.
+- Installed the real factory in `naive_proxy_bin.cc`. The production binary
+  still uses the default certificate verifier; only the separate controlled
+  runner installs `MockCertVerifier` before building its context.
+- Added live Chromium queries for stream state, empty-datagram evidence, and
+  safe payload ceiling. The ceiling uses QUICHE's HTTP/3 datagram size after
+  quarter-stream-id overhead, then removes the RFC 9298 Context ID byte.
+- Treats a closed live stream or zero live ceiling as a target failure rather
+  than misclassifying it as an oversize policy drop.
+- Corrected declaration order so every proxy/backend/tunnel is destroyed
+  before its URL request context/session and resolver.
+- Added `naive_socks5_udp_m3_runner`, which shares the exact production
+  factory and proves graceful proxy-before-context destruction.
+- Verified exact SOCKS `0x01` plus EOF for direct, HTTPS/H2, valid mixed, and
+  no-backend configurations. Verified real IPv4 echo and cached Basic auth via
+  SOCKS5, the M3 backend, M1 tunnel, RFC 9298 CONNECT-UDP, and H3 DATAGRAM.
+
+Verified markers:
+
+```text
+M3_G3_DIRECT_REJECTION_OK
+M3_G3_H2_REJECTION_OK
+M3_G3_MIXED_CHAIN_REJECTION_OK
+M3_G3_NO_BACKEND_REJECTION_OK
+M3_G3_IPV4_ECHO_OK
+M3_G3_AUTH_ECHO_OK
+M3_G3_PRODUCTION_WIRING_OK
+```
+
+The G3 gate also reran all M1 scripts, the complete M2 suite, the cumulative
+M3 entry point, all 56 existing TCP cases, and `git diff --check`.
+
 ## Current verification commands
 
 ```bash
@@ -542,7 +588,8 @@ cd src
 ninja -C out/Release naive naive_masque_server naive_masque_client \
   naive_masque_probe naive_connect_udp_runner naive_socks5_udp_test \
   naive_socks5_server_socket_state_test naive_socks5_udp_association_test \
-  naive_socks5_udp_runner naive_connect_udp_backend_test
+  naive_socks5_udp_runner naive_connect_udp_backend_test \
+  naive_socks5_udp_m3_runner
 ../tests/masque_g1_smoke.sh
 ../tests/masque_g2_naive_tunnel.sh
 ../tests/masque_g3_basic_auth.sh
@@ -571,6 +618,13 @@ Expected markers:
 - `M3_G2_MULTI_TARGET_LIMITS_OK`
 - `M3_G2_FAILURE_ISOLATION_OK`
 - `M3_G2_ACTIVE_ASSOCIATION_LIMIT_OK`
+- `M3_G3_DIRECT_REJECTION_OK`
+- `M3_G3_H2_REJECTION_OK`
+- `M3_G3_MIXED_CHAIN_REJECTION_OK`
+- `M3_G3_NO_BACKEND_REJECTION_OK`
+- `M3_G3_IPV4_ECHO_OK`
+- `M3_G3_AUTH_ECHO_OK`
+- `M3_G3_PRODUCTION_WIRING_OK`
 - exit code `0` from `tests/basic.sh`
 - `ninja: no work to do` or a successful link
 
@@ -604,6 +658,7 @@ M1 has been committed as `e11a7733` (`Complete native UDP M1 foundation`) on
 `codex/native-udp-foundation`. M2 has been committed as `fe817a87` (`Complete
 SOCKS5 UDP ingress M2`) after all local gates and the independent audit passed.
 The reviewed M3 execution plan is committed as `8720c912` (`Plan native UDP M3
-execution`). M3 is ready for G0; implementation has not started. Generated
-`.DS_Store` and `tmp/` entries remain unrelated and must not be included in
-future feature commits.
+execution`). G0, G1, and G2 are committed as `83904eb8`, `4541f756`, and
+`1bd5789e`; G3 production composition is complete and verified in the current
+gate. Generated `.DS_Store` and `tmp/` entries remain unrelated and must not be
+included in future feature commits.

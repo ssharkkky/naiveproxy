@@ -469,6 +469,32 @@ void TestSynchronousSingleTargetAndOversizeDrop() {
   Expect(oversize_backend.stats_for_testing().oversize_drops == 1 &&
              !oversize_state->write_callback && oversize_responses == 0,
          "live payload ceiling drops before tunnel Write");
+
+  auto closed_state = std::make_shared<ScriptedTunnelState>();
+  closed_state->start_result = net::OK;
+  closed_state->write_result = 1;
+  net::NaiveConnectUdpDatagramBackend closed_backend(
+      MakeContext(33),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          closed_state),
+      base::TimeDelta());
+  closed_backend.Start(
+      base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  closed_backend.Send(Datagram({0x01}), net::CompletionOnceCallback());
+  closed_state->open = false;
+  closed_backend.Send(Datagram({0x02}), net::CompletionOnceCallback());
+  RunUntilIdle();
+  Expect(closed_backend.target_count_for_testing() == 0 &&
+             closed_backend.stats_for_testing().sent_datagrams == 1 &&
+             closed_backend.stats_for_testing().target_failures == 1 &&
+             closed_backend.stats_for_testing().oversize_drops == 0,
+         "closed live stream retires target instead of misclassifying MTU");
 }
 
 void TestShortWriteEofAndPendingDestruction() {

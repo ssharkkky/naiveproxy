@@ -168,6 +168,11 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     // session are closed.
     quic::QuicPacketLength GetGuaranteedLargestMessagePayload() const;
 
+    // Returns the largest HTTP/3 Datagram payload that can be sent on this
+    // stream after accounting for the quarter stream ID. Returns zero when
+    // the stream is closed or HTTP/3 Datagram was not negotiated.
+    size_t GetMaxDatagramSize() const;
+
     bool SupportsH3Datagram() const {
       return stream_ && stream_->SupportsH3Datagram();
     }

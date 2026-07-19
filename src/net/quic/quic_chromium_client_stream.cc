@@ -551,6 +551,13 @@ QuicChromiumClientStream::Handle::GetGuaranteedLargestMessagePayload() const {
   return stream_->GetGuaranteedLargestMessagePayload();
 }
 
+size_t QuicChromiumClientStream::Handle::GetMaxDatagramSize() const {
+  if (!stream_ || !stream_->SupportsH3Datagram()) {
+    return 0;
+  }
+  return stream_->GetMaxDatagramSize();
+}
+
 QuicChromiumClientStream::QuicChromiumClientStream(
     quic::QuicStreamId id,
     quic::QuicSpdyClientSessionBase* session,

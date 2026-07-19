@@ -133,6 +133,11 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
                         const quiche::UnknownCapsule& capsule) override;
 
   const HttpResponseInfo* GetConnectResponseInfo() const;
+  // Narrow production queries used by CONNECT-UDP owners. A zero payload
+  // ceiling means the stream is closed or H3 DATAGRAM was not negotiated.
+  bool IsConnectedForDatagramIO() const;
+  bool LastReadWasDatagram() const { return last_read_was_datagram_; }
+  size_t MaxPayloadSize() const;
   bool IsConnectedForTesting() const;
 
   const std::queue<std::string>& GetDatagramsForTesting() { return datagrams_; }
@@ -201,6 +206,9 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
   raw_ptr<IOBuffer> read_buf_ = nullptr;
   // Stores the buffer length for Read().
   int read_buf_len_ = 0;
+  // Disambiguates a valid empty HTTP/3 Datagram from the zero result used for
+  // stream closure by DatagramClientSocket::Read().
+  bool last_read_was_datagram_ = false;
 
   // Handle to the QUIC Stream that this sits on top of.
   std::unique_ptr<QuicChromiumClientStream::Handle> stream_handle_;

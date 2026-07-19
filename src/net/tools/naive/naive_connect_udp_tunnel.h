@@ -52,6 +52,12 @@ class NaiveConnectUdpTunnel {
   // completes successfully. The returned pointer is owned by this tunnel.
   DatagramClientSocket* socket() const;
 
+  // Live state used by the M3 association backend. These methods preserve the
+  // empty-datagram versus EOF distinction and avoid guessing a QUIC MTU.
+  bool IsOpen() const;
+  bool LastReadWasDatagram() const;
+  size_t MaxPayloadSize() const;
+
   const HostPortPair& target() const { return target_; }
   const NetErrorDetails& net_error_details() const { return net_error_details_; }
 

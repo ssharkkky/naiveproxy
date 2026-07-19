@@ -325,8 +325,17 @@ void NaiveConnectUdpDatagramBackend::PumpTargetWrites(
         entry->outbound_queue.empty()) {
       return;
     }
+    if (!entry->tunnel->IsOpen()) {
+      ScheduleTargetRetirement(key, generation, ERR_CONNECTION_CLOSED);
+      return;
+    }
     const std::vector<uint8_t>& payload = entry->outbound_queue.front();
-    if (payload.size() > entry->tunnel->MaxPayloadSize()) {
+    const size_t max_payload_size = entry->tunnel->MaxPayloadSize();
+    if (max_payload_size == 0) {
+      ScheduleTargetRetirement(key, generation, ERR_CONNECTION_CLOSED);
+      return;
+    }
+    if (payload.size() > max_payload_size) {
       queued_payload_bytes_ -= payload.size();
       --queued_datagram_count_;
       entry->outbound_queue.pop_front();

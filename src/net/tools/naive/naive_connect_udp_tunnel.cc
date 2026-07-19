@@ -58,6 +58,18 @@ DatagramClientSocket* NaiveConnectUdpTunnel::socket() const {
   return socket_.get();
 }
 
+bool NaiveConnectUdpTunnel::IsOpen() const {
+  return connected_ && socket_ && socket_->IsConnectedForDatagramIO();
+}
+
+bool NaiveConnectUdpTunnel::LastReadWasDatagram() const {
+  return socket_ && socket_->LastReadWasDatagram();
+}
+
+size_t NaiveConnectUdpTunnel::MaxPayloadSize() const {
+  return socket_ ? socket_->MaxPayloadSize() : 0;
+}
+
 void NaiveConnectUdpTunnel::OnIOComplete(int result) {
   result = DoLoop(result);
   if (result != ERR_IO_PENDING && !callback_.is_null()) {
