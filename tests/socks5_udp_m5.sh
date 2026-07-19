@@ -69,3 +69,4 @@ printf 'M5_G0_BINARIES naive=%s sha256=%s runner=%s sha256=%s caddy=%s sha256=%s
   "$(shasum -a 256 "$caddy_bin" | awk '{print $1}')"
 echo M5_G0_PRODUCT_CONTRACT_OK
 "$script_dir/m5/g1_cross_repo_echo.sh"
+"$script_dir/m5/g2_product_matrix.sh"

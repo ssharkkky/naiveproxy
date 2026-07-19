@@ -22,7 +22,7 @@ M1 through M4 are complete and independently audited. M4's final production
 revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
 review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
 sole low CI-pinning observation was closed by `8f044e2`. The next milestone is
-M5 end-to-end product composition; M5-G0 and G1 are complete and M5-G2 is
+M5 end-to-end product composition; M5-G0 through G2 are complete and M5-G3 is
 next. The
 controlled QUICHE endpoint remains a test fixture, not the production server.
 
