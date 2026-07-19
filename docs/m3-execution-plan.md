@@ -5,6 +5,10 @@ Last updated: 2026-07-19 (Asia/Shanghai)
 Documentation entry point: [`README.md`](README.md). Current verified state:
 [`native-udp-status.md`](native-udp-status.md).
 
+Document role: completed historical execution record. Proposal/future-tense
+language preserves the plan used during M3; the status ledger and each gate's
+verified-result block are authoritative for what actually shipped.
+
 ## 1. Mission and completion boundary
 
 M3 composes the two already verified halves of the client:
@@ -30,7 +34,7 @@ existing TCP regressions must pass. An independent `agy` review must return
 `AUDIT_PASS` with no blocker, high, or medium finding.
 
 The controlled QUICHE endpoint is an interoperability fixture only. Caddy and
-`forwardproxy` production server work remains M4.
+`forwardproxy` production server work remained the separate M4 milestone.
 
 ## 2. Inherited, frozen boundaries
 

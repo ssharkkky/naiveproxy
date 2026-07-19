@@ -1,9 +1,17 @@
 # NaiveProxy Native UDP Development Plan
 
+Last updated: 2026-07-19 (Asia/Shanghai)
+
 Documentation entry point: [`README.md`](README.md). Current verified state:
-[`native-udp-status.md`](native-udp-status.md). Completed M4 plan and audit:
+[`native-udp-status.md`](native-udp-status.md). Active milestone plan:
+[`m5-execution-plan.md`](m5-execution-plan.md). Completed M4 plan and audit:
 [`m4-execution-plan.md`](m4-execution-plan.md) and
-[`m4-agy-audit.md`](m4-agy-audit.md). Next milestone: M5.
+[`m4-agy-audit.md`](m4-agy-audit.md).
+
+Document role: this file preserves the stable v1 scope, architecture, and
+milestone roadmap. It also retains the original M0/M1 design checklist because
+M1 predates the separate execution-plan convention. Exact verified commands,
+markers, and current gate status belong in `native-udp-status.md`.
 
 ## 1. Goal
 
@@ -101,7 +109,7 @@ recorded in the status ledger and active milestone plan.
    step moves URL construction beside `QuicProxyDatagramClientSocket`, encodes
    the target host, and leaves stream/session acquisition as the next spike.
 
-## 5. Proposed client architecture
+## 5. Client architecture (implemented in M2-M3)
 
 ```text
 TCP accept loop
@@ -157,7 +165,9 @@ bound during the pre-response phase so the handshake can return a compliant
 
 Exit criterion: clean working tree on the frozen tag plus this plan.
 
-### M1 — Chromium integration spike (5–10 person-days)
+### M1 — Chromium integration spike (complete and independently audited)
+
+Historical objectives:
 
 - Trace how the existing `quic://` proxy session is created and retained.
 - Prototype obtaining a request stream for an arbitrary CONNECT-UDP target.
@@ -202,7 +212,7 @@ Progress:
 - [x] Complete an authenticated UDP echo round trip against a controlled
   CONNECT-UDP endpoint.
 
-#### M1 execution goals
+#### M1 execution goals (complete)
 
 These goals are deliberately sequential. Each one must leave the Release build
 and existing TCP suite passing before the next begins.
@@ -314,8 +324,8 @@ plan is in `docs/m3-execution-plan.md`.
 
 Exit criterion: DNS and UDP echo work through the complete SOCKS5 client path
 against the controlled compliant endpoint via RFC 9298 CONNECT-UDP and HTTP/3
-DATAGRAM, without custom stream encapsulation. M4 remains responsible for the
-production Caddy/`forwardproxy` server.
+DATAGRAM, without custom stream encapsulation. The production
+Caddy/`forwardproxy` server was completed separately in M4.
 
 ### M4 — Server data path (complete and independently audited)
 
@@ -354,20 +364,29 @@ closed by the workflow-only forwardproxy commit `8f044e2`. The frozen M5
 server revisions are forwardproxy `8f044e2` and Caddy `cce894a8`. See
 [`m4-agy-audit.md`](m4-agy-audit.md).
 
-### M5 — End-to-end MVP (5–8 person-days)
+### M5 — End-to-end MVP (planned; 6–10 person-days)
 
-- Test SOCKS5 UDP through the Naive client and Caddy server.
-- Cover DNS, UDP echo, HTTP/3 through the proxy, IPv4, IPv6, and domains.
-- Test multiple destinations over one SOCKS UDP association.
-- Test auth failure, server restart, QUIC reconnect, idle expiration, and
-  malformed packets.
-- Record packet captures demonstrating HTTP/3 DATAGRAM rather than UDP-over-
-  stream framing.
-- Record packet-size and timing observations for the explicit v1 decision to
-  ship without a Naive-specific UDP padding layer.
+The detailed sequential plan is in
+[`m5-execution-plan.md`](m5-execution-plan.md):
 
-Exit criterion: the MVP verification matrix passes and existing TCP tests show
-no regression.
+- G0 freezes the dynamic topology, reversible production trust fixture,
+  independent SOCKS5-UDP-backed HTTP/3 probe, evidence contract, and cleanup.
+- G1 proves the first M3-client-to-production-M4-server UDP echo.
+- G2 covers IPv4, IPv6, domains, DNS, payload boundaries, multiple targets,
+  concurrency, and a real HTTP/3 application request through SOCKS5 UDP.
+- G3 covers local/upstream authentication, policy, malformed input, failure
+  isolation, and cross-layer privacy.
+- G4 covers control close, production idle boundaries, server restart, outer
+  QUIC reconnect, fresh later traffic, and no replay.
+- G5 proves the shipped `naive` binary with its default certificate verifier,
+  H3 Datagram wire evidence, TCP parity, and the explicit no-padding baseline.
+- G6 reruns M1–M5 and server regressions, closes artifacts, and requires an
+  independent `AUDIT_PASS` with zero blocker/high/medium finding.
+
+Exit criterion: `M5_NATIVE_UDP_MVP_OK`, the complete product matrix and
+existing TCP/server regressions pass, the shipped `naive` default-verifier
+smoke succeeds, and an independent review returns `AUDIT_PASS` with zero
+blocker/high/medium finding.
 
 ### M6 — Hardening and release candidate (10–20 person-days)
 
@@ -393,8 +412,11 @@ memory-safety issue remains, and maintainers approve the Chromium API boundary.
 | Multiplexing | Multiple destinations and concurrent associations |
 | Lifecycle | TCP control close, idle timeout, upstream close/reconnect |
 | Security | Auth, ACL, spoofed local sender, resource exhaustion limits |
+| Production trust | Shipped `naive` succeeds with trusted proxy TLS and rejects an untrusted certificate without a bypass |
 | Network | Loss, reordering, PMTU/oversize, IPv4/IPv6 path changes |
 | Interop | Independent RFC 9298 client/server where practical |
+| Application | Independent HTTP/3 request/response over the SOCKS5 UDP relay |
+| Evidence/privacy | H3 DATAGRAM proof plus logs/captures free of targets, payloads, credentials, and recoverable encodings |
 
 ## 8. Engineering rules
 
@@ -423,10 +445,10 @@ Current remaining planning ranges:
 
 | Milestone | Range | Current decision gate |
 | --- | ---: | --- |
-| M5 end-to-end MVP | 5–8 person-days | Plan and run the full audited-client-to-audited-server product matrix |
+| M5 end-to-end MVP | 6–10 person-days | Execute G0–G6 in `m5-execution-plan.md`; G0 freezes trust and application-probe contracts |
 | M6 hardening/release | 10–20 person-days | Begin after the MVP matrix passes |
 
-The remaining range is therefore approximately 15–28 person-days, excluding
+The remaining range is therefore approximately 16–30 person-days, excluding
 long cross-platform soak time. M0–M4 are complete; this is 71% by milestone
 count and approximately 75–80% by weighted engineering scope. The client and
 production server are independently audited, but the product is not
@@ -508,6 +530,9 @@ Next:
   `docs/m4-execution-plan.md` and `docs/m4-agy-audit.md`.
 - [x] Close the audit's sole low stale-Caddy-CI-pin finding in forwardproxy
   commit `8f044e2` without changing runtime source.
-- [ ] Plan M5's focused product-composition gates, then run the complete
-  SOCKS5-to-Naive-client-to-production-Caddy matrix without weakening the
-  frozen M1-M4 boundaries.
+- [x] Plan M5's G0–G6 product-composition sequence, production certificate
+  boundary, independent HTTP/3 application probe, matrix, risks, and stop
+  conditions in `docs/m5-execution-plan.md`.
+- [ ] Execute M5-G0: freeze the dynamic topology, reversible trust fixture,
+  independent H3 probe owner/dependencies, marker list, and artifact contract
+  before running the first cross-repository echo.

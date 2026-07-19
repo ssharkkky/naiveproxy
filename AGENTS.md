@@ -11,19 +11,18 @@ Read these files in order before changing code:
 
 1. `docs/README.md` — documentation map, authority rules, and handoff checklist.
 2. `docs/native-udp-status.md` — verified current state and exact test commands.
-3. `docs/native-udp-development-plan.md` — v1 scope, M0–M6 roadmap, and M5
-   boundary.
-4. `docs/m4-execution-plan.md` — the completed production-server G0–G6 record.
-5. `docs/m4-agy-audit.md` — independent final M4 audit evidence.
-6. `docs/m3-execution-plan.md` and `docs/m3-agy-audit.md` — completed M3
+3. `docs/m5-execution-plan.md` — the active M5 G0–G6 product-composition plan.
+4. `docs/native-udp-development-plan.md` — frozen v1 scope and M0–M6 roadmap.
+5. `docs/m4-execution-plan.md` and `docs/m4-agy-audit.md` — completed server
+   implementation and audit history.
+6. `docs/m3-execution-plan.md` and `docs/m3-agy-audit.md` — completed client
    implementation and audit history.
 
 M1 through M4 are complete and independently audited. M4's final production
 revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
 review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
 sole low CI-pinning observation was closed by `8f044e2`. The next milestone is
-M5 end-to-end product composition. Before changing code, add a focused M5
-execution plan that preserves the completed client and server boundaries. The
+M5 end-to-end product composition; its plan is frozen and M5-G0 is next. The
 controlled QUICHE endpoint remains a test fixture, not the production server.
 
 ## Frozen engineering boundaries
@@ -39,8 +38,9 @@ controlled QUICHE endpoint remains a test fixture, not the production server.
   production Caddy/`forwardproxy` server.
 - M4 production changes belong in a separately pinned `forwardproxy`/Caddy
   fork or worktree. Do not vendor that implementation into this repository.
-- Preserve the completed M1–M3 client as M4's interoperability oracle. A
-  separately justified regression fix must pass the complete client matrix.
+- Preserve the completed M1–M3 client and M4 server as M5's audited inputs. A
+  separately justified regression fix must pass the complete owner-specific
+  matrix and explicitly reconsider the affected audit boundary.
 - Preserve the exact transient `NetworkAnonymizationKey` assigned to the SOCKS
   connection when constructing its M3 tunnel backend. Chromium proxy
   credentials are not NAK-partitioned; test NAK propagation and cached Basic
@@ -48,6 +48,11 @@ controlled QUICHE endpoint remains a test fixture, not the production server.
 - Do not log UDP payloads or destinations. Use redacted, rate-limited counters
   and NetLog state/error events.
 - Do not replay a datagram after an ambiguous tunnel write/session failure.
+- The deterministic M3 runner may bypass a local test certificate, but the M5
+  production-binary gate must use `CertVerifier::CreateDefault()`. Never add a
+  shipped certificate-bypass switch.
+- M5 must include an independent SOCKS5-UDP-backed HTTP/3 application probe;
+  generic UDP echo alone is not product-level application evidence.
 
 ## Working-tree safety
 
@@ -63,9 +68,8 @@ controlled QUICHE endpoint remains a test fixture, not the production server.
 
 1. Confirm all three recorded repositories and branches with `git status -sb`
    before editing.
-2. Freeze M5's sequential gates, product-level reconnect claims, verification
-   matrix, risks, and stop conditions in a dedicated execution plan before
-   implementation.
+2. Read the current gate, exit criteria, contracts, risks, and stop conditions
+   in `docs/m5-execution-plan.md`.
 3. Make the narrowest client, server, or test-harness change needed for one
    gate; do not mix unrelated cross-repository changes into one commit.
 4. Build the affected Release/server targets and run the focused gate tests.
@@ -73,12 +77,15 @@ controlled QUICHE endpoint remains a test fixture, not the production server.
    privacy regressions, and `git diff --check` green.
 6. Update `docs/native-udp-status.md` only with verified commands, markers, and
    exact commits; update the roadmap only when a milestone boundary changes.
-7. Stage explicit intended paths and commit one green gate at a time.
+7. Update the M5 plan only when sequencing, contracts, risks, or stop
+   conditions change. Stage explicit intended paths and commit one green gate
+   at a time.
 
 The canonical client and server build/verification commands live in
-`docs/native-udp-status.md`. Treat `docs/m4-agy-audit.md` as immutable evidence
-for the reviewed M4 ranges; any later server-source change requires scoped
-regression and audit reconsideration.
+`docs/native-udp-status.md`; M5-specific commands will be added there only
+after a gate runs successfully. Treat `docs/m4-agy-audit.md` as immutable
+evidence for the reviewed M4 ranges; any later server-source change requires
+scoped regression and audit reconsideration.
 
 ## Current baseline commits
 
@@ -88,6 +95,7 @@ regression and audit reconsideration.
 - `83904eb8` through `578e3992` — M3 G0–G5 implementation and hardening.
 - `2bb83aec` — complete M3 regressions, independent audit, and closeout.
 - `9ec8fff82c` — complete M4 local verification record in this repository.
+- `4ec0f8bb9a` — complete M4 audit record and handoff to M5.
 - `7243519` — audited M4 server implementation; `8f044e2` closes the audit's
   CI-only Caddy pin finding.
 - `cce894a8` — final audited Caddy H3 Datagram/privacy patch stack.

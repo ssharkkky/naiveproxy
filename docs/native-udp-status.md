@@ -2,8 +2,8 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Documentation entry point: [`README.md`](README.md). Completed M4 plan:
-[`m4-execution-plan.md`](m4-execution-plan.md). Next milestone: M5.
+Documentation entry point: [`README.md`](README.md). Active milestone plan:
+[`m5-execution-plan.md`](m5-execution-plan.md).
 
 This is the execution ledger for the native UDP project. The development plan
 defines scope and design; this file records what has actually been built and
@@ -18,7 +18,7 @@ verified. Update it at every completed G target and milestone.
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
-| M5 — end-to-end MVP | Not started | Audited M3 client and M4 production server paths exist independently; product-level composition is pending | Plan and execute M5 |
+| M5 — end-to-end MVP | Planned; G0 next | G0–G6 contracts, production trust boundary, independent HTTP/3 probe, matrix, and stop conditions are frozen; no M5 runtime result is claimed | M5-G0 |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -42,9 +42,9 @@ Current remaining planning range:
 
 | Remaining milestone | Estimated effort |
 | --- | ---: |
-| M5 — end-to-end MVP | 5–8 person-days |
+| M5 — end-to-end MVP | 6–10 person-days |
 | M6 — hardening and release candidate | 10–20 person-days |
-| **Total remaining** | **15–28 person-days** |
+| **Total remaining** | **16–30 person-days** |
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
 is not production-ready: the client and production server are independently
@@ -225,16 +225,17 @@ G5_LIFECYCLE_OK
   deferred to an upper-layer association/retry owner; M1 does not imply
   interactive challenge recovery.
 - Socket disconnection follows Chromium's `Socket` contract: pending callbacks
-  may be cancelled rather than invoked. The future association owner must
-  destroy its tunnel when the session/control association closes.
+  may be cancelled rather than invoked. The M3 association owner destroys its
+  tunnel when the session/control association closes.
 - No SOCKS command parsing, `NaiveProxy::DoConnect()` branching, UDP relay,
   production server, or TCP data path was added in M1.
 
 ## M2 execution ledger — SOCKS5 UDP ingress
 
-M2 is intentionally limited to a local SOCKS5 UDP ingress path with an
-injected fake `DatagramBackend`. Production CONNECT-UDP backend integration
-remains deferred to M3. The existing TCP data mover is unchanged.
+At M2 completion, the milestone was intentionally limited to a local SOCKS5
+UDP ingress path with an injected fake `DatagramBackend`; production
+CONNECT-UDP integration remained deferred. M3 later completed that production
+composition. The existing TCP data mover is unchanged.
 
 ### M2 architecture
 
@@ -421,7 +422,7 @@ regression surface.
 
 The plan was derived from direct inspection of the M1 tunnel and M2 ingress
 boundaries, then checked by three independent read-only reviews. The reviews
-agreed on these blockers that must be resolved before real-server wiring:
+identified these blockers, all of which M3 subsequently resolved:
 
 - the zero-argument backend factory must receive the exact transient NAK from
   `PendingSocksHandshake`;
@@ -433,8 +434,8 @@ agreed on these blockers that must be resolved before real-server wiring:
   and URL request context destruction order need explicit tests;
 - target, packet, byte, active-association, connect, idle, and cooldown bounds
   must be frozen before full-path load testing;
-- the full M3 path uses `naive_masque_server` as a controlled compliant
-  endpoint; production Caddy/`forwardproxy` remains M4.
+- the full M3 path used `naive_masque_server` as a controlled compliant
+  endpoint; production Caddy/`forwardproxy` was completed separately in M4.
 
 Sequential gates:
 
@@ -740,24 +741,24 @@ Read-only source inspection recorded these exact reference snapshots:
 - quic-go `v0.59.0`, commit
   `7659dd8e0fa06b41290ad29af323d93d673c6b36`.
 
-The initial source facts that defined the runtime M4 gates were:
+The historical source facts that defined the runtime M4 gates were:
 
-- current `forwardproxy` rejects H2/H3 CONNECT whenever `:scheme` or `:path`
-  is present, so RFC 9298 needs an explicit Extended CONNECT branch before
+- baseline `forwardproxy` rejected H2/H3 CONNECT whenever `:scheme` or `:path`
+  was present, so RFC 9298 needed an explicit Extended CONNECT branch before
   legacy TCP CONNECT;
-- authentication, probe resistance, and normal-site routing already execute
+- authentication, probe resistance, and normal-site routing already executed
   before CONNECT dispatch and must remain common to TCP and CONNECT-UDP;
-- the current authorization/dial helper accepts only TCP, so target
-  authorization/resolution must be factored from transport dialing rather
+- the baseline authorization/dial helper accepted only TCP, so target
+  authorization/resolution had to be factored from transport dialing rather
   than bypassed for UDP;
-- the declared `forwardproxy` dependencies are Caddy v2.8.4/quic-go v0.44.0,
-  but its release workflow uses floating `xcaddy@latest`, while the inspected
-  Caddy v2.11.2 uses quic-go v0.59.0 and Go 1.25; G0 must freeze one exact
+- the declared `forwardproxy` dependencies were Caddy v2.8.4/quic-go v0.44.0,
+  but its release workflow used floating `xcaddy@latest`, while the inspected
+  Caddy v2.11.2 used quic-go v0.59.0 and Go 1.25; G0 had to freeze one exact
   reproducible tuple;
-- Caddy v2.11.2 constructs `http3.Server` without `EnableDatagrams: true`;
-- quic-go v0.59.0 exposes `http3.HTTPStreamer` and stream-level
+- Caddy v2.11.2 constructed `http3.Server` without `EnableDatagrams: true`;
+- quic-go v0.59.0 exposed `http3.HTTPStreamer` and stream-level
   `SendDatagram`/`ReceiveDatagram`, but real Caddy middleware visibility and
-  writer unwrapping must be runtime-proven in M4-G1;
+  writer unwrapping still had to be runtime-proven in M4-G1;
 - quic-go owns HTTP/3 quarter-stream-id framing, while the server handler must
   decode/prepend RFC 9298 Context ID `0` around the UDP payload.
 
@@ -788,8 +789,8 @@ is recorded below.
 - Two clean pinned builds were byte-identical with SHA-256
   `5b2d40b134e9b340e8fa9a9384c44d2b871bb43915fd485734be9003016b611d`.
 
-No Caddy H3 Datagram patch or production CONNECT-UDP handler is claimed in
-G0. M4-G1 must prove that runtime boundary before protocol/relay work begins.
+G0 did not claim a Caddy H3 Datagram patch or production CONNECT-UDP handler.
+M4-G1 subsequently proved that runtime boundary before protocol/relay work.
 
 ### M4-G1 — real Caddy H3 Datagram capability: complete
 
@@ -838,9 +839,9 @@ Those start only after G2 freezes strict protocol and policy behavior.
 - Marker `M4_G2_PROTOCOL_POLICY_OK` and the cumulative G0–G2 plus full legacy
   server suite pass.
 
-G2 deliberately returns `501` after a valid authorized request reaches the
-association boundary. M4-G3 replaces that final stub with the bounded UDP
-association; no packet is silently accepted before the data path exists.
+G2 deliberately returned `501` after a valid authorized request reached the
+association boundary. M4-G3 replaced that final stub with the bounded UDP
+association; no packet was silently accepted before the data path existed.
 
 ### M4-G3 — bounded production UDP association: complete
 
@@ -952,7 +953,42 @@ Final marker: `M4_NATIVE_UDP_SERVER_OK`.
 M4 is complete. M5 now owns the full SOCKS5-to-Naive-client-to-production-
 Caddy product matrix, including product-level reconnect claims.
 
-### Current server verification commands
+## M5 execution baseline — end-to-end MVP
+
+Status: planned; M5-G0 is next. The active plan is
+[`m5-execution-plan.md`](m5-execution-plan.md).
+
+M5 inherits these frozen inputs:
+
+- NaiveProxy's audited M3 production data path, closeout `2bb83aec`;
+- forwardproxy `8f044e2`, whose runtime implementation was audited at
+  `7243519` and whose final commit closes the audit's CI-only pin finding;
+- Caddy `cce894a8` and the locked M4 Go/xcaddy/quic-go build tuple.
+
+The M5 sequence is:
+
+```text
+G0  dynamic topology, reversible trust fixture, independent H3 probe contract
+G1  first M3-client-to-production-M4-server IPv4 echo
+G2  IPv4/IPv6/domain/DNS/multi-target/concurrency/HTTP3 application matrix
+G3  authentication, policy, malformed input, failure isolation, privacy
+G4  control close, idle, server restart, QUIC reconnect, no replay
+G5  shipped naive + default certificate verifier, wire evidence, no-padding baseline
+G6  full M1-M5/server regressions, artifacts, independent AUDIT_PASS
+```
+
+Planning inspection found two tasks not fully represented in the earlier
+5-8-day estimate: a safe trusted-certificate fixture for the shipped `naive`
+binary and an independent SOCKS5-UDP-backed HTTP/3 application client. The M5
+planning range is therefore 6–10 person-days.
+
+No M5 implementation marker is claimed yet. The deterministic M3 runner may
+be used for the broad matrix because it shares the production backend/factory,
+but final M5 evidence also requires `out/Release/naive` with
+`CertVerifier::CreateDefault()`. A production certificate-bypass switch is
+forbidden.
+
+## Canonical server verification commands
 
 ```bash
 cd /path/to/naive-forwardproxy-m4
@@ -973,7 +1009,7 @@ PATH=/path/to/naive-m4/go1.25.12/bin:$PATH \
   go test ./modules/caddyhttp
 ```
 
-## Current verification commands
+## Canonical client verification commands
 
 ```bash
 cd src
@@ -1061,8 +1097,13 @@ low-priority observations remain in `docs/m1-agy-audit.md` and
   UDP-over-stream fallback.
 - The QUICHE endpoint is an M1 interoperability fixture, not the production
   server architecture.
-- M2's fake backend is test-only. M3 must adapt each validated target to the
-  real M1 CONNECT-UDP tunnel and add production association/tunnel limits.
+- M2's fake backend is test-only. Production uses the audited M3 adapter and
+  target backend to reach the real M1 CONNECT-UDP tunnel.
+- M5 deterministic runs may use the M3 runner's test-only certificate verifier,
+  but milestone completion requires a separate shipped-`naive` smoke through
+  the default certificate verifier. Do not add a production bypass.
+- M5 application evidence requires an independent SOCKS5-UDP-backed HTTP/3
+  client; generic UDP echo does not satisfy that gate by itself.
 - UDP padding remains intentionally out of v1 until traffic-shape measurements
   justify a separate unreliable-datagram design.
 
@@ -1080,6 +1121,6 @@ interoperability and the post-G3 privacy/lifecycle audit fixes are committed as
 closeout is commit `2bb83aec`. M4-G0–G5 are committed in the separate server
 fork through `7243519`; the post-audit CI-pin closure is `8f044e2`. Caddy's
 three audited patches end at `cce894a8`. M4's local verification and audit
-evidence are recorded through the current documentation closeout. Generated
-`.DS_Store` and `src/tmp/` entries remain unrelated and must not be included in
-future feature commits.
+evidence are recorded in `4ec0f8bb9a`. The M5 G0–G6 execution plan now exists;
+no M5 implementation gate has passed yet. Generated `.DS_Store` and `src/tmp/`
+entries remain unrelated and must not be included in future feature commits.
