@@ -16,9 +16,10 @@ Read these files in order before changing code:
 5. `docs/m3-execution-plan.md` — the completed M3 G0–G6 implementation record.
 6. `docs/m3-agy-audit.md` — independent final M3 audit evidence.
 
-M1, M2, and M3 are complete and independently audited. M4 is planned and its
-next gate is M4-G0: create/pin the separate production Caddy/`forwardproxy`
-server workstream and freeze the reproducible build tuple. The controlled
+M1, M2, and M3 are complete and independently audited. M4-G0 is complete in
+the separate server repository and the next gate is M4-G1: prove Extended
+CONNECT protocol visibility, HTTP/3 stream takeover, and bidirectional H3
+Datagrams through the real patched Caddy middleware chain. The controlled
 QUICHE endpoint remains a test fixture, not that server implementation.
 
 ## Frozen engineering boundaries

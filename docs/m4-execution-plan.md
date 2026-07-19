@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: planned; M4-G0 is the next implementation gate.
+Status: M4-G0 complete; M4-G1 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
@@ -194,6 +194,8 @@ repository, followed by a factual status-ledger update here. Do not begin a
 later gate before the current exit criteria pass.
 
 ### M4-G0 — repository, build tuple, contracts, and test skeleton
+
+Status: complete in server commit `bf092e6`.
 
 Work:
 
