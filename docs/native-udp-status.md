@@ -17,7 +17,7 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | In progress; G0 complete | Separate server fork, exact toolchain/dependency tuple, deterministic build, contract skeleton, and legacy server baseline are verified | M4-G1 Caddy/H3 Datagram capability spike |
+| M4 — production server path | In progress; G0–G1 complete | Reproducible server baseline plus real Caddy Extended CONNECT/HTTPStreamer/bidirectional H3 Datagram capability are verified | M4-G2 strict protocol and policy layer |
 | M5 — end-to-end MVP | Not started | M3 client is complete; production M4 server is absent | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
@@ -728,7 +728,7 @@ Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
 
 ## M4 planning baseline — production server path
 
-Status: in progress; M4-G0 is complete and M4-G1 is next. Detailed gates and contracts are in
+Status: in progress; M4-G0/G1 are complete and M4-G2 is next. Detailed gates and contracts are in
 [`m4-execution-plan.md`](m4-execution-plan.md).
 
 Read-only source inspection recorded these exact reference snapshots:
@@ -790,6 +790,31 @@ runtime server marker is claimed yet.
 
 No Caddy H3 Datagram patch or production CONNECT-UDP handler is claimed in
 G0. M4-G1 must prove that runtime boundary before protocol/relay work begins.
+
+### M4-G1 — real Caddy H3 Datagram capability: complete
+
+- Caddy commit `2002a520` enables `http3.Server.EnableDatagrams`; the first
+  real handshake correctly failed with H3 SETTINGS error because Caddy's
+  shared QUIC listener had already been created without the matching QUIC
+  transport parameter.
+- Caddy commit `2ff83e69` also enables Datagrams on that shared QUIC listener.
+  This closes both required RFC 9297 negotiation layers rather than faking a
+  server SETTINGS value.
+- Forwardproxy commit `121f097` pins the patched Caddy pseudo-version/build
+  replacement and adds a G1-only capability fixture plus the production-safe
+  response-writer unwrapping seam.
+- A real `quic-go` client traversed the complete Caddy route/middleware chain,
+  observed `EnableExtendedConnect` and `EnableDatagrams`, proved incoming
+  `r.Proto == connect-udp`, unwrapped through standard `Unwrap()` to
+  `http3.HTTPStreamer`, and round-tripped both a binary payload and a valid
+  zero-length H3 Datagram.
+- Marker `M4_G1_CADDY_H3_DATAGRAM_OK`, the complete legacy forwardproxy suite,
+  focused Caddy package tests, and the patched production Caddy build passed.
+- Patched Caddy build SHA-256 at this gate:
+  `9b8f5b62c80313264fb028e4b8f05fcb1a8c2434c60f1957089af0d0d6845269`.
+
+G1 contains no target parser, ACL bypass, UDP socket, or production relay.
+Those start only after G2 freezes strict protocol and policy behavior.
 
 ## Current verification commands
 

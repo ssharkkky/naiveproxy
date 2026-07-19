@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M4-G0 complete; M4-G1 is the next implementation gate.
+Status: M4-G0 and M4-G1 complete; M4-G2 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
@@ -222,6 +222,9 @@ Exit:
 Estimated effort: 1–3 person-days.
 
 ### M4-G1 — Caddy/quic-go capability spike
+
+Status: complete in forwardproxy commit `121f097` and Caddy commits
+`2002a520` / `2ff83e69`.
 
 Work:
 
