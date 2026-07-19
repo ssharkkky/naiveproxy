@@ -2,8 +2,8 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M4-G0 through M4-G5 complete; M4-G6 local verification is green, but
-the user terminated the independent audit before a verdict. M4 remains open.
+Status: complete and independently audited. M4-G0 through M4-G6 are green;
+the final review returned `AUDIT_PASS` with zero blocker/high/medium findings.
 
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
@@ -392,8 +392,8 @@ Verified result:
 
 ### M4-G6 — release closeout and independent audit
 
-Status: local build/regression/artifact steps complete; independent audit
-pending after a user-requested termination with no verdict.
+Status: complete. Local build/regression/artifact checks are green, and the
+independent review returned `AUDIT_PASS`.
 
 Work:
 
@@ -417,6 +417,25 @@ Exit:
 - the exact production server commits and build tuple are recorded for M5.
 
 Estimated effort: 1–2 person-days.
+
+Verified result:
+
+- two locked builds were byte-identical at SHA-256
+  `d31fa3c8b0897b12ee799305a5aba10e23434fa0153398e44d82bb8ba4d82ba4`
+  and embedded Go 1.25.12;
+- the pinned standalone RFC 9298 matrix, uncached normal/race server tests,
+  complete patched-Caddy tests, M1-M3 markers, and all 56 TCP cases passed;
+- the independent read-only audit covered NaiveProxy
+  `fa7a1c2dfa..9ec8fff82c`, forwardproxy `d62c80d..7243519`, and Caddy
+  `ffb6ab06..cce894a8`, then returned `AUDIT_PASS` with zero blocker, high, or
+  medium findings;
+- its sole low finding, a stale Caddy ref in the GitHub Actions workflow, was
+  closed by forwardproxy commit `8f044e2` without changing runtime source;
+- final production revisions for M5 are forwardproxy `8f044e2` and Caddy
+  `cce894a8`;
+- final marker: `M4_NATIVE_UDP_SERVER_OK`.
+
+Durable review record: [`m4-agy-audit.md`](m4-agy-audit.md).
 
 ## 6. Required verification matrix
 
@@ -480,6 +499,6 @@ that M4 also needs a Caddy Datagram patch, a reproducible dependency tuple, a
 runtime middleware/stream-access decision gate, transport-neutral policy
 factoring, and cross-repository lifecycle/privacy tests.
 
-The first H3 Datagram echo is not M4 completion. The milestone closes only
-after G0–G6, legacy TCP/probe-resistance regressions, reproducible builds, and
-an independent audit all pass.
+The first H3 Datagram echo was not treated as M4 completion. The milestone is
+closed because G0–G6, legacy TCP/probe-resistance regressions, reproducible
+builds, and the independent audit all passed.

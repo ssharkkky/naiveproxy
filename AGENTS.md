@@ -11,19 +11,20 @@ Read these files in order before changing code:
 
 1. `docs/README.md` — documentation map, authority rules, and handoff checklist.
 2. `docs/native-udp-status.md` — verified current state and exact test commands.
-3. `docs/m4-execution-plan.md` — the active production-server G0–G6 plan.
-4. `docs/native-udp-development-plan.md` — v1 scope and the M0–M6 roadmap.
-5. `docs/m3-execution-plan.md` — the completed M3 G0–G6 implementation record.
-6. `docs/m3-agy-audit.md` — independent final M3 audit evidence.
+3. `docs/native-udp-development-plan.md` — v1 scope, M0–M6 roadmap, and M5
+   boundary.
+4. `docs/m4-execution-plan.md` — the completed production-server G0–G6 record.
+5. `docs/m4-agy-audit.md` — independent final M4 audit evidence.
+6. `docs/m3-execution-plan.md` and `docs/m3-agy-audit.md` — completed M3
+   implementation and audit history.
 
-M1, M2, and M3 are complete and independently audited. M4-G0 through M4-G5
-are complete in the separate server/Caddy repositories. M4-G6 local closeout
-is green: reproducible builds, complete client/server regressions, and artifact
-inventory passed. The independent `agy` run was terminated at the user's
-request before it returned a verdict, so M4 remains open. The next action is a
-fresh or resumed read-only audit ending in `AUDIT_PASS`; do not rerun the local
-matrix unless code or dependencies change. The controlled QUICHE endpoint
-remains a test fixture, not that server implementation.
+M1 through M4 are complete and independently audited. M4's final production
+revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
+review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
+sole low CI-pinning observation was closed by `8f044e2`. The next milestone is
+M5 end-to-end product composition. Before changing code, add a focused M5
+execution plan that preserves the completed client and server boundaries. The
+controlled QUICHE endpoint remains a test fixture, not the production server.
 
 ## Frozen engineering boundaries
 
@@ -53,39 +54,31 @@ remains a test fixture, not that server implementation.
 - The checkout may contain unrelated untracked `.DS_Store` and `src/tmp/`
   entries. Do not stage, delete, or modify them as part of native UDP work.
 - Stage explicit paths. Do not use `git add -A` in this mixed worktree.
-- Keep each M4 gate as a small green-to-green commit in the server repository,
-  followed by a factual status-ledger update here.
+- Keep each future gate as a small green-to-green commit in the repository
+  that owns the change, followed by a factual status-ledger update here.
 - Treat the status ledger as verified evidence, but inspect the current code
   and diff before relying on a historical statement.
 
-## Required gate loop
+## Required next-milestone loop
 
-For each M4 gate:
+1. Confirm all three recorded repositories and branches with `git status -sb`
+   before editing.
+2. Freeze M5's sequential gates, product-level reconnect claims, verification
+   matrix, risks, and stop conditions in a dedicated execution plan before
+   implementation.
+3. Make the narrowest client, server, or test-harness change needed for one
+   gate; do not mix unrelated cross-repository changes into one commit.
+4. Build the affected Release/server targets and run the focused gate tests.
+5. Keep all completed M1–M4 markers, all 56 Naive TCP cases, server legacy and
+   privacy regressions, and `git diff --check` green.
+6. Update `docs/native-udp-status.md` only with verified commands, markers, and
+   exact commits; update the roadmap only when a milestone boundary changes.
+7. Stage explicit intended paths and commit one green gate at a time.
 
-1. Confirm this repository and the recorded server repository branch/worktree
-   with `git status -sb` before editing.
-2. Read the gate, exit criteria, contracts, risks, and stop conditions in
-   `docs/m4-execution-plan.md`.
-3. Make the narrowest implementation and test changes needed for that gate in
-   the server repository; keep this repository documentation-only during M4
-   unless a separately justified client regression fix is required.
-4. Build the pinned server tuple and run the focused gate tests plus all
-   existing server TCP/probe-resistance regressions.
-5. At G5/G6, rerun the complete M1–M3 client markers, all 56 Naive TCP
-   regressions, the independent server interoperability matrix, and
-   `git diff --check` in both repositories. If client source changes earlier,
-   run the complete client matrix at every such change.
-6. Update `docs/native-udp-status.md` with exact server commits, commands,
-   markers, and verified evidence. Update the execution plan only if a design
-   decision changes.
-7. Commit only each gate's intended paths; never mix server changes into the
-   NaiveProxy client commit.
-
-The current client build and verification commands live in
-`docs/native-udp-status.md`. M4-G0 must add the canonical pinned server build
-and test commands. M4-G6 requires a continuing, read-only `agy` audit over both
-server diffs and the interoperability evidence, ending in `AUDIT_PASS` with no
-blocker, high, or medium finding.
+The canonical client and server build/verification commands live in
+`docs/native-udp-status.md`. Treat `docs/m4-agy-audit.md` as immutable evidence
+for the reviewed M4 ranges; any later server-source change requires scoped
+regression and audit reconsideration.
 
 ## Current baseline commits
 
@@ -94,6 +87,10 @@ blocker, high, or medium finding.
 - `8720c912` — plan native UDP M3 execution.
 - `83904eb8` through `578e3992` — M3 G0–G5 implementation and hardening.
 - `2bb83aec` — complete M3 regressions, independent audit, and closeout.
+- `9ec8fff82c` — complete M4 local verification record in this repository.
+- `7243519` — audited M4 server implementation; `8f044e2` closes the audit's
+  CI-only Caddy pin finding.
+- `cce894a8` — final audited Caddy H3 Datagram/privacy patch stack.
 
 If repository state has advanced beyond these commits, trust the current Git
 history and the newest status-ledger update rather than this snapshot.

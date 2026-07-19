@@ -29,8 +29,11 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M4-G4 production integration commit: `15c07ab`.
 - M4-G5 pinned-binary interoperability commit: `7243519`; Caddy debug-secret
   redaction commit: `cce894a8`.
-- M4-G6 local closeout: green; independent `agy` run was user-terminated before
-  a verdict. Next action: independent audit only.
+- M4-G6 release closeout: complete and independently audited. The user-run
+  `agy` review returned `AUDIT_PASS` with zero blocker/high/medium findings.
+- M4 audit's sole low CI-pin finding is closed by final `forwardproxy` commit
+  `8f044e2`; audit record: [`m4-agy-audit.md`](m4-agy-audit.md).
+- Next milestone: M5 end-to-end product composition.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
@@ -40,17 +43,20 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
    - Current verified facts, milestone ledger, evidence, and canonical test
      commands.
    - This is the operational source of truth.
-2. [`m4-execution-plan.md`](m4-execution-plan.md)
-   - Active M4 production-server G0–G6 sequence, contracts, decision gates,
-     verification matrix, source ownership, and stop conditions.
-3. [`native-udp-development-plan.md`](native-udp-development-plan.md)
+2. [`native-udp-development-plan.md`](native-udp-development-plan.md)
    - Frozen v1 scope, architecture, M0–M6 roadmap, verification matrix, and
-     later server/release milestones.
-   - Use its M4 section for the next project boundary.
-4. [`m3-execution-plan.md`](m3-execution-plan.md)
+     remaining M5/M6 milestones.
+   - Use its M5 section for the next project boundary.
+3. [`m4-execution-plan.md`](m4-execution-plan.md)
+   - Completed M4 production-server G0–G6 sequence, contracts, verification
+     matrix, source ownership, and stop conditions.
+4. [`m4-agy-audit.md`](m4-agy-audit.md)
+   - Independent M4 review scope, findings, final verdict, and closure of the
+     sole low CI-pinning observation.
+5. [`m3-execution-plan.md`](m3-execution-plan.md)
    - Completed G0–G6 sequence, ownership model, contracts, resource limits,
      stop conditions, and completion markers.
-5. [`m1-agy-audit.md`](m1-agy-audit.md),
+6. [`m1-agy-audit.md`](m1-agy-audit.md),
    [`m2-agy-audit.md`](m2-agy-audit.md), and
    [`m3-agy-audit.md`](m3-agy-audit.md)
    - Historical independent audit evidence for completed milestones.
@@ -90,8 +96,8 @@ Then:
 
 1. Confirm the branch is `codex/native-udp-foundation` and identify any local
    changes before editing.
-2. Read this index, the status ledger, the active M4 execution plan, and the
-   M3 audit record before planning the next change.
+2. Read this index, the status ledger, the development-plan M5 boundary, and
+   the M4 audit record before planning the next change.
 3. Inspect the actual M2 factory and association boundary:
 
    ```text
@@ -170,5 +176,9 @@ race detector remain green. G5 then proved the same contracts through the
 standalone pinned production binary, including deterministic DNS, zero/live
 maximum/oversize behavior, 32-stream admission, production idle expiry,
 active shutdown/restart, repeated stress, and server-log privacy. G6 clean
-rebuild and full client/server regressions also pass. M4 remains open solely
-because the independent audit was stopped before returning `AUDIT_PASS`.
+rebuild and full client/server regressions also pass. An independent user-run
+`agy` audit inspected all three repository ranges and returned `AUDIT_PASS`
+with zero blocker/high/medium findings. Its sole low observation—a stale Caddy
+commit in the GitHub Actions workflow—was closed by `forwardproxy` commit
+`8f044e2`. M4 is complete; M5 owns full SOCKS5-to-production-Caddy product
+validation.
