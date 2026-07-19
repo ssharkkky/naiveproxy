@@ -5,6 +5,10 @@ Last updated: 2026-07-19 (Asia/Shanghai)
 Status: complete and independently audited. M4-G0 through M4-G6 are green;
 the final review returned `AUDIT_PASS` with zero blocker/high/medium findings.
 
+Document role: completed historical execution record. Work/expected-change
+sections preserve the plan used during M4; verified-result blocks, the status
+ledger, and [`m4-agy-audit.md`](m4-agy-audit.md) record what actually shipped.
+
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
 [`native-udp-development-plan.md`](native-udp-development-plan.md).
@@ -436,6 +440,14 @@ Verified result:
 - final marker: `M4_NATIVE_UDP_SERVER_OK`.
 
 Durable review record: [`m4-agy-audit.md`](m4-agy-audit.md).
+
+Audit-method clarification: G6 work item 4 originally requested that the
+reviewer rerun the critical matrix. The final independent report performed a
+read-only source audit and cross-checked the already completed G6 long-test
+evidence against its harnesses; it did not claim to rerun the full long matrix.
+That actual method is recorded here rather than rewriting the historical work
+item. The complete uncached/race/client/TCP matrix above was run locally before
+the audit.
 
 ## 6. Required verification matrix
 

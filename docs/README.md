@@ -2,183 +2,136 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-This directory contains the design, execution, status, and audit record for
-adding Chromium-network-stack-driven native UDP proxying to NaiveProxy.
-Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
+This directory tracks the design, implementation evidence, and audits for
+adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
+normal upstream README describes the released TCP-focused product. Repository
+operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 
-## Current handoff snapshot
+## Current handoff
 
 - Branch: `codex/native-udp-foundation`.
-- M0: complete.
-- M1 Chromium CONNECT-UDP integration: complete, audited, commit `e11a7733`.
-- M2 SOCKS5 UDP ingress: complete, audited, commit `fe817a87`.
-- M3 native UDP client composition: complete and independently audited;
-  `agy` returned `AUDIT_PASS` with zero blocker/high/medium findings.
-- M3 plan commit: `8720c912`.
-- M3 implementation commits: G0 `83904eb8`, G1 `4541f756`, G2 `1bd5789e`,
-  G3 `c2352710`, G4 `4927d06a`, G5 `578e3992`.
-- M3 final regression/audit closeout commit: `2bb83aec`.
-- M3 audit record: [`m3-agy-audit.md`](m3-agy-audit.md).
-- M4 production-server execution plan: [`m4-execution-plan.md`](m4-execution-plan.md).
-- M4-G0 server baseline commit: `bf092e6` in
-  `ssharkkky/forwardproxy` branch `codex/native-udp-server`.
-- M4-G1 capability commit: `121f097`; Caddy Datagram commits `2002a520` and
-  `2ff83e69` in `ssharkkky/caddy` branch `codex/enable-h3-datagrams`.
-- M4-G2 protocol/policy commit: `f9b40f6`.
-- M4-G3 bounded association commit: `1b6d04b`.
-- M4-G4 production integration commit: `15c07ab`.
-- M4-G5 pinned-binary interoperability commit: `7243519`; Caddy debug-secret
-  redaction commit: `cce894a8`.
-- M4-G6 release closeout: complete and independently audited. The user-run
-  `agy` review returned `AUDIT_PASS` with zero blocker/high/medium findings.
-- M4 audit's sole low CI-pin finding is closed by final `forwardproxy` commit
-  `8f044e2`; audit record: [`m4-agy-audit.md`](m4-agy-audit.md).
-- Next milestone: M5 end-to-end product composition.
+- M0-M4 are complete. M1-M4 are independently audited.
+- M3 final client marker: `M3_NATIVE_UDP_CLIENT_OK`; closeout commit
+  `2bb83aec`.
+- M4 final server marker: `M4_NATIVE_UDP_SERVER_OK`; forwardproxy `8f044e2`,
+  Caddy `cce894a8`.
+- Active milestone: M5 end-to-end MVP. The plan is complete and M5-G0 is next.
+- Overall progress remains 5 of 7 milestones (71%), approximately 75-80% by
+  weighted engineering scope.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
-  feature commits.
+  native UDP commits.
+
+M5 composes the audited halves without redesigning them:
+
+```text
+SOCKS5 UDP / HTTP3 application
+  -> production Naive client path (M1-M3)
+  -> RFC 9298 CONNECT-UDP + HTTP/3 DATAGRAM
+  -> production Caddy/forwardproxy server (M4)
+  -> UDP or HTTP/3 target
+```
+
+## Documents by role
+
+| Document | Role | Update policy |
+| --- | --- | --- |
+| [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
+| [`m5-execution-plan.md`](m5-execution-plan.md) | Active M5 G0-G6 sequencing, contracts, test matrix, risks, and stop conditions | Update when an M5 design decision changes |
+| [`native-udp-development-plan.md`](native-udp-development-plan.md) | Stable v1 scope, architecture, M0-M6 roadmap, estimates, and release boundary | Update only when scope or milestone boundaries change |
+| [`m4-execution-plan.md`](m4-execution-plan.md) | Completed production-server plan and gate record | Historical; factual clarifications only |
+| [`m3-execution-plan.md`](m3-execution-plan.md) | Completed production-client plan and gate record | Historical; factual clarifications only |
+| [`m1-agy-audit.md`](m1-agy-audit.md), [`m2-agy-audit.md`](m2-agy-audit.md), [`m3-agy-audit.md`](m3-agy-audit.md), [`m4-agy-audit.md`](m4-agy-audit.md) | Immutable independent review evidence for the revisions named inside each report | Do not rewrite conclusions; append only labeled factual clarification |
+
+This separation is intentional: the status ledger says what is verified, the
+active execution plan says what to do next, the development plan defines the
+long-lived scope, and historical plans/audits preserve why earlier boundaries
+were accepted.
 
 ## Read in this order
 
-1. [`native-udp-status.md`](native-udp-status.md)
-   - Current verified facts, milestone ledger, evidence, and canonical test
-     commands.
-   - This is the operational source of truth.
-2. [`native-udp-development-plan.md`](native-udp-development-plan.md)
-   - Frozen v1 scope, architecture, M0–M6 roadmap, verification matrix, and
-     remaining M5/M6 milestones.
-   - Use its M5 section for the next project boundary.
-3. [`m4-execution-plan.md`](m4-execution-plan.md)
-   - Completed M4 production-server G0–G6 sequence, contracts, verification
-     matrix, source ownership, and stop conditions.
-4. [`m4-agy-audit.md`](m4-agy-audit.md)
-   - Independent M4 review scope, findings, final verdict, and closure of the
-     sole low CI-pinning observation.
-5. [`m3-execution-plan.md`](m3-execution-plan.md)
-   - Completed G0–G6 sequence, ownership model, contracts, resource limits,
-     stop conditions, and completion markers.
-6. [`m1-agy-audit.md`](m1-agy-audit.md),
-   [`m2-agy-audit.md`](m2-agy-audit.md), and
-   [`m3-agy-audit.md`](m3-agy-audit.md)
-   - Historical independent audit evidence for completed milestones.
-   - They are immutable evidence except for clearly labeled factual
-     clarifications.
+1. [`native-udp-status.md`](native-udp-status.md) — current facts and commands.
+2. [`m5-execution-plan.md`](m5-execution-plan.md) — current gate and exit
+   criteria.
+3. [`native-udp-development-plan.md`](native-udp-development-plan.md) — frozen
+   v1 scope and remaining M5/M6 boundary.
+4. [`m4-agy-audit.md`](m4-agy-audit.md) and
+   [`m4-execution-plan.md`](m4-execution-plan.md) — server evidence inherited
+   by M5.
+5. [`m3-agy-audit.md`](m3-agy-audit.md) and
+   [`m3-execution-plan.md`](m3-execution-plan.md) — client evidence inherited
+   by M5.
 
-## Authority and update rules
+Read M1/M2 audit records when changing their specific Chromium tunnel or
+SOCKS5 ingress boundaries; they are not required for an unrelated test-harness
+change after their constraints are understood.
+
+## Authority rules
 
 When documents disagree, use this order:
 
 1. Current code, tests, and Git history.
 2. `native-udp-status.md` for claims already verified.
-3. The active milestone execution plan for work not yet completed.
-4. `native-udp-development-plan.md` for frozen scope and later roadmap.
-5. Historical audit records for the state reviewed at that time.
+3. The active milestone execution plan for pending work.
+4. `native-udp-development-plan.md` for frozen scope and later milestones.
+5. Historical execution plans and audit records for the revisions they name.
 
-Do not copy the same detailed evidence into every document:
+Do not duplicate detailed evidence across documents:
 
-- update the status ledger after a gate actually passes;
-- update the active execution plan only when sequencing, contracts, limits, or
-  risks change;
-- update the development plan only when v1 scope or milestone boundaries
-  change;
-- add an audit record only after an independent audit has actually run.
+- record exact commands, markers, commits, and results in the status ledger;
+- keep pending gate design in the active execution plan;
+- keep stable scope/milestone summaries and the retained M0/M1 design record
+  in the development plan; keep this index concise;
+- create an audit record only after an independent review actually runs.
 
-## Ten-minute new-agent checklist
+## Ten-minute handoff checklist
 
-From the repository root:
+Confirm all three worktrees before editing:
 
 ```bash
 git status -sb
+git -C /Users/stoneshi/Documents/naive-forwardproxy-m4 status -sb
+git -C /Users/stoneshi/Documents/caddy-naive-udp-m4 status -sb
 git log -5 --oneline --decorate
 git diff --check
 ```
 
 Then:
 
-1. Confirm the branch is `codex/native-udp-foundation` and identify any local
-   changes before editing.
-2. Read this index, the status ledger, the development-plan M5 boundary, and
-   the M4 audit record before planning the next change.
-3. Inspect the actual M2 factory and association boundary:
+1. Read the status ledger and the complete current M5 gate.
+2. Verify the pinned M5 inputs: Naive client closeout `2bb83aec`, forwardproxy
+   `8f044e2`, and Caddy `cce894a8`.
+3. Inspect the client composition boundaries:
 
    ```text
-   src/net/tools/naive/socks5_udp_datagram_backend.h
    src/net/tools/naive/socks5_udp_association.{h,cc}
+   src/net/tools/naive/naive_connect_udp_datagram_backend.{h,cc}
+   src/net/tools/naive/naive_connect_udp_tunnel.{h,cc}
    src/net/tools/naive/naive_proxy.{h,cc}
+   src/net/tools/naive/naive_proxy_bin.cc
    ```
 
-4. Inspect the actual M1 tunnel boundary:
+4. Inspect the server composition boundaries:
 
    ```text
-   src/net/tools/naive/naive_connect_udp_tunnel.{h,cc}
-   src/net/tools/naive/naive_quic_proxy_stream_request.{h,cc}
-   src/net/quic/quic_proxy_datagram_client_socket.{h,cc}
+   /Users/stoneshi/Documents/naive-forwardproxy-m4/native_udp_*.go
+   /Users/stoneshi/Documents/naive-forwardproxy-m4/forwardproxy.go
+   /Users/stoneshi/Documents/naive-forwardproxy-m4/scripts/test-m4-g5-server.sh
+   /Users/stoneshi/Documents/naive-forwardproxy-m4/tests/m4/Caddyfile
    ```
 
-5. Run the existing focused build/tests from the status ledger before making
-   a structural change. The current local workspace has prepared Release output
-   under `src/out/Release`; a fresh clone must build it first.
+5. Run the existing focused client/server verification commands from the
+   status ledger before changing an audited runtime boundary. M5-G0 may add
+   only the new harness skeleton and contract evidence.
 
-## Current M3 implementation summary
+## M5 immediate boundary
 
-M3 is a composition layer:
+M5-G0 freezes the dynamic-port topology, temporary artifact/trust ownership,
+independent SOCKS5-UDP-backed HTTP/3 probe, exact marker list, and safe
+production-binary certificate strategy. It must not add a production
+certificate bypass or modify Caddy/runtime protocol code.
 
-```text
-SOCKS5 UDP relay (M2)
-  -> one production backend per SOCKS association
-  -> target-keyed tunnel owners (M3)
-  -> one NaiveConnectUdpTunnel per destination (M1)
-  -> Chromium CONNECT-UDP + HTTP/3 DATAGRAM
-```
-
-G0 through G5 have now resolved the composition, interoperability, and
-lifecycle boundary:
-
-- the exact per-association transient NAK and immutable transport context reach
-  a target-keyed, bounded production backend;
-- the backend has deterministic synchronous/asynchronous, routing, limits,
-  cooldown, failure-isolation, empty-datagram, MTU, and destruction tests;
-- production `naive` and a test-only full-path runner share the same real M1
-  adapter/factory;
-- direct, HTTPS/H2, mixed-chain, and no-backend UDP requests return exact SOCKS
-  reply `0x01`;
-- controlled IPv4 echo and cached Basic authentication pass through real
-  CONNECT-UDP plus HTTP/3 DATAGRAM;
-- controlled IPv6, domain, DNS, same-association multi-target, and concurrent
-  association traffic pass through the same production adapter;
-- even `kEverything` NetLog capture redacts CONNECT-UDP paths and records only
-  byte counts, never UDP destinations or payload bytes;
-- real session shutdown and target idle expiry produce fresh tunnels only for
-  later packets, while deterministic coverage proves ambiguous old payloads
-  are never replayed;
-- pending connect/read/write destruction, explicit 407 failures, connect
-  timeout, zero-length/oversize behavior, every frozen capacity limit, and
-  powers-of-two NetLog rate limiting are verified;
-- every M1/M2 gate and all 56 existing TCP cases remain green.
-
-G6 reran the complete regression matrix, repeated the full M3 lifecycle suite
-three consecutive times, and obtained an independent Gemini 3.1 Pro High
-`AUDIT_PASS` with zero blocker, high, or medium findings. M3 is complete; the
-next architectural boundary is the separate M4 production server path.
-
-## Current M4 implementation summary
-
-M4-G0 through G5 are complete in the separate forwardproxy/Caddy forks. The
-pinned Caddy enables both HTTP/3 and QUIC Datagrams; forwardproxy now strictly
-classifies RFC 9298 requests, shares TCP DNS/ACL/allowed-port policy, owns a
-bounded fixed-target connected UDP association, and relays canonical Context
-ID `0` H3 Datagrams without private framing or replay.
-
-G4 verified real H3 IPv4, IPv6, domain, authentication, policy status, upstream
-rejection, and probe-resistance behavior. CONNECT-UDP paths are redacted before
-Caddy access logging, and powers-of-two counters contain only association id,
-generic reason, count, and byte count. The complete legacy server suite and
-race detector remain green. G5 then proved the same contracts through the
-standalone pinned production binary, including deterministic DNS, zero/live
-maximum/oversize behavior, 32-stream admission, production idle expiry,
-active shutdown/restart, repeated stress, and server-log privacy. G6 clean
-rebuild and full client/server regressions also pass. An independent user-run
-`agy` audit inspected all three repository ranges and returned `AUDIT_PASS`
-with zero blocker/high/medium findings. Its sole low observation—a stale Caddy
-commit in the GitHub Actions workflow—was closed by `forwardproxy` commit
-`8f044e2`. M4 is complete; M5 owns full SOCKS5-to-production-Caddy product
-validation.
+The deterministic M3 runner is valid for the broad M5 matrix because it uses
+the real production backend/factory, but M5 completion also requires a
+separate smoke through the shipped `naive` binary and its default certificate
+verifier. See [`m5-execution-plan.md`](m5-execution-plan.md) for the exact gate
+distinction.
