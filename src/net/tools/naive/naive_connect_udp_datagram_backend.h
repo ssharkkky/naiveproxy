@@ -59,12 +59,17 @@ class NaiveConnectUdpDatagramBackend final
     uint64_t received_datagrams = 0;
     uint64_t oversize_drops = 0;
     uint64_t capacity_drops = 0;
+    uint64_t cooldown_drops = 0;
     uint64_t target_failures = 0;
+    uint64_t connect_timeouts = 0;
+    uint64_t idle_evictions = 0;
   };
 
   NaiveConnectUdpDatagramBackend(
       Socks5UdpBackendContext context,
-      NaiveConnectUdpTargetTunnelFactory tunnel_factory);
+      NaiveConnectUdpTargetTunnelFactory tunnel_factory,
+      base::TimeDelta failed_target_cooldown =
+          Socks5UdpBackendLimits::kFailedTargetCooldown);
   ~NaiveConnectUdpDatagramBackend() override;
 
   NaiveConnectUdpDatagramBackend(const NaiveConnectUdpDatagramBackend&) =
@@ -91,6 +96,7 @@ class NaiveConnectUdpDatagramBackend final
   void HandleTargetConnectComplete(const Socks5UdpTargetKey& key,
                                    uint64_t generation,
                                    int result);
+  void OnTargetConnectTimeout(Socks5UdpTargetKey key, uint64_t generation);
   void PumpTargetReads(const Socks5UdpTargetKey& key, uint64_t generation);
   void RunScheduledReadPump(Socks5UdpTargetKey key, uint64_t generation);
   void OnTargetReadComplete(Socks5UdpTargetKey key,
@@ -107,14 +113,22 @@ class NaiveConnectUdpDatagramBackend final
   bool HandleTargetWriteComplete(const Socks5UdpTargetKey& key,
                                  uint64_t generation,
                                  int result);
+  void ArmTargetIdleTimer(const Socks5UdpTargetKey& key,
+                          uint64_t generation);
+  void OnTargetIdleTimeout(Socks5UdpTargetKey key, uint64_t generation);
   void ScheduleTargetRetirement(const Socks5UdpTargetKey& key,
                                 uint64_t generation,
-                                int error);
-  void RetireTarget(Socks5UdpTargetKey key, uint64_t generation);
+                                int error,
+                                bool enter_cooldown = true);
+  void RetireTarget(Socks5UdpTargetKey key,
+                    uint64_t generation,
+                    bool enter_cooldown);
+  void EraseCooldownTarget(Socks5UdpTargetKey key, uint64_t generation);
   void ClearQueuedDatagrams(TargetEntry* entry);
 
   const Socks5UdpBackendContext context_;
   const NaiveConnectUdpTargetTunnelFactory tunnel_factory_;
+  const base::TimeDelta failed_target_cooldown_;
   ReceiveCallback receive_callback_;
   std::map<Socks5UdpTargetKey, std::unique_ptr<TargetEntry>> targets_;
   size_t queued_datagram_count_ = 0;

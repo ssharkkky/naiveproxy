@@ -4,7 +4,9 @@
 
 #include <array>
 #include <iostream>
+#include <map>
 #include <memory>
+#include <string>
 #include <string_view>
 #include <utility>
 #include <vector>
@@ -159,26 +161,46 @@ void RunUntilIdle() {
   run_loop.RunUntilIdle();
 }
 
-net::Socks5UdpBackendContext MakeContext(unsigned int association_id = 31) {
+net::Socks5UdpBackendContext MakeContext(
+    unsigned int association_id = 31,
+    base::TimeDelta connect_timeout = base::Seconds(10),
+    base::TimeDelta target_idle_timeout = base::Seconds(30)) {
   const net::ProxyChain chain = net::ProxyChain::FromSchemeHostAndPort(
       net::ProxyServer::SCHEME_QUIC, "proxy.test", 443);
   CHECK(chain.IsValid());
   return net::Socks5UdpBackendContext(
       association_id, reinterpret_cast<net::HttpNetworkSession*>(0x1), chain,
       net::NetworkAnonymizationKey::CreateTransient(),
-      net::NetLogWithSource(), kTrafficAnnotation, base::Seconds(10),
-      base::Seconds(30));
+      net::NetLogWithSource(), kTrafficAnnotation, connect_timeout,
+      target_idle_timeout);
+}
+
+net::Socks5UdpDatagram DatagramFor(net::Socks5UdpEndpoint endpoint,
+                                   std::vector<uint8_t> payload) {
+  return net::Socks5UdpDatagram{
+      .destination = std::move(endpoint),
+      .payload = std::move(payload),
+  };
 }
 
 net::Socks5UdpDatagram Datagram(std::vector<uint8_t> payload) {
-  return net::Socks5UdpDatagram{
-      .destination = net::Socks5UdpEndpoint{
-          .type = net::Socks5UdpAddressType::kDomain,
-          .host = "target.test",
-          .port = 443,
-      },
-      .payload = std::move(payload),
-  };
+  return DatagramFor(net::Socks5UdpEndpoint{
+                         .type = net::Socks5UdpAddressType::kDomain,
+                         .host = "target.test",
+                         .port = 443,
+                     },
+                     std::move(payload));
+}
+
+void CompleteReadError(const std::shared_ptr<ScriptedTunnelState>& state,
+                       int result) {
+  CHECK_LT(result, 0);
+  CHECK(state->read_callback);
+  state->open = false;
+  state->last_read_was_datagram = false;
+  state->read_buffer.reset();
+  state->read_buffer_length = 0;
+  std::move(state->read_callback).Run(result);
 }
 
 void TestFrozenContracts() {
@@ -462,7 +484,8 @@ void TestShortWriteEofAndPendingDestruction() {
                                  net::NaiveConnectUdpTargetTunnel> {
                            return std::make_unique<ScriptedTunnel>(state);
                          },
-                         short_state));
+                         short_state),
+      base::TimeDelta());
   short_backend.Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
   Expect(short_backend.Send(Datagram({0x01, 0x02, 0x03}),
                             net::CompletionOnceCallback()) == net::OK,
@@ -487,7 +510,8 @@ void TestShortWriteEofAndPendingDestruction() {
                                  net::NaiveConnectUdpTargetTunnel> {
                            return std::make_unique<ScriptedTunnel>(state);
                          },
-                         eof_state));
+                         eof_state),
+      base::TimeDelta());
   eof_backend.Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
   Expect(eof_backend.Send(Datagram({0x01}),
                           net::CompletionOnceCallback()) == net::OK,
@@ -575,6 +599,289 @@ void TestSynchronousZeroLengthAndCallbackDestruction() {
          "receive callback can destroy backend without UAF or rearm");
 }
 
+void TestMultiTargetRoutingAndFailureIsolation() {
+  auto first_state = std::make_shared<ScriptedTunnelState>();
+  first_state->start_result = net::OK;
+  first_state->write_result = 1;
+  auto second_state = std::make_shared<ScriptedTunnelState>();
+  second_state->start_result = net::OK;
+  second_state->write_result = 1;
+  std::map<std::string, std::shared_ptr<ScriptedTunnelState>> states = {
+      {"one.test", first_state}, {"two.test", second_state}};
+  int factory_calls = 0;
+  std::vector<net::Socks5UdpDatagram> received;
+  net::NaiveConnectUdpDatagramBackend backend(
+      MakeContext(),
+      base::BindRepeating(
+          [](const std::map<std::string,
+                            std::shared_ptr<ScriptedTunnelState>>* states,
+             int* factory_calls, const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint& endpoint)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            ++*factory_calls;
+            return std::make_unique<ScriptedTunnel>(states->at(endpoint.host));
+          },
+          &states, &factory_calls));
+  backend.Start(base::BindRepeating(
+      [](std::vector<net::Socks5UdpDatagram>* received,
+         net::Socks5UdpDatagram datagram) {
+        received->push_back(std::move(datagram));
+      },
+      &received));
+  const net::Socks5UdpEndpoint first_endpoint{
+      .type = net::Socks5UdpAddressType::kDomain,
+      .host = "one.test",
+      .port = 1001,
+  };
+  const net::Socks5UdpEndpoint second_endpoint{
+      .type = net::Socks5UdpAddressType::kDomain,
+      .host = "two.test",
+      .port = 1002,
+  };
+  backend.Send(DatagramFor(first_endpoint, {0x01}),
+               net::CompletionOnceCallback());
+  backend.Send(DatagramFor(second_endpoint, {0x02}),
+               net::CompletionOnceCallback());
+  Expect(factory_calls == 2 && backend.target_count_for_testing() == 2,
+         "distinct targets own distinct tunnels");
+  CompleteRead(second_state, {0x22});
+  CompleteRead(first_state, {0x11});
+  Expect(received.size() == 2 &&
+             received[0].destination == second_endpoint &&
+             received[0].payload == std::vector<uint8_t>({0x22}) &&
+             received[1].destination == first_endpoint &&
+             received[1].payload == std::vector<uint8_t>({0x11}),
+         "interleaved responses cannot cross target routes");
+
+  CompleteReadError(first_state, net::ERR_CONNECTION_CLOSED);
+  RunUntilIdle();
+  Expect(backend.target_count_for_testing() == 2 &&
+             backend.stats_for_testing().target_failures == 1,
+         "failed target becomes cooldown tombstone while peer remains open");
+  backend.Send(DatagramFor(first_endpoint, {0x33}),
+               net::CompletionOnceCallback());
+  Expect(factory_calls == 2 &&
+             backend.stats_for_testing().cooldown_drops == 1,
+         "cooldown suppresses reconnect storms");
+  backend.Send(DatagramFor(second_endpoint, {0x44}),
+               net::CompletionOnceCallback());
+  Expect(second_state->written == std::vector<uint8_t>({0x44}) &&
+             backend.stats_for_testing().sent_datagrams == 3,
+         "one target failure does not affect another target");
+}
+
+void TestTargetAndQueueLimits() {
+  std::vector<std::shared_ptr<ScriptedTunnelState>> target_states;
+  int factory_calls = 0;
+  net::NaiveConnectUdpDatagramBackend target_cap_backend(
+      MakeContext(),
+      base::BindRepeating(
+          [](std::vector<std::shared_ptr<ScriptedTunnelState>>* states,
+             int* factory_calls, const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            ++*factory_calls;
+            auto state = std::make_shared<ScriptedTunnelState>();
+            states->push_back(state);
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          &target_states, &factory_calls));
+  target_cap_backend.Start(
+      base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  for (size_t i = 0; i < net::Socks5UdpBackendLimits::kMaxTargets + 1; ++i) {
+    target_cap_backend.Send(
+        DatagramFor(net::Socks5UdpEndpoint{
+                        .type = net::Socks5UdpAddressType::kDomain,
+                        .host = "target-" + std::to_string(i) + ".test",
+                        .port = 443,
+                    },
+                    {0x01}),
+        net::CompletionOnceCallback());
+  }
+  Expect(target_cap_backend.target_count_for_testing() == 32 &&
+             factory_calls == 32 &&
+             target_cap_backend.stats_for_testing().capacity_drops == 1,
+         "33rd busy target is dropped without eviction");
+
+  auto per_target_state = std::make_shared<ScriptedTunnelState>();
+  net::NaiveConnectUdpDatagramBackend per_target_backend(
+      MakeContext(),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          per_target_state));
+  per_target_backend.Start(
+      base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  for (size_t i = 0;
+       i < net::Socks5UdpBackendLimits::kMaxQueuedDatagramsPerTarget + 1;
+       ++i) {
+    per_target_backend.Send(Datagram({0x01}),
+                            net::CompletionOnceCallback());
+  }
+  Expect(per_target_backend.stats_for_testing().admitted_datagrams == 16 &&
+             per_target_backend.stats_for_testing().capacity_drops == 1,
+         "per-target queue admits 16 and drops the 17th");
+
+  std::vector<std::shared_ptr<ScriptedTunnelState>> association_states;
+  net::NaiveConnectUdpDatagramBackend association_cap_backend(
+      MakeContext(),
+      base::BindRepeating(
+          [](std::vector<std::shared_ptr<ScriptedTunnelState>>* states,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            auto state = std::make_shared<ScriptedTunnelState>();
+            states->push_back(state);
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          &association_states));
+  association_cap_backend.Start(
+      base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  for (size_t target = 0; target < 9; ++target) {
+    const size_t count = target < 8 ? 15 : 8;
+    for (size_t packet = 0; packet < count; ++packet) {
+      association_cap_backend.Send(
+          DatagramFor(net::Socks5UdpEndpoint{
+                          .type = net::Socks5UdpAddressType::kDomain,
+                          .host = "queue-" + std::to_string(target) + ".test",
+                          .port = 443,
+                      },
+                      {0x01}),
+          net::CompletionOnceCallback());
+    }
+  }
+  association_cap_backend.Send(
+      DatagramFor(net::Socks5UdpEndpoint{
+                      .type = net::Socks5UdpAddressType::kDomain,
+                      .host = "queue-8.test",
+                      .port = 443,
+                  },
+                  {0x02}),
+      net::CompletionOnceCallback());
+  Expect(association_cap_backend.stats_for_testing().admitted_datagrams ==
+                 128 &&
+             association_cap_backend.stats_for_testing().capacity_drops == 1,
+         "association packet queue admits 128 and drops the 129th");
+
+  auto byte_state = std::make_shared<ScriptedTunnelState>();
+  net::NaiveConnectUdpDatagramBackend byte_cap_backend(
+      MakeContext(),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          byte_state));
+  byte_cap_backend.Start(
+      base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  for (int i = 0; i < 4; ++i) {
+    byte_cap_backend.Send(Datagram(std::vector<uint8_t>(65000, 0x01)),
+                          net::CompletionOnceCallback());
+  }
+  byte_cap_backend.Send(Datagram(std::vector<uint8_t>(10000, 0x02)),
+                        net::CompletionOnceCallback());
+  Expect(byte_cap_backend.stats_for_testing().admitted_datagrams == 4 &&
+             byte_cap_backend.stats_for_testing().capacity_drops == 1,
+         "association byte queue rejects payload beyond 256 KiB");
+}
+
+void TestTimeoutIdleCooldownAndNoReplay() {
+  auto timed_out_state = std::make_shared<ScriptedTunnelState>();
+  auto fresh_state = std::make_shared<ScriptedTunnelState>();
+  fresh_state->start_result = net::OK;
+  fresh_state->write_result = 1;
+  int factory_calls = 0;
+  net::NaiveConnectUdpDatagramBackend reconnect_backend(
+      MakeContext(41, base::TimeDelta(), base::Seconds(30)),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> first,
+             std::shared_ptr<ScriptedTunnelState> second, int* calls,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            std::shared_ptr<ScriptedTunnelState> state =
+                (*calls)++ == 0 ? first : second;
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          timed_out_state, fresh_state, &factory_calls),
+      base::TimeDelta());
+  reconnect_backend.Start(
+      base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  reconnect_backend.Send(Datagram({0xaa}), net::CompletionOnceCallback());
+  RunUntilIdle();
+  Expect(factory_calls == 1 && timed_out_state->written.empty() &&
+             reconnect_backend.stats_for_testing().connect_timeouts == 1 &&
+             reconnect_backend.target_count_for_testing() == 0,
+         "connect timeout clears old queue and expires test cooldown");
+  reconnect_backend.Send(Datagram({0xbb}), net::CompletionOnceCallback());
+  Expect(factory_calls == 2 &&
+             fresh_state->written == std::vector<uint8_t>({0xbb}) &&
+             reconnect_backend.stats_for_testing().sent_datagrams == 1,
+         "only a later new packet creates a fresh tunnel; old data not replayed");
+
+  auto idle_state = std::make_shared<ScriptedTunnelState>();
+  idle_state->start_result = net::OK;
+  idle_state->write_result = 1;
+  net::NaiveConnectUdpDatagramBackend idle_backend(
+      MakeContext(42, base::Seconds(10), base::TimeDelta()),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          idle_state));
+  idle_backend.Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  idle_backend.Send(Datagram({0x01}), net::CompletionOnceCallback());
+  RunUntilIdle();
+  Expect(idle_backend.target_count_for_testing() == 0 &&
+             idle_backend.stats_for_testing().idle_evictions == 1 &&
+             idle_backend.stats_for_testing().target_failures == 0,
+         "idle target is evicted without being classified as a failure");
+}
+
+void TestSynchronousReadPumpYield() {
+  auto state = std::make_shared<ScriptedTunnelState>();
+  state->start_result = net::OK;
+  state->read_result = 1;
+  state->read_payload = {0x42};
+  state->last_read_was_datagram = true;
+  state->write_result = 1;
+  int responses = 0;
+  net::NaiveConnectUdpDatagramBackend backend(
+      MakeContext(), base::BindRepeating(
+                         [](std::shared_ptr<ScriptedTunnelState> state,
+                            const net::Socks5UdpBackendContext&,
+                            const net::Socks5UdpEndpoint&)
+                             -> std::unique_ptr<
+                                 net::NaiveConnectUdpTargetTunnel> {
+                           return std::make_unique<ScriptedTunnel>(state);
+                         },
+                         state));
+  backend.Start(base::BindRepeating(
+      [](std::shared_ptr<ScriptedTunnelState> state, int* responses,
+         net::Socks5UdpDatagram) {
+        ++*responses;
+        if (*responses == 32) {
+          state->read_result = net::ERR_IO_PENDING;
+        }
+      },
+      state, &responses));
+  backend.Send(Datagram({0x01}), net::CompletionOnceCallback());
+  Expect(responses == 32 && state->read_callback.is_null(),
+         "synchronous read pump yields after exactly 32 completions");
+  RunUntilIdle();
+  Expect(!state->read_callback.is_null() && responses == 32,
+         "posted read pump resumes and arms the next asynchronous read");
+}
+
 }  // namespace
 
 int main() {
@@ -587,11 +894,17 @@ int main() {
   TestSynchronousSingleTargetAndOversizeDrop();
   TestShortWriteEofAndPendingDestruction();
   TestSynchronousZeroLengthAndCallbackDestruction();
+  TestMultiTargetRoutingAndFailureIsolation();
+  TestTargetAndQueueLimits();
+  TestTimeoutIdleCooldownAndNoReplay();
+  TestSynchronousReadPumpYield();
   if (failures != 0) {
     std::cerr << "M3 G0 failures=" << failures << "\n";
     return 1;
   }
   std::cout << "M3_G0_BACKEND_CONTRACT_OK\n";
   std::cout << "M3_G1_SINGLE_TARGET_OK\n";
+  std::cout << "M3_G2_MULTI_TARGET_LIMITS_OK\n";
+  std::cout << "M3_G2_FAILURE_ISOLATION_OK\n";
   return 0;
 }

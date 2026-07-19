@@ -342,13 +342,44 @@ def run_rejection(
     print(marker)
 
 
+def run_association_cap(host, port):
+    family = socket.AF_INET6 if ":" in host else socket.AF_INET
+    first_control, first_udp, _ = udp_associate(host, port, family)
+    second_control, second_udp, _ = udp_associate(host, port, family)
+
+    rejected = open_control(host, port, family)
+    unspecified = "0.0.0.0" if family == socket.AF_INET else "::"
+    reply = send_command(rejected, 3, unspecified, 0)
+    assert reply == (1, 1, "0.0.0.0", 0), reply
+    rejected.settimeout(2)
+    assert rejected.recv(1) == b""
+    rejected.close()
+
+    first_control.close()
+    first_udp.close()
+    time.sleep(0.2)
+    replacement_control, replacement_udp, _ = udp_associate(
+        host, port, family
+    )
+    replacement_control.close()
+    replacement_udp.close()
+    second_control.close()
+    second_udp.close()
+    print("M3_G2_ACTIVE_ASSOCIATION_LIMIT_OK")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--host", required=True)
     parser.add_argument("--port", required=True, type=int)
     parser.add_argument(
         "--mode",
-        choices=("success", "rejection", "no-backend-rejection"),
+        choices=(
+            "success",
+            "rejection",
+            "no-backend-rejection",
+            "association-cap",
+        ),
         required=True,
     )
     parser.add_argument("--username")
@@ -356,6 +387,8 @@ def main():
     args = parser.parse_args()
     if args.mode == "success":
         run_success(args.host, args.port, args.username, args.password)
+    elif args.mode == "association-cap":
+        run_association_cap(args.host, args.port)
     else:
         marker = (
             "M2_G3_NON_QUIC_REJECTION_OK"

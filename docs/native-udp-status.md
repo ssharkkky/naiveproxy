@@ -16,7 +16,7 @@ verified. Update it at every completed G target and milestone.
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
-| M3 — native UDP client data path | G0–G1 complete; G2 next | Backend contract plus cancellation-safe single-target sync/async connect, serialized write, continuous read, live oversize drop, empty datagram, EOF/short-write retirement and no-replay tests pass | Execute M3-G2 routing, limits, and failure isolation |
+| M3 — native UDP client data path | G0–G2 complete; G3 next | Single/multi-target state machine, all queue/byte/target/association bounds, timeout/idle/cooldown, generation-safe retirement, failure isolation and no-replay tests pass | Execute M3-G3 real M1 adapter and production wiring |
 | M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
 | M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
@@ -390,8 +390,8 @@ M2_SOCKS5_UDP_INGRESS_OK
 
 ## M3 execution ledger — native UDP client data path
 
-Status: G0 and G1 complete; ready to execute G2. The backend is compiled but
-is not installed in the production binary; M2 fake/no-backend behavior is
+Status: G0 through G2 complete; ready to execute G3. The backend is compiled
+but is not installed in the production binary; M2 fake/no-backend behavior is
 unchanged.
 
 The plan was derived from direct inspection of the M1 tunnel and M2 ingress
@@ -494,6 +494,47 @@ Verified marker:
 M3_G1_SINGLE_TARGET_OK
 ```
 
+### M3-G2 — target routing, limits, and failure isolation
+
+Status: complete.
+
+Completed:
+
+- Routes by address type plus host plus port with one generation-tagged tunnel
+  owner per target. Interleaved responses retain their original endpoint and
+  cannot cross routes.
+- Enforces 32 live/cooldown targets, 16 queued datagrams per target, 128 queued
+  datagrams and 256 KiB per association. A busy target is never evicted to
+  admit a new one.
+- Enforces a default 256 active UDP-association cap per `NaiveProxy`, counting
+  both established associations and successful-reply-pending reservations.
+  The listener's existing `concurrency` value governs session prewarming, not
+  connection count, so a separate conservative hard cap is required. A
+  deterministic cap/release test uses an injected lower limit and verifies
+  exact SOCKS reply `0x01` at capacity.
+- Adds connect deadlines, independent target idle eviction, and cooldown
+  tombstones. Cooldown blocks per-packet reconnect storms; a later new packet
+  after expiry creates a fresh tunnel.
+- Converts connect/read/write/session failure into target-scoped retirement.
+  Other targets and the SOCKS association remain active. Queued data from an
+  ambiguous failure is cleared and never replayed into the fresh tunnel.
+- Resets live idle deadlines on admitted open-target traffic and successful
+  reads/writes, caps synchronous read work at 32 operations, and resumes via a
+  posted task.
+
+Deterministic tests cover IPv4/domain-distinct routing primitives, interleaved
+targets, same-target reuse, target/packet/byte/association caps, connect
+timeout, idle eviction, cooldown suppression and expiry, fresh-tunnel creation,
+no replay, failure isolation, and synchronous pump yield.
+
+Verified markers:
+
+```text
+M3_G2_MULTI_TARGET_LIMITS_OK
+M3_G2_FAILURE_ISOLATION_OK
+M3_G2_ACTIVE_ASSOCIATION_LIMIT_OK
+```
+
 ## Current verification commands
 
 ```bash
@@ -527,6 +568,9 @@ Expected markers:
 - `M3_G0_BACKEND_CONTRACT_OK`
 - `M3_G0_TEST_SKELETON_OK`
 - `M3_G1_SINGLE_TARGET_OK`
+- `M3_G2_MULTI_TARGET_LIMITS_OK`
+- `M3_G2_FAILURE_ISOLATION_OK`
+- `M3_G2_ACTIVE_ASSOCIATION_LIMIT_OK`
 - exit code `0` from `tests/basic.sh`
 - `ninja: no work to do` or a successful link
 
