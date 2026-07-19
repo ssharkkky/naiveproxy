@@ -10,6 +10,7 @@
 
 #include <map>
 #include <memory>
+#include <string_view>
 
 #include "base/functional/callback.h"
 #include "base/memory/weak_ptr.h"
@@ -125,6 +126,7 @@ class NaiveConnectUdpDatagramBackend final
                     bool enter_cooldown);
   void EraseCooldownTarget(Socks5UdpTargetKey key, uint64_t generation);
   void ClearQueuedDatagrams(TargetEntry* entry);
+  void RecordCounterEvent(std::string_view reason, uint64_t count) const;
 
   const Socks5UdpBackendContext context_;
   const NaiveConnectUdpTargetTunnelFactory tunnel_factory_;

@@ -224,6 +224,8 @@ struct RelayState {
   bool recv_pending = false;
   bool send_pending = false;
   bool closed = false;
+  scoped_refptr<net::IOBuffer> pending_send_buffer;
+  net::CompletionOnceCallback pending_send_callback;
 };
 
 void QueueRelayData(const std::shared_ptr<RelayState>& state,
@@ -294,8 +296,8 @@ class ScriptedDatagramSocket final : public net::DatagramServerSocket {
     if (result == net::ERR_IO_PENDING) {
       CHECK(!state_->send_pending);
       state_->send_pending = true;
-      pending_send_buffer_ = base::WrapRefCounted(buffer);
-      pending_send_callback_ = std::move(callback);
+      state_->pending_send_buffer = base::WrapRefCounted(buffer);
+      state_->pending_send_callback = std::move(callback);
     }
     return result;
   }
@@ -313,10 +315,10 @@ class ScriptedDatagramSocket final : public net::DatagramServerSocket {
       pending_recv_address_ = nullptr;
       state_->recv_pending = false;
     }
-    if (pending_send_callback_) {
+    if (state_->pending_send_callback) {
       ++state_->pending_send_cancellations;
-      pending_send_callback_.Reset();
-      pending_send_buffer_.reset();
+      state_->pending_send_callback.Reset();
+      state_->pending_send_buffer.reset();
       state_->send_pending = false;
     }
   }
@@ -368,10 +370,16 @@ class ScriptedDatagramSocket final : public net::DatagramServerSocket {
   scoped_refptr<net::IOBuffer> pending_recv_buffer_;
   net::IPEndPoint* pending_recv_address_ = nullptr;
   net::CompletionOnceCallback pending_recv_callback_;
-  scoped_refptr<net::IOBuffer> pending_send_buffer_;
-  net::CompletionOnceCallback pending_send_callback_;
   net::NetLogWithSource net_log_;
 };
+
+void CompleteRelaySend(const std::shared_ptr<RelayState>& state, int result) {
+  CHECK(state->send_pending);
+  CHECK(state->pending_send_callback);
+  state->send_pending = false;
+  state->pending_send_buffer.reset();
+  std::move(state->pending_send_callback).Run(result);
+}
 
 enum class BackendMode {
   kAcceptSynchronously,
@@ -387,6 +395,7 @@ struct BackendState {
   int pending_send_cancellations = 0;
   int destructions = 0;
   bool send_pending = false;
+  net::Socks5UdpDatagramBackend::ReceiveCallback receive_callback;
 };
 
 class ScriptedBackend final : public net::Socks5UdpDatagramBackend {
@@ -395,7 +404,7 @@ class ScriptedBackend final : public net::Socks5UdpDatagramBackend {
       : state_(std::move(state)) {}
 
   ~ScriptedBackend() override {
-    receive_callback_.Reset();
+    state_->receive_callback.Reset();
     if (pending_send_callback_) {
       ++state_->pending_send_cancellations;
       pending_send_callback_.Reset();
@@ -406,7 +415,7 @@ class ScriptedBackend final : public net::Socks5UdpDatagramBackend {
 
   void Start(ReceiveCallback receive_callback) override {
     ++state_->start_calls;
-    receive_callback_ = std::move(receive_callback);
+    state_->receive_callback = std::move(receive_callback);
   }
 
   int Send(net::Socks5UdpDatagram datagram,
@@ -417,7 +426,7 @@ class ScriptedBackend final : public net::Socks5UdpDatagramBackend {
       case BackendMode::kAcceptSynchronously:
         return net::OK;
       case BackendMode::kEchoSynchronously:
-        receive_callback_.Run(std::move(datagram));
+        state_->receive_callback.Run(std::move(datagram));
         return net::OK;
       case BackendMode::kPending:
         CHECK(!state_->send_pending);
@@ -429,7 +438,6 @@ class ScriptedBackend final : public net::Socks5UdpDatagramBackend {
 
  private:
   const std::shared_ptr<BackendState> state_;
-  ReceiveCallback receive_callback_;
   net::CompletionOnceCallback pending_send_callback_;
 };
 
@@ -717,6 +725,40 @@ void TestPendingBackendSendDestructionCancelsCallback() {
          "pending backend destruction also cancels control read");
 }
 
+void TestResponseQueuePressure() {
+  AssociationHarness harness;
+  BuildAssociation(harness);
+  QueueRelayData(harness.relay, ValidPacket(), harness.control_peer);
+  Expect(StartAssociation(harness) == net::ERR_IO_PENDING,
+         "response-pressure association starts");
+  RunUntilIdle();
+  Expect(harness.backend->receive_callback && harness.relay->recv_pending,
+         "response-pressure case learns the client endpoint");
+
+  harness.relay->send_results.push_back(net::ERR_IO_PENDING);
+  const net::Socks5UdpDatagram response{
+      .destination = net::Socks5UdpEndpoint{
+          .type = net::Socks5UdpAddressType::kDomain,
+          .host = "response.test",
+          .port = 53,
+      },
+      .payload = {0x42},
+  };
+  for (int i = 0; i < 66; ++i) {
+    harness.backend->receive_callback.Run(response);
+  }
+  Expect(harness.relay->send_calls == 1 && harness.relay->send_pending,
+         "first response write pends while the bounded queue fills");
+  const int first_size =
+      static_cast<int>(harness.relay->sent_packets.front().data.size());
+  CompleteRelaySend(harness.relay, first_size);
+  Expect(harness.relay->send_calls == 64 &&
+             harness.relay->sent_packets.size() == 64,
+         "response queue sends exactly its 64-packet capacity and drops two");
+  Expect(harness.completion.calls == 0 && harness.relay->recv_pending,
+         "response pressure does not terminate the SOCKS association");
+}
+
 }  // namespace
 
 int main() {
@@ -729,6 +771,7 @@ int main() {
   TestSynchronousControlDataYieldsThenEof();
   TestPendingReadDestructionCancelsCallbacks();
   TestPendingBackendSendDestructionCancelsCallback();
+  TestResponseQueuePressure();
 
   if (failures != 0) {
     std::cerr << "M2 G4/G5 deterministic association failures=" << failures

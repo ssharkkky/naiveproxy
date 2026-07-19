@@ -335,7 +335,7 @@ Estimated effort: 2–3 person-days.
 
 ### M3-G5 — lifecycle, recovery, and observability
 
-Status: next.
+Status: complete.
 
 Coverage:
 
@@ -356,6 +356,8 @@ Exit markers: `M3_G5_LIFECYCLE_OK`, `M3_G5_RECONNECT_OK`, and
 Estimated effort: 2–3 person-days.
 
 ### M3-G6 — complete regression and independent audit
+
+Status: next.
 
 1. Run the complete M1 test matrix.
 2. Run the complete M2 test matrix.

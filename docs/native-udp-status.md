@@ -16,15 +16,15 @@ verified. Update it at every completed G target and milestone.
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
-| M3 — native UDP client data path | G0–G4 complete; G5 next | Production `naive` shares the real M1 adapter with a controlled runner; IPv4/IPv6/domain/DNS, auth, multi-target, concurrent associations, bounds, and redacted NetLog pass | Execute M3-G5 lifecycle, recovery, limits, and observability matrix |
+| M3 — native UDP client data path | G0–G5 complete; G6 next | Full client path, controlled interoperability, session recovery, auth failures, all bounds, pending-I/O destruction, zero/oversize datagrams, and redacted rate-limited NetLog pass | Run full regression/stress and obtain independent `agy` `AUDIT_PASS` |
 | M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
 | M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
-ingress and retains its test-only echo/no-backend modes. M3 G0–G4 now compose
+ingress and retains its test-only echo/no-backend modes. M3 G0–G5 now compose
 that ingress with the real M1 CONNECT-UDP tunnel in production while keeping
-the M2 runner independent. Its remaining G5–G6 work is recorded in
+the M2 runner independent. Its remaining G6 audit work is recorded in
 `docs/m3-execution-plan.md`.
 
 ## M1 detailed status
@@ -391,7 +391,7 @@ M2_SOCKS5_UDP_INGRESS_OK
 
 ## M3 execution ledger — native UDP client data path
 
-Status: G0 through G4 complete; ready to execute G5. The real backend is
+Status: G0 through G5 complete; ready to execute G6. The real backend is
 installed in production `naive`; M2 fake/no-backend behavior remains an
 independent regression surface.
 
@@ -618,6 +618,60 @@ M3_G4_CONCURRENT_ASSOCIATIONS_OK
 M3_G4_NETLOG_REDACTION_OK
 ```
 
+### M3-G5 — lifecycle, recovery, limits, and observability
+
+Status: complete.
+
+Completed:
+
+- Added a real full-path session-shutdown case. Chromium closes the active
+  QUIC session while QPDCS has a pending read; the close callback retires only
+  that target, the one-second cooldown expires, and a later packet creates a
+  second CONNECT-UDP tunnel. The UDP fixture receives the pre- and post-close
+  payload exactly once each.
+- Added a real target-idle case using a test-runner-only timeout override. The
+  first target is evicted independently of the SOCKS association and a later
+  packet creates a fresh tunnel.
+- Verified absent and wrong cached Basic credentials each produce two explicit
+  server-side 407 rejections while the SOCKS association remains open. The
+  accepted cached credential case remains the independent G4 positive path.
+- Verified control close with CONNECT pending, active backend destruction with
+  a pending target read, and deterministic backend destruction with pending
+  connect/read/write callbacks. Production QPDCS writes are currently
+  synchronous, so the pending target-write branch is exercised through the
+  narrow scripted tunnel contract rather than claimed as a real network state.
+- Verified a 200 ms controlled connect timeout, cooldown, retry on a later
+  packet, idle eviction, zero-length datagram echo, and four oversized drops
+  followed by a healthy small datagram on the same target.
+- Revalidated the 32-target, 16-packet-per-target, 128-packet, 256 KiB,
+  256-active-association, 32-operation pump, and 64-response-queue limits. The
+  response-pressure test proves exactly 64 queued responses are sent and two
+  excess responses are dropped without terminating the association.
+- Added `NAIVE_CONNECT_UDP_BACKEND_COUNTER`. It logs only association id,
+  non-sensitive reason, and cumulative count at powers of two. A real
+  `kEverything` NetLog proves oversize events occur at counts 1, 2, and 4 and
+  contain neither UDP destination nor payload.
+- Kept all timeout shortening and self-signed certificate handling inside the
+  controlled test runner; production defaults and verification are unchanged.
+
+Verified markers:
+
+```text
+M3_G5_DETERMINISTIC_LIFECYCLE_OK
+M3_G5_SESSION_RECONNECT_OK
+M3_G5_IDLE_RECONNECT_OK
+M3_G5_ZERO_OVERSIZE_OK
+M3_G5_BACKEND_DESTRUCTION_OK
+M3_G5_PENDING_CONNECT_CLOSE_OK
+M3_G5_CONNECT_TIMEOUT_OK
+M3_G5_AUTH_MISSING_OK
+M3_G5_AUTH_WRONG_OK
+M3_G5_AUTH_FAILURES_OK
+M3_G5_RECONNECT_OK
+M3_G5_LIFECYCLE_OK
+M3_G5_LIMITS_OK
+```
+
 ## Current verification commands
 
 ```bash
@@ -670,6 +724,19 @@ Expected markers:
 - `M3_G4_MULTI_TARGET_OK`
 - `M3_G4_CONCURRENT_ASSOCIATIONS_OK`
 - `M3_G4_NETLOG_REDACTION_OK`
+- `M3_G5_DETERMINISTIC_LIFECYCLE_OK`
+- `M3_G5_SESSION_RECONNECT_OK`
+- `M3_G5_IDLE_RECONNECT_OK`
+- `M3_G5_ZERO_OVERSIZE_OK`
+- `M3_G5_BACKEND_DESTRUCTION_OK`
+- `M3_G5_PENDING_CONNECT_CLOSE_OK`
+- `M3_G5_CONNECT_TIMEOUT_OK`
+- `M3_G5_AUTH_MISSING_OK`
+- `M3_G5_AUTH_WRONG_OK`
+- `M3_G5_AUTH_FAILURES_OK`
+- `M3_G5_RECONNECT_OK`
+- `M3_G5_LIFECYCLE_OK`
+- `M3_G5_LIMITS_OK`
 - exit code `0` from `tests/basic.sh`
 - `ninja: no work to do` or a successful link
 
@@ -705,6 +772,7 @@ SOCKS5 UDP ingress M2`) after all local gates and the independent audit passed.
 The reviewed M3 execution plan is committed as `8720c912` (`Plan native UDP M3
 execution`). G0, G1, and G2 are committed as `83904eb8`, `4541f756`, and
 `1bd5789e`; G3 production composition is committed as `c2352710`. G4
-interoperability and the post-G3 privacy/lifecycle audit fixes are complete and
-verified in the current gate. Generated `.DS_Store` and `tmp/` entries remain
-unrelated and must not be included in future feature commits.
+interoperability and the post-G3 privacy/lifecycle audit fixes are committed as
+`4927d06a`. G5 lifecycle/recovery/limits work is complete and verified in the
+current gate. Generated `.DS_Store` and `tmp/` entries remain unrelated and
+must not be included in future feature commits.

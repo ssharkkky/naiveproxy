@@ -570,6 +570,31 @@ void TestShortWriteEofAndPendingDestruction() {
          "backend destruction cancels pending target connect");
 }
 
+void TestPendingWriteDestruction() {
+  auto state = std::make_shared<ScriptedTunnelState>();
+  state->start_result = net::OK;
+  state->write_result = net::ERR_IO_PENDING;
+  auto backend = std::make_unique<net::NaiveConnectUdpDatagramBackend>(
+      MakeContext(),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          state));
+  backend->Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  backend->Send(Datagram({0x01, 0x02}), net::CompletionOnceCallback());
+  Expect(state->write_callback && state->read_callback &&
+             state->write_buffer,
+         "destruction case retains pending target write and read buffers");
+  backend.reset();
+  Expect(state->destructions == 1 && state->cancelled_callbacks == 2 &&
+             !state->write_buffer && !state->read_buffer,
+         "backend destruction cancels pending target write/read exactly once");
+}
+
 void TestSynchronousZeroLengthAndCallbackDestruction() {
   auto zero_state = std::make_shared<ScriptedTunnelState>();
   zero_state->start_result = net::OK;
@@ -919,6 +944,7 @@ int main() {
   TestAsyncSingleTargetRoundTripAndReuse();
   TestSynchronousSingleTargetAndOversizeDrop();
   TestShortWriteEofAndPendingDestruction();
+  TestPendingWriteDestruction();
   TestSynchronousZeroLengthAndCallbackDestruction();
   TestMultiTargetRoutingAndFailureIsolation();
   TestTargetAndQueueLimits();
@@ -932,5 +958,6 @@ int main() {
   std::cout << "M3_G1_SINGLE_TARGET_OK\n";
   std::cout << "M3_G2_MULTI_TARGET_LIMITS_OK\n";
   std::cout << "M3_G2_FAILURE_ISOLATION_OK\n";
+  std::cout << "M3_G5_DETERMINISTIC_LIFECYCLE_OK\n";
   return 0;
 }
