@@ -14,6 +14,7 @@
 #include "base/location.h"
 #include "base/memory/ref_counted.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/timer/timer.h"
 #include "net/base/io_buffer.h"
 #include "net/base/net_errors.h"
 
@@ -29,6 +30,7 @@ struct NaiveConnectUdpDatagramBackend::TargetEntry {
     kConnecting,
     kOpen,
     kRetiring,
+    kCooldown,
   };
 
   TargetEntry(Socks5UdpEndpoint endpoint,
@@ -49,6 +51,9 @@ struct NaiveConnectUdpDatagramBackend::TargetEntry {
   scoped_refptr<IOBufferWithSize> read_buffer;
   bool read_pending = false;
   bool read_pump_scheduled = false;
+  base::OneShotTimer connect_timer;
+  base::OneShotTimer idle_timer;
+  base::OneShotTimer cooldown_timer;
   // Must be destroyed before pending I/O buffers. The tunnel destructor
   // cancels callbacks that may still reference those buffers.
   std::unique_ptr<NaiveConnectUdpTargetTunnel> tunnel;
@@ -56,9 +61,11 @@ struct NaiveConnectUdpDatagramBackend::TargetEntry {
 
 NaiveConnectUdpDatagramBackend::NaiveConnectUdpDatagramBackend(
     Socks5UdpBackendContext context,
-    NaiveConnectUdpTargetTunnelFactory tunnel_factory)
+    NaiveConnectUdpTargetTunnelFactory tunnel_factory,
+    base::TimeDelta failed_target_cooldown)
     : context_(std::move(context)),
-      tunnel_factory_(std::move(tunnel_factory)) {
+      tunnel_factory_(std::move(tunnel_factory)),
+      failed_target_cooldown_(failed_target_cooldown) {
   CHECK(context_.session);
   CHECK(tunnel_factory_);
 }
@@ -81,6 +88,10 @@ int NaiveConnectUdpDatagramBackend::Send(
   const Socks5UdpTargetKey key(datagram.destination);
   auto it = targets_.find(key);
   if (it == targets_.end()) {
+    if (targets_.size() >= Socks5UdpBackendLimits::kMaxTargets) {
+      ++stats_.capacity_drops;
+      return OK;
+    }
     std::unique_ptr<NaiveConnectUdpTargetTunnel> tunnel =
         tunnel_factory_.Run(context_, datagram.destination);
     if (!tunnel) {
@@ -94,6 +105,10 @@ int NaiveConnectUdpDatagramBackend::Send(
   }
 
   TargetEntry* entry = it->second.get();
+  if (entry->state == TargetEntry::State::kCooldown) {
+    ++stats_.cooldown_drops;
+    return OK;
+  }
   if (entry->state == TargetEntry::State::kRetiring) {
     ++stats_.capacity_drops;
     return OK;
@@ -104,9 +119,7 @@ int NaiveConnectUdpDatagramBackend::Send(
           Socks5UdpBackendLimits::kMaxQueuedDatagramsPerAssociation ||
       datagram.payload.size() >
           Socks5UdpBackendLimits::kMaxQueuedPayloadBytesPerAssociation -
-              std::min(queued_payload_bytes_,
-                       Socks5UdpBackendLimits::
-                           kMaxQueuedPayloadBytesPerAssociation)) {
+              queued_payload_bytes_) {
     ++stats_.capacity_drops;
     return OK;
   }
@@ -120,6 +133,7 @@ int NaiveConnectUdpDatagramBackend::Send(
       entry->outbound_queue.size() == 1) {
     StartTarget(key, generation);
   } else if (entry->state == TargetEntry::State::kOpen) {
+    ArmTargetIdleTimer(key, generation);
     PumpTargetWrites(key, generation);
   }
   return OK;
@@ -142,6 +156,11 @@ void NaiveConnectUdpDatagramBackend::StartTarget(
   if (!entry || entry->state != TargetEntry::State::kConnecting) {
     return;
   }
+  entry->connect_timer.Start(
+      FROM_HERE, context_.connect_timeout,
+      base::BindOnce(
+          &NaiveConnectUdpDatagramBackend::OnTargetConnectTimeout,
+          weak_ptr_factory_.GetWeakPtr(), key, generation));
   const int result = entry->tunnel->Start(base::BindOnce(
       &NaiveConnectUdpDatagramBackend::OnTargetConnectComplete,
       weak_ptr_factory_.GetWeakPtr(), key, generation));
@@ -165,6 +184,7 @@ void NaiveConnectUdpDatagramBackend::HandleTargetConnectComplete(
   if (!entry || entry->state != TargetEntry::State::kConnecting) {
     return;
   }
+  entry->connect_timer.Stop();
   if (result != OK || !entry->tunnel->IsOpen() ||
       entry->tunnel->MaxPayloadSize() == 0) {
     ScheduleTargetRetirement(
@@ -172,6 +192,7 @@ void NaiveConnectUdpDatagramBackend::HandleTargetConnectComplete(
     return;
   }
   entry->state = TargetEntry::State::kOpen;
+  ArmTargetIdleTimer(key, generation);
   base::WeakPtr<NaiveConnectUdpDatagramBackend> self =
       weak_ptr_factory_.GetWeakPtr();
   PumpTargetReads(key, generation);
@@ -179,6 +200,17 @@ void NaiveConnectUdpDatagramBackend::HandleTargetConnectComplete(
     return;
   }
   self->PumpTargetWrites(key, generation);
+}
+
+void NaiveConnectUdpDatagramBackend::OnTargetConnectTimeout(
+    Socks5UdpTargetKey key,
+    uint64_t generation) {
+  TargetEntry* entry = FindTarget(key, generation);
+  if (!entry || entry->state != TargetEntry::State::kConnecting) {
+    return;
+  }
+  ++stats_.connect_timeouts;
+  ScheduleTargetRetirement(key, generation, ERR_TIMED_OUT);
 }
 
 void NaiveConnectUdpDatagramBackend::PumpTargetReads(
@@ -270,6 +302,7 @@ bool NaiveConnectUdpDatagramBackend::HandleTargetReadComplete(
                           entry->read_buffer->span().begin() + result);
   entry->read_buffer.reset();
   ++stats_.received_datagrams;
+  ArmTargetIdleTimer(key, generation);
   base::WeakPtr<NaiveConnectUdpDatagramBackend> self =
       weak_ptr_factory_.GetWeakPtr();
   receive_callback_.Run(std::move(datagram));
@@ -376,31 +409,95 @@ bool NaiveConnectUdpDatagramBackend::HandleTargetWriteComplete(
   --queued_datagram_count_;
   entry->outbound_queue.pop_front();
   ++stats_.sent_datagrams;
+  ArmTargetIdleTimer(key, generation);
   return true;
+}
+
+void NaiveConnectUdpDatagramBackend::ArmTargetIdleTimer(
+    const Socks5UdpTargetKey& key,
+    uint64_t generation) {
+  TargetEntry* entry = FindTarget(key, generation);
+  if (!entry || entry->state != TargetEntry::State::kOpen) {
+    return;
+  }
+  entry->idle_timer.Start(
+      FROM_HERE, context_.target_idle_timeout,
+      base::BindOnce(&NaiveConnectUdpDatagramBackend::OnTargetIdleTimeout,
+                     weak_ptr_factory_.GetWeakPtr(), key, generation));
+}
+
+void NaiveConnectUdpDatagramBackend::OnTargetIdleTimeout(
+    Socks5UdpTargetKey key,
+    uint64_t generation) {
+  TargetEntry* entry = FindTarget(key, generation);
+  if (!entry || entry->state != TargetEntry::State::kOpen) {
+    return;
+  }
+  ++stats_.idle_evictions;
+  ScheduleTargetRetirement(key, generation, ERR_TIMED_OUT,
+                           /*enter_cooldown=*/false);
 }
 
 void NaiveConnectUdpDatagramBackend::ScheduleTargetRetirement(
     const Socks5UdpTargetKey& key,
     uint64_t generation,
-    int error) {
+    int error,
+    bool enter_cooldown) {
   TargetEntry* entry = FindTarget(key, generation);
   if (!entry || entry->state == TargetEntry::State::kRetiring) {
     return;
   }
   entry->state = TargetEntry::State::kRetiring;
+  entry->connect_timer.Stop();
+  entry->idle_timer.Stop();
   ClearQueuedDatagrams(entry);
-  ++stats_.target_failures;
+  if (enter_cooldown) {
+    ++stats_.target_failures;
+  }
   base::SingleThreadTaskRunner::GetCurrentDefault()->PostTask(
       FROM_HERE,
       base::BindOnce(&NaiveConnectUdpDatagramBackend::RetireTarget,
-                     weak_ptr_factory_.GetWeakPtr(), key, generation));
+                     weak_ptr_factory_.GetWeakPtr(), key, generation,
+                     enter_cooldown));
 }
 
 void NaiveConnectUdpDatagramBackend::RetireTarget(
     Socks5UdpTargetKey key,
-    uint64_t generation) {
+    uint64_t generation,
+    bool enter_cooldown) {
   auto it = targets_.find(key);
   if (it == targets_.end() || it->second->generation != generation) {
+    return;
+  }
+  if (!enter_cooldown) {
+    targets_.erase(it);
+    return;
+  }
+
+  TargetEntry* entry = it->second.get();
+  // This method is posted out of the I/O callback stack, so destroying the
+  // old tunnel here cannot delete the object currently dispatching a callback.
+  entry->tunnel.reset();
+  entry->read_buffer.reset();
+  entry->write_buffer.reset();
+  entry->read_pending = false;
+  entry->write_pending = false;
+  entry->state = TargetEntry::State::kCooldown;
+  entry->generation = next_generation_++;
+  const uint64_t cooldown_generation = entry->generation;
+  entry->cooldown_timer.Start(
+      FROM_HERE, failed_target_cooldown_,
+      base::BindOnce(&NaiveConnectUdpDatagramBackend::EraseCooldownTarget,
+                     weak_ptr_factory_.GetWeakPtr(), key,
+                     cooldown_generation));
+}
+
+void NaiveConnectUdpDatagramBackend::EraseCooldownTarget(
+    Socks5UdpTargetKey key,
+    uint64_t generation) {
+  auto it = targets_.find(key);
+  if (it == targets_.end() || it->second->generation != generation ||
+      it->second->state != TargetEntry::State::kCooldown) {
     return;
   }
   targets_.erase(it);

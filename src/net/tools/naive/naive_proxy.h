@@ -47,7 +47,9 @@ class NaiveProxy {
              HttpNetworkSession* session,
              const NetworkTrafficAnnotationTag& traffic_annotation,
              const std::vector<PaddingType>& supported_padding_types,
-             Socks5UdpBackendFactory udp_backend_factory = {});
+             Socks5UdpBackendFactory udp_backend_factory = {},
+             size_t max_active_udp_associations =
+                 Socks5UdpBackendLimits::kMaxActiveAssociationsPerProxy);
   ~NaiveProxy();
   NaiveProxy(const NaiveProxy&) = delete;
   NaiveProxy& operator=(const NaiveProxy&) = delete;
@@ -139,6 +141,7 @@ class NaiveProxy {
       udp_association_by_id_;
 
   Socks5UdpBackendFactory udp_backend_factory_;
+  const size_t max_active_udp_associations_;
 
   const NetworkTrafficAnnotationTag& traffic_annotation_;
 

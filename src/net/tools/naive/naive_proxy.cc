@@ -80,7 +80,8 @@ NaiveProxy::NaiveProxy(std::unique_ptr<ServerSocket> listen_socket,
                        HttpNetworkSession* session,
                        const NetworkTrafficAnnotationTag& traffic_annotation,
                        const std::vector<PaddingType>& supported_padding_types,
-                       Socks5UdpBackendFactory udp_backend_factory)
+                       Socks5UdpBackendFactory udp_backend_factory,
+                       size_t max_active_udp_associations)
     : listen_socket_(std::move(listen_socket)),
       protocol_(protocol),
       listen_user_(listen_user),
@@ -96,6 +97,7 @@ NaiveProxy::NaiveProxy(std::unique_ptr<ServerSocket> listen_socket,
       next_state_(State::kAccept),
       tunnels_(concurrency),
       udp_backend_factory_(std::move(udp_backend_factory)),
+      max_active_udp_associations_(max_active_udp_associations),
       traffic_annotation_(traffic_annotation),
       supported_padding_types_(supported_padding_types) {
   const auto& proxy_config = static_cast<ConfiguredProxyResolutionService*>(
@@ -417,7 +419,7 @@ bool NaiveProxy::HasNativeUdpAssociationCapacity() const {
       ++count;
     }
   }
-  return count < Socks5UdpBackendLimits::kMaxActiveAssociationsPerProxy;
+  return count < max_active_udp_associations_;
 }
 
 int NaiveProxy::BindUdpRelay(PendingSocksHandshake* pending) {

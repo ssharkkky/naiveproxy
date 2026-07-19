@@ -14,6 +14,7 @@
 #include "base/feature_list.h"
 #include "base/process/memory.h"
 #include "base/run_loop.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/thread_pool/thread_pool_instance.h"
 #include "build/build_config.h"
@@ -182,6 +183,14 @@ int main(int argc, char* argv[]) {
       command_line.GetSwitchValueASCII("listen-pass");
   const std::string proxy_host = listen_host;
   constexpr uint16_t kClosedProxyPort = 9;
+  size_t max_active_udp_associations =
+      net::Socks5UdpBackendLimits::kMaxActiveAssociationsPerProxy;
+  if (command_line.HasSwitch("max-udp-associations")) {
+    CHECK(base::StringToSizeT(
+        command_line.GetSwitchValueASCII("max-udp-associations"),
+        &max_active_udp_associations));
+    CHECK_GT(max_active_udp_associations, 0u);
+  }
 
   auto context = BuildRunnerContext(scheme, proxy_host, kClosedProxyPort);
   auto* session = context->http_transaction_factory()->GetSession();
@@ -220,7 +229,7 @@ int main(int argc, char* argv[]) {
       kTrafficAnnotation,
       std::vector<net::PaddingType>{net::PaddingType::kVariant1,
                                     net::PaddingType::kNone},
-      std::move(backend_factory));
+      std::move(backend_factory), max_active_udp_associations);
   std::cout << "M2_SOCKS5_UDP_READY host=" << listen_host
             << " port=" << listen_endpoint.port()
             << " scheme=" << (scheme == net::ProxyServer::SCHEME_QUIC
