@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M5-G0 and M5-G1 complete; M5-G2 is the next implementation gate.
+Status: M5-G0 through M5-G2 complete; M5-G3 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified project state:
 [`native-udp-status.md`](native-udp-status.md). Frozen v1 scope and M0–M6
@@ -247,7 +247,7 @@ Verified result:
 
 ### M5-G2 — addressing, DNS, multiplexing, and HTTP/3 application matrix
 
-Status: next.
+Status: complete.
 
 Work:
 
@@ -276,7 +276,29 @@ M5_G2_HTTP3_APPLICATION_OK
 
 Estimated effort: 1–2 person-days.
 
+Verified result:
+
+- `tests/m5/udp_matrix.py` traverses the production topology with exact
+  IPv4, IPv6, domain, DNS, binary, empty, 1200-byte safe, oversize-then-
+  healthy, multiple-target, and four-concurrent-association checks;
+- `tests/m5/internal/socksudp` implements an independent RFC 1928
+  `net.PacketConn`, retains the TCP control channel, uses the returned relay
+  endpoint, preserves typed target/response identity, filters relay sources,
+  and has codec plus no-auth/RFC 1929 tests;
+- the pinned quic-go HTTP/3 client uses that PacketConn to request a
+  dual-stack controlled origin through a domain-form SOCKS target. The inner
+  certificate is verified with a test-only explicit root pool, independently
+  from Naive's outer proxy verifier, and the QUIC/H3 connection closes cleanly;
+- server/client privacy evidence remains target and payload redacted, and no
+  process, temporary certificate/key, or test root remains after cleanup;
+- the complete G2 product matrix passed three fresh-root runs; Go normal,
+  race, formatting, and vet checks pass;
+- all six required G2 markers pass, including
+  `M5_G2_HTTP3_APPLICATION_OK`.
+
 ### M5-G3 — authentication, policy, malformed input, and isolation
+
+Status: next.
 
 Work:
 

@@ -18,7 +18,7 @@ verified. Update it at every completed G target and milestone.
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
-| M5 — end-to-end MVP | In progress; G0-G1 complete | Dynamic topology/trust/probe contract plus authenticated IPv4 M3-client-to-production-M4-server echo and redacted H3 Datagram evidence pass | M5-G2 |
+| M5 — end-to-end MVP | In progress; G0-G2 complete | Contract, first production echo, full addressing/DNS/payload/multiplexing matrix, and independent SOCKS5-UDP HTTP/3 application pass | M5-G3 |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -36,7 +36,7 @@ M5–M6 work is recorded in `docs/native-udp-development-plan.md`.
 - Chromium-driven native UDP client: 100% complete and independently audited.
 - Production Caddy/`forwardproxy` native UDP server: 100% complete and
   independently audited.
-- End-to-end product MVP: in progress with G0-G1 complete; release hardening
+- End-to-end product MVP: in progress with G0-G2 complete; release hardening
   is not started.
 
 Current remaining planning range:
@@ -956,8 +956,8 @@ Caddy product matrix, including product-level reconnect claims.
 
 ## M5 execution baseline — end-to-end MVP
 
-Status: in progress; M5-G0 and G1 are complete and M5-G2 is next. The active
-plan is
+Status: in progress; M5-G0 through G2 are complete and M5-G3 is next. The
+active plan is
 [`m5-execution-plan.md`](m5-execution-plan.md).
 
 M5 inherits these frozen inputs:
@@ -1032,9 +1032,44 @@ forbidden.
   repetitions. The cumulative `tests/socks5_udp_m5.sh` now emits both the G0
   contract and `M5_G1_CROSS_REPO_ECHO_OK`.
 
-M5-G2 next expands this verified topology to IPv4/IPv6/domain/DNS, payload
-boundaries, multiple targets and associations, and the independent HTTP/3
-application probe. Shipped-`naive` default-verifier evidence remains G5.
+### M5-G2 — addressing, DNS, multiplexing, and HTTP/3 application: complete
+
+- Added an independent RFC 1928 `net.PacketConn` in the M5 Go module. It
+  performs no-auth or RFC 1929 negotiation, sends UDP ASSOCIATE, consumes the
+  real BND relay endpoint, retains the control channel, filters unexpected
+  relay sources, and preserves IPv4/IPv6/domain identity in both directions.
+- Added codec/malformed and live fake-SOCKS tests for empty/binary payloads,
+  no-auth, username/password, target identity, and control-owned cleanup.
+- Added a dual-stack controlled quic-go HTTP/3 origin and runtime mode to the
+  independent probe. The probe uses the SOCKS PacketConn as quic-go's packet
+  transport, sends a real HTTP/3 GET through a domain-form target, verifies
+  the exact H3 response, and closes the inner QUIC connection. Its inner
+  self-signed certificate is verified through an explicit temporary root pool;
+  Naive's outer proxy certificate behavior remains unchanged.
+- The product UDP matrix verifies IPv4, IPv6, domain response framing,
+  deterministic DNS, binary and zero-length datagrams, a 1200-byte safe
+  payload, four 4096-byte oversize drops followed by healthy traffic, three
+  interleaved targets, and four isolated concurrent SOCKS associations.
+- All required markers passed in three fresh-root G2 runs. The cumulative M5
+  entry point is green, `go test`, `go test -race`, `go vet`, formatting,
+  cleanup, privacy scans, and all three repository `diff --check` boundaries
+  pass.
+
+Verified markers:
+
+```text
+M5_G2_IPV4_IPV6_DOMAIN_OK
+M5_G2_DNS_OK
+M5_G2_ZERO_OVERSIZE_OK
+M5_G2_MULTI_TARGET_OK
+M5_G2_CONCURRENT_ASSOCIATIONS_OK
+M5_G2_HTTP3_APPLICATION_OK
+M5_G2_PRODUCT_MATRIX_OK
+```
+
+M5-G3 is next. It expands the product evidence to local/upstream auth failure,
+server policy/status mapping, malformed/spoofed input isolation, and the full
+cross-layer privacy sentinel set.
 
 ## Canonical server verification commands
 
@@ -1170,7 +1205,7 @@ closeout is commit `2bb83aec`. M4-G0–G5 are committed in the separate server
 fork through `7243519`; the post-audit CI-pin closure is `8f044e2`. Caddy's
 three audited patches end at `cce894a8`. M4's local verification and audit
 evidence are recorded in `4ec0f8bb9a`. The M5 G0–G6 execution plan now exists;
-M5-G0 is commit `014cdc4761`; M5-G1 adds the server fixture in forwardproxy
-`d922441` and records the focused product evidence in the current gate commit.
-M5-G2 is next. Generated `.DS_Store` and `src/tmp/` entries remain unrelated
-and must not be included in future feature commits.
+M5-G0 is commit `014cdc4761`; M5-G1 is main commit `67caa8f131` plus the
+forwardproxy fixture commit `d922441`. M5-G2 is recorded by the current gate
+commit and M5-G3 is next. Generated `.DS_Store` and `src/tmp/` entries remain
+unrelated and must not be included in future feature commits.

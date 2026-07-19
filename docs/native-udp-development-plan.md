@@ -539,6 +539,9 @@ Next:
 - [x] Execute M5-G1: run one authenticated IPv4 SOCKS5 UDP echo through the
   real M3 production backend and pinned M4 Caddy/forwardproxy server, with
   redacted client/server evidence.
-- [ ] Execute M5-G2: expand the product path to the complete addressing, DNS,
+- [x] Execute M5-G2: expand the product path to the complete addressing, DNS,
   payload, multiplexing, concurrency, and independent HTTP/3 application
   matrix.
+- [ ] Execute M5-G3: verify local/upstream authentication, server policy,
+  malformed input recovery, failure isolation, and artifact privacy through
+  the complete product path.
