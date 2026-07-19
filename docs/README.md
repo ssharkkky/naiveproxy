@@ -29,7 +29,8 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M4-G4 production integration commit: `15c07ab`.
 - M4-G5 pinned-binary interoperability commit: `7243519`; Caddy debug-secret
   redaction commit: `cce894a8`.
-- Next gate: M4-G6 clean rebuild, complete regressions, and independent audit.
+- M4-G6 local closeout: green; independent `agy` run was user-terminated before
+  a verdict. Next action: independent audit only.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
@@ -169,4 +170,5 @@ race detector remain green. G5 then proved the same contracts through the
 standalone pinned production binary, including deterministic DNS, zero/live
 maximum/oversize behavior, 32-stream admission, production idle expiry,
 active shutdown/restart, repeated stress, and server-log privacy. G6 clean
-rebuild, full client/server regressions, and independent audit remain.
+rebuild and full client/server regressions also pass. M4 remains open solely
+because the independent audit was stopped before returning `AUDIT_PASS`.
