@@ -17,8 +17,8 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | In progress; G0–G4 complete | Production Caddy/forwardproxy passes real H3 auth, policy, IPv4/IPv6/domain, probe-resistance, privacy, race, and legacy integration tests | M4-G5 pinned-binary interoperability |
-| M5 — end-to-end MVP | Not started | M3 client and M4 in-process production server path exist; standalone M4 acceptance is pending | M4 complete |
+| M4 — production server path | In progress; G0–G5 complete | Independent RFC 9298 client passes the pinned production binary across addressing, DNS, payload, limits, idle, shutdown/restart, stress, H3 Datagram, and log-privacy cases | M4-G6 clean closeout and audit |
+| M5 — end-to-end MVP | Not started | M3 client and standalone M4 server paths exist independently; product-level composition is pending | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -30,22 +30,22 @@ M4–M6 work is recorded in `docs/native-udp-development-plan.md`.
 ### Overall progress estimate
 
 - Milestone count: M0–M3 are complete, 4 of 7 milestones, or 57%.
-- Weighted engineering estimate: approximately 65–70% complete. This weights
+- Weighted engineering estimate: approximately 70–75% complete. This weights
   the remaining production server, product-level integration, and release
   hardening more heavily than a simple milestone count.
 - Chromium-driven native UDP client: 100% complete and independently audited.
-- Production Caddy/`forwardproxy` native UDP server: G0–G4 complete; standalone
-  pinned-binary interoperability and final audit remain.
+- Production Caddy/`forwardproxy` native UDP server: G0–G5 complete; clean
+  rebuild, complete cross-project regression, and independent audit remain.
 - End-to-end product MVP and release hardening: not started.
 
 Current remaining planning range:
 
 | Remaining milestone | Estimated effort |
 | --- | ---: |
-| M4 — audited production server | 2–4 person-days |
+| M4 — audited production server | 1–2 person-days |
 | M5 — end-to-end MVP | 5–8 person-days |
 | M6 — hardening and release candidate | 10–20 person-days |
-| **Total remaining** | **17–32 person-days** |
+| **Total remaining** | **16–30 person-days** |
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
 is not production-ready: the audited client exists, but the production server
@@ -728,7 +728,7 @@ Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
 
 ## M4 planning baseline — production server path
 
-Status: in progress; M4-G0–G4 are complete and M4-G5 is next. Detailed gates and contracts are in
+Status: in progress; M4-G0–G5 are complete and M4-G6 is next. Detailed gates and contracts are in
 [`m4-execution-plan.md`](m4-execution-plan.md).
 
 Read-only source inspection recorded these exact reference snapshots:
@@ -887,8 +887,61 @@ association; no packet is silently accepted before the data path exists.
   harmless macOS `LC_DYSYMTAB` linker warning.
 - Marker: `M4_G4_FORWARDPROXY_INTEGRATION_OK`.
 
-M4-G5 now owns standalone pinned-binary interoperability, lifecycle/resource
-stress, and independent wire-format evidence.
+### M4-G5 — pinned production-server interoperability: complete
+
+- Forwardproxy commit `7243519` adds an independent quic-go RFC 9298 command
+  that does not import NaiveProxy or forwardproxy test helpers, plus a real
+  Caddy binary orchestration script and production-style Caddyfile.
+- The locked build script now puts the verified Go 1.25.12 binary first in the
+  `xcaddy` child PATH and inspects the final binary's embedded Go version. This
+  closed a discovered gap where the earlier script verified 1.25.12 but could
+  let `xcaddy` select a different system Go.
+- Caddy commit `cce894a8` replaces its debug-level reflected raw module config
+  with non-sensitive topology counts. The prior raw reflection exposed the
+  recoverable double-Base64 form of Basic credentials; the final standalone
+  log scan rejects both encoded forms as well as the target path/domain and
+  payload sentinels.
+- The standalone matrix verifies IPv4, IPv6, domain, deterministic DNS,
+  zero-length, a 1024-byte safe payload, local oversize rejection followed by
+  a healthy datagram, eight simultaneous streams, cancellation recovery, and
+  negotiated Extended CONNECT plus H3 Datagram APIs.
+- Thirty-two live associations are admitted from one client; the 33rd receives
+  `503`, and released capacity is reusable. QUIC keepalive isolates and proves
+  the unchanged two-minute production association idle expiry, after which a
+  fresh stream on the same connection succeeds.
+- A finite one-second Caddy grace period proves active H3 association
+  cancellation during process shutdown, followed by restart smoke success.
+  Three further complete matrix runs, the full legacy suite, race tests, and
+  Caddy HTTP package tests remain green.
+- Markers include `M4_G5_H3_DATAGRAM_EVIDENCE_OK`,
+  `M4_G5_IDLE_EXPIRY_OK`, `M4_G5_RESOURCE_LIMIT_OK`,
+  `M4_G5_SHUTDOWN_RESTART_OK`, `M4_G5_SERVER_LOG_PRIVACY_OK`, and final
+  `M4_G5_SERVER_INTEROP_OK`.
+
+M4-G6 now owns two byte-identical clean builds, complete M1–M3 and 56-case TCP
+client reruns, complete server/Caddy regressions, patch/artifact inventory, and
+the independent continuing-session `agy` audit.
+
+### Current server verification commands
+
+```bash
+cd /Users/stoneshi/Documents/naive-forwardproxy-m4
+GO_BIN=/Users/stoneshi/.local/naive-m4/go1.25.12/bin/go \
+XCADDY_BIN=/Users/stoneshi/.local/naive-m4/bin/xcaddy \
+CADDY_SOURCE_DIR=/Users/stoneshi/Documents/caddy-naive-udp-m4 \
+  ./scripts/build-naive-caddy.sh /tmp/naive-m4-caddy
+PATH=/Users/stoneshi/.local/naive-m4/go1.25.12/bin:$PATH \
+  ./scripts/test-m4.sh
+GO_BIN=/Users/stoneshi/.local/naive-m4/go1.25.12/bin/go \
+CADDY_BIN=/tmp/naive-m4-caddy \
+  ./scripts/test-m4-g5-server.sh
+PATH=/Users/stoneshi/.local/naive-m4/go1.25.12/bin:$PATH \
+  go test -race ./...
+
+cd /Users/stoneshi/Documents/caddy-naive-udp-m4
+PATH=/Users/stoneshi/.local/naive-m4/go1.25.12/bin:$PATH \
+  go test ./modules/caddyhttp
+```
 
 ## Current verification commands
 
@@ -994,7 +1047,7 @@ execution`). G0, G1, and G2 are committed as `83904eb8`, `4541f756`, and
 interoperability and the post-G3 privacy/lifecycle audit fixes are committed as
 `4927d06a`. G5 lifecycle/recovery/limits work is complete and verified in
 `578e3992`. G6 regressions, stress verification, and independent audit
-closeout is commit `2bb83aec`. M4-G0–G4 are committed in the separate server
-fork through `15c07ab`; G5 standalone interoperability is next. Generated
-`.DS_Store` and `src/tmp/` entries remain unrelated and must not be included in
-future feature commits.
+closeout is commit `2bb83aec`. M4-G0–G5 are committed in the separate server
+fork through `7243519`; Caddy's three patches end at `cce894a8`. G6 closeout
+and independent audit are next. Generated `.DS_Store` and `src/tmp/` entries
+remain unrelated and must not be included in future feature commits.

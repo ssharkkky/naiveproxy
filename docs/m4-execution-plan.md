@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M4-G0 through M4-G4 complete; M4-G5 is the next implementation gate.
+Status: M4-G0 through M4-G5 complete; M4-G6 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
@@ -350,6 +350,9 @@ Verified result:
 
 ### M4-G5 — independent production-server interoperability matrix
 
+Status: complete in forwardproxy commit `7243519` and Caddy commit
+`cce894a8`.
+
 Work:
 
 1. Drive the real pinned Caddy binary with an independent RFC 9298 client,
@@ -372,6 +375,19 @@ Exit:
 - marker: `M4_G5_SERVER_INTEROP_OK`.
 
 Estimated effort: 1–2 person-days.
+
+Verified result:
+
+- a standalone pinned Caddy binary passes an independent quic-go RFC 9298
+  client across IPv4, IPv6, domain, DNS, zero/safe/oversize payloads,
+  simultaneous streams, cancellation, 32/33 association admission, real
+  production idle expiry, active shutdown/restart, and repeated stress;
+- SETTINGS and direct `RequestStream.SendDatagram`/`ReceiveDatagram` evidence
+  prove H3 Datagrams rather than DATA, Capsules, UoT, or private framing;
+- debug and access logs contain neither target/path/payload sentinels nor
+  either recoverable Basic credential encoding;
+- complete legacy, race, and focused Caddy tests pass;
+- marker: `M4_G5_SERVER_INTEROP_OK`.
 
 ### M4-G6 — release closeout and independent audit
 
