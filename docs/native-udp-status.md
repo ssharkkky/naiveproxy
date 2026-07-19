@@ -17,7 +17,7 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | In progress; G0–G5 complete | Independent RFC 9298 client passes the pinned production binary across addressing, DNS, payload, limits, idle, shutdown/restart, stress, H3 Datagram, and log-privacy cases | M4-G6 clean closeout and audit |
+| M4 — production server path | In progress; G0–G5 complete, G6 local checks green | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, and artifact checks pass | Independent `agy` verdict only |
 | M5 — end-to-end MVP | Not started | M3 client and standalone M4 server paths exist independently; product-level composition is pending | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
@@ -918,9 +918,33 @@ association; no packet is silently accepted before the data path exists.
   `M4_G5_SHUTDOWN_RESTART_OK`, `M4_G5_SERVER_LOG_PRIVACY_OK`, and final
   `M4_G5_SERVER_INTEROP_OK`.
 
-M4-G6 now owns two byte-identical clean builds, complete M1–M3 and 56-case TCP
-client reruns, complete server/Caddy regressions, patch/artifact inventory, and
-the independent continuing-session `agy` audit.
+### M4-G6 — local release closeout complete; independent audit pending
+
+- Two separate locked builds are byte-identical. Both have SHA-256
+  `d31fa3c8b0897b12ee799305a5aba10e23434fa0153398e44d82bb8ba4d82ba4`,
+  and embedded build metadata reports Go 1.25.12.
+- The standalone `M4_G5_SERVER_INTEROP_OK` matrix passed again using one of
+  those exact G6 binaries.
+- Uncached `go test -count=1 ./...` and `go test -race -count=1 ./...` pass in
+  forwardproxy. The race link emits only the previously recorded macOS
+  `LC_DYSYMTAB` warning. Uncached `go test -count=1 ./...` passes across the
+  complete patched Caddy repository.
+- The full M1 script set, M2, M3, aggregate `M3_NATIVE_UDP_CLIENT_OK`, and all
+  56 TCP cases pass from the unchanged client checkout.
+- Diff and artifact inventory confirms that M4 changed only documentation in
+  this repository, 22 intended files in forwardproxy, and three intended Caddy
+  files. No M4-generated binary, log, capture, certificate, credential, or
+  destination-bearing output is tracked. Caddy's pre-existing tracked test
+  key/certificate fixtures are outside the M4 diff.
+- A fresh Gemini 3.1 Pro High `agy` audit was started read-only over all three
+  repositories with a 45-minute allowance. The user requested termination
+  after several minutes, before the reviewer emitted a report or verdict. The
+  process is stopped. Its untracked `scratch/naive_diff.txt` was moved intact
+  to a temporary recovery directory and did not enter Git.
+
+Therefore local G6 verification is complete, but neither
+`M4_NATIVE_UDP_SERVER_OK` nor `AUDIT_PASS` is claimed. M4 remains open only for
+an independent zero-blocker/high/medium audit verdict.
 
 ### Current server verification commands
 

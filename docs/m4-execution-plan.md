@@ -2,7 +2,8 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: M4-G0 through M4-G5 complete; M4-G6 is the next implementation gate.
+Status: M4-G0 through M4-G5 complete; M4-G6 local verification is green, but
+the user terminated the independent audit before a verdict. M4 remains open.
 
 Documentation entry point: [`README.md`](README.md). Verified client state:
 [`native-udp-status.md`](native-udp-status.md). Project scope and roadmap:
@@ -390,6 +391,9 @@ Verified result:
 - marker: `M4_G5_SERVER_INTEROP_OK`.
 
 ### M4-G6 — release closeout and independent audit
+
+Status: local build/regression/artifact steps complete; independent audit
+pending after a user-requested termination with no verdict.
 
 Work:
 

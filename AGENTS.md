@@ -17,11 +17,13 @@ Read these files in order before changing code:
 6. `docs/m3-agy-audit.md` — independent final M3 audit evidence.
 
 M1, M2, and M3 are complete and independently audited. M4-G0 through M4-G5
-are complete in the separate server/Caddy repositories. The next gate is
-M4-G6: clean reproducible builds, complete client/server regressions, patch and
-artifact inventory, then one continuing read-only `agy` audit ending in
-`AUDIT_PASS`. The controlled QUICHE endpoint remains a test fixture, not that
-server implementation.
+are complete in the separate server/Caddy repositories. M4-G6 local closeout
+is green: reproducible builds, complete client/server regressions, and artifact
+inventory passed. The independent `agy` run was terminated at the user's
+request before it returned a verdict, so M4 remains open. The next action is a
+fresh or resumed read-only audit ending in `AUDIT_PASS`; do not rerun the local
+matrix unless code or dependencies change. The controlled QUICHE endpoint
+remains a test fixture, not that server implementation.
 
 ## Frozen engineering boundaries
 
