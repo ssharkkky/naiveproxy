@@ -90,6 +90,7 @@ class NaiveProxy {
       const NetworkAnonymizationKey& network_anonymization_key,
       std::unique_ptr<StreamSocket> socket);
   bool CanUseNativeUdp() const;
+  bool HasNativeUdpAssociationCapacity() const;
   int BindUdpRelay(PendingSocksHandshake* pending);
   void ClosePendingSocks(unsigned int connection_id, int reason);
   void OnUdpAssociationComplete(unsigned int connection_id, int result);

@@ -201,7 +201,15 @@ int main(int argc, char* argv[]) {
   if (scheme == net::ProxyServer::SCHEME_QUIC &&
       scheme_name != "quic-no-backend") {
     backend_factory = base::BindRepeating(
-        []() -> std::unique_ptr<net::Socks5UdpDatagramBackend> {
+        [](net::Socks5UdpBackendContext context)
+            -> std::unique_ptr<net::Socks5UdpDatagramBackend> {
+          CHECK(context.session);
+          CHECK(!context.network_anonymization_key.IsEmpty());
+          CHECK(context.network_anonymization_key.IsTransient());
+          CHECK(!context.proxy_chain.is_direct());
+          CHECK(context.proxy_chain.Last().is_quic());
+          CHECK_GT(context.connect_timeout, base::TimeDelta());
+          CHECK_GT(context.target_idle_timeout, base::TimeDelta());
           return std::make_unique<EchoDatagramBackend>();
         });
   }
