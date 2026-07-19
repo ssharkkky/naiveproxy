@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "inputs": {
+    "naive_m3_closeout": "2bb83aec36",
+    "forwardproxy": "8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7",
+    "caddy": "cce894a8a0e987eb1722cf99729499bdaba6c38d",
+    "go": "1.25.12",
+    "xcaddy": "0.4.5",
+    "quic_go": "0.59.0"
+  },
+  "topology": {
+    "proxy": "dynamic shared TCP/UDP IPv4 port",
+    "socks": "runner or naive binds TCP port 0 and reports the result",
+    "echo_ipv4": "fixture binds UDP port 0 and reports the result",
+    "echo_ipv6": "fixture binds UDP port 0 and reports the result",
+    "dns": "fixture binds UDP port 0 and reports the result",
+    "http3": "fixture binds UDP port 0 and reports the result"
+  },
+  "trust": {
+    "platform": "macOS",
+    "strategy": "temporary user-domain trust entry backed by a temporary keychain",
+    "negative_before_positive": true,
+    "cleanup": "remove trust entry, delete keychain, verify certificate is untrusted again",
+    "production_bypass_allowed": false
+  },
+  "http3_probe": {
+    "owner": "NaiveProxy tests/m5",
+    "transport": "independent SOCKS5 UDP net.PacketConn",
+    "library": "github.com/quic-go/quic-go/http3 v0.59.0",
+    "naive_tunnel_import_allowed": false
+  },
+  "privacy_sentinels": {
+    "target": "m5-private-target.localhost",
+    "payload": "m5-private-payload",
+    "credential_label": "m5-fixture-basic-auth"
+  },
+  "traffic_baseline_fields": [
+    "relative_time_us",
+    "direction",
+    "packet_size",
+    "connection_age_us"
+  ],
+  "traffic_baseline_forbidden_fields": [
+    "payload",
+    "destination",
+    "request_path",
+    "credential",
+    "certificate_private_key",
+    "decrypted_packet"
+  ],
+  "markers": [
+    "M5_G0_INPUTS_OK",
+    "M5_G0_DYNAMIC_TOPOLOGY_OK",
+    "M5_G0_EPHEMERAL_TRUST_CONTRACT_OK",
+    "M5_G0_EPHEMERAL_TRUST_PRIMITIVE_OK",
+    "M5_G0_H3_PROBE_CONTRACT_OK",
+    "M5_G0_PRODUCT_CONTRACT_OK",
+    "M5_G1_CROSS_REPO_ECHO_OK",
+    "M5_G2_IPV4_IPV6_DOMAIN_OK",
+    "M5_G2_DNS_OK",
+    "M5_G2_ZERO_OVERSIZE_OK",
+    "M5_G2_MULTI_TARGET_OK",
+    "M5_G2_CONCURRENT_ASSOCIATIONS_OK",
+    "M5_G2_HTTP3_APPLICATION_OK",
+    "M5_G3_AUTH_POLICY_OK",
+    "M5_G3_NON_QUIC_REJECTION_OK",
+    "M5_G3_MALFORMED_ISOLATION_OK",
+    "M5_G3_PRIVACY_OK",
+    "M5_G4_CONTROL_CLOSE_OK",
+    "M5_G4_SERVER_RESTART_OK",
+    "M5_G4_QUIC_RECONNECT_OK",
+    "M5_G4_IDLE_RECONNECT_OK",
+    "M5_G4_NO_REPLAY_OK",
+    "M5_G5_DEFAULT_CERT_VERIFIER_OK",
+    "M5_G5_PRODUCTION_BINARY_OK",
+    "M5_G5_H3_DATAGRAM_EVIDENCE_OK",
+    "M5_G5_NO_PADDING_BASELINE_OK",
+    "M5_NATIVE_UDP_MVP_OK"
+  ]
+}

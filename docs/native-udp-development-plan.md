@@ -533,6 +533,9 @@ Next:
 - [x] Plan M5's G0–G6 product-composition sequence, production certificate
   boundary, independent HTTP/3 application probe, matrix, risks, and stop
   conditions in `docs/m5-execution-plan.md`.
-- [ ] Execute M5-G0: freeze the dynamic topology, reversible trust fixture,
+- [x] Execute M5-G0: freeze the dynamic topology, reversible trust fixture,
   independent H3 probe owner/dependencies, marker list, and artifact contract
   before running the first cross-repository echo.
+- [ ] Execute M5-G1: run one authenticated IPv4 SOCKS5 UDP echo through the
+  real M3 production backend and pinned M4 Caddy/forwardproxy server, with
+  redacted client/server evidence.
