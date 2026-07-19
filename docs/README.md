@@ -26,7 +26,8 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
   `2ff83e69` in `ssharkkky/caddy` branch `codex/enable-h3-datagrams`.
 - M4-G2 protocol/policy commit: `f9b40f6`.
 - M4-G3 bounded association commit: `1b6d04b`.
-- Next gate: M4-G4 production auth/policy/privacy/TCP integration.
+- M4-G4 production integration commit: `15c07ab`.
+- Next gate: M4-G5 independent pinned-binary interoperability matrix.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
@@ -150,23 +151,18 @@ three consecutive times, and obtained an independent Gemini 3.1 Pro High
 `AUDIT_PASS` with zero blocker, high, or medium findings. M3 is complete; the
 next architectural boundary is the separate M4 production server path.
 
-## Current M4 planning summary
+## Current M4 implementation summary
 
-M4 is planned but no production server code has started. Read-only inspection
-confirmed that current `forwardproxy` rejects the `:scheme/:path` required by
-CONNECT-UDP, its policy/dial helper is TCP-only, and its release workflow has
-floating/version-drifted dependencies. Caddy v2.11.2 does not enable H3
-Datagrams by default, while quic-go v0.59.0 exposes the required server stream
-Datagram API.
+M4-G0 through G4 are complete in the separate forwardproxy/Caddy forks. The
+pinned Caddy enables both HTTP/3 and QUIC Datagrams; forwardproxy now strictly
+classifies RFC 9298 requests, shares TCP DNS/ACL/allowed-port policy, owns a
+bounded fixed-target connected UDP association, and relays canonical Context
+ID `0` H3 Datagrams without private framing or replay.
 
-The active plan therefore begins with two decision gates:
-
-- G0 pins the exact forwardproxy/Caddy/quic-go/Go/xcaddy build tuple and
-  freezes protocol, policy, ownership, limits, privacy, and test contracts;
-- G1 proves Extended CONNECT visibility and H3 stream access through the real
-  Caddy middleware chain before production relay code is written.
-
-G2–G6 then implement strict protocol/policy handling, the bounded UDP
-association, production integration, independent interoperability, and final
-audit. Production changes live in a separate server fork; this repository
-retains the completed M3 client and cross-project evidence.
+G4 verified real H3 IPv4, IPv6, domain, authentication, policy status, upstream
+rejection, and probe-resistance behavior. CONNECT-UDP paths are redacted before
+Caddy access logging, and powers-of-two counters contain only association id,
+generic reason, count, and byte count. The complete legacy server suite and
+race detector remain green. G5 must now prove the same contracts through the
+standalone pinned production binary before G6 clean rebuild and independent
+audit.

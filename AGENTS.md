@@ -16,11 +16,12 @@ Read these files in order before changing code:
 5. `docs/m3-execution-plan.md` — the completed M3 G0–G6 implementation record.
 6. `docs/m3-agy-audit.md` — independent final M3 audit evidence.
 
-M1, M2, and M3 are complete and independently audited. M4-G0 through M4-G3
+M1, M2, and M3 are complete and independently audited. M4-G0 through M4-G4
 are complete in the separate server/Caddy repositories. The next gate is
-M4-G4: integrate authentication, ACL/probe-resistance behavior, exact errors,
-privacy-safe observability, and complete legacy TCP isolation. The controlled
-QUICHE endpoint remains a test fixture, not that server implementation.
+M4-G5: drive the pinned production Caddy binary with an independent RFC 9298
+client across the complete interoperability, lifecycle, resource, and stress
+matrix. The controlled QUICHE endpoint remains a test fixture, not that server
+implementation.
 
 ## Frozen engineering boundaries
 

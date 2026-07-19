@@ -17,8 +17,8 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | In progress; G0–G3 complete | Real production Handler now owns a bounded fixed-target UDP association with bidirectional Context-ID/H3 Datagram pumps, limits, idle cancellation, MTU drop, and no replay | M4-G4 production auth/policy/privacy integration |
-| M5 — end-to-end MVP | Not started | M3 client is complete; production M4 server is absent | M4 complete |
+| M4 — production server path | In progress; G0–G4 complete | Production Caddy/forwardproxy passes real H3 auth, policy, IPv4/IPv6/domain, probe-resistance, privacy, race, and legacy integration tests | M4-G5 pinned-binary interoperability |
+| M5 — end-to-end MVP | Not started | M3 client and M4 in-process production server path exist; standalone M4 acceptance is pending | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -30,22 +30,22 @@ M4–M6 work is recorded in `docs/native-udp-development-plan.md`.
 ### Overall progress estimate
 
 - Milestone count: M0–M3 are complete, 4 of 7 milestones, or 57%.
-- Weighted engineering estimate: approximately 50–55% complete. This weights
+- Weighted engineering estimate: approximately 65–70% complete. This weights
   the remaining production server, product-level integration, and release
   hardening more heavily than a simple milestone count.
 - Chromium-driven native UDP client: 100% complete and independently audited.
-- Production Caddy/`forwardproxy` native UDP server: G0 baseline complete;
-  no CONNECT-UDP relay implementation exists yet, with M4-G1 next.
+- Production Caddy/`forwardproxy` native UDP server: G0–G4 complete; standalone
+  pinned-binary interoperability and final audit remain.
 - End-to-end product MVP and release hardening: not started.
 
 Current remaining planning range:
 
 | Remaining milestone | Estimated effort |
 | --- | ---: |
-| M4 — audited production server | 10–18 person-days |
+| M4 — audited production server | 2–4 person-days |
 | M5 — end-to-end MVP | 5–8 person-days |
 | M6 — hardening and release candidate | 10–20 person-days |
-| **Total remaining** | **25–46 person-days** |
+| **Total remaining** | **17–32 person-days** |
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
 is not production-ready: the audited client exists, but the production server
@@ -728,7 +728,7 @@ Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
 
 ## M4 planning baseline — production server path
 
-Status: in progress; M4-G0–G3 are complete and M4-G4 is next. Detailed gates and contracts are in
+Status: in progress; M4-G0–G4 are complete and M4-G5 is next. Detailed gates and contracts are in
 [`m4-execution-plan.md`](m4-execution-plan.md).
 
 Read-only source inspection recorded these exact reference snapshots:
@@ -761,11 +761,11 @@ Verified source facts, not yet runtime M4 claims:
 - quic-go owns HTTP/3 quarter-stream-id framing, while the server handler must
   decode/prepend RFC 9298 Context ID `0` around the UDP payload.
 
-The planned sequence is G0 build/contract freeze, G1 Caddy capability spike,
-G2 strict protocol/policy layer, G3 bounded UDP association, G4 production
-integration, G5 independent server interoperability, and G6 reproducible
-closeout plus independent `agy` audit. No production M4 implementation or
-runtime server marker is claimed yet.
+The sequence is G0 build/contract freeze, G1 Caddy capability spike, G2 strict
+protocol/policy layer, G3 bounded UDP association, G4 production integration,
+G5 independent server interoperability, and G6 reproducible closeout plus
+independent `agy` audit. G0–G4 are verified; the final milestone marker is not
+claimed before G5/G6.
 
 ### M4-G0 — reproducible server baseline: complete
 
@@ -867,8 +867,28 @@ association; no packet is silently accepted before the data path exists.
 - The complete legacy forwardproxy TCP/auth/ACL/upstream/PAC/probe-resistance
   suite remains green.
 
-M4-G4 now closes production authentication, policy-status, probe-resistance,
-privacy-safe observability, and full legacy-routing integration evidence.
+### M4-G4 — production auth/policy/privacy integration: complete
+
+- Forwardproxy commit `15c07ab` preserves the legacy TCP branch and routes
+  valid CONNECT-UDP only after shared authentication and probe-resistance
+  processing. It also corrects the H3-specific authority interaction so a
+  missing or wrong credential returns `407` when probe resistance is disabled,
+  while enabled probe resistance still matches the ordinary hidden-site path.
+- A real H3 matrix verifies IPv4, IPv6, domain resolution, missing/wrong/correct
+  Basic credentials, malformed `400`, ACL/allowed-port `403`, unsupported
+  upstream `501`, and probe-resistance passthrough against a reference Caddy
+  route.
+- CONNECT-UDP keeps its original URI available to the downstream camouflage
+  route but redacts it before returning to outer Caddy logging. Handler counters
+  log only association id, generic reason, count, and byte count at powers of
+  two; tests search for target, path, payload, and credential leakage.
+- `scripts/test-m4.sh`, the complete legacy forwardproxy suite, and
+  `go test -race ./...` pass. The race build emitted only the previously noted
+  harmless macOS `LC_DYSYMTAB` linker warning.
+- Marker: `M4_G4_FORWARDPROXY_INTEGRATION_OK`.
+
+M4-G5 now owns standalone pinned-binary interoperability, lifecycle/resource
+stress, and independent wire-format evidence.
 
 ## Current verification commands
 
@@ -974,6 +994,7 @@ execution`). G0, G1, and G2 are committed as `83904eb8`, `4541f756`, and
 interoperability and the post-G3 privacy/lifecycle audit fixes are committed as
 `4927d06a`. G5 lifecycle/recovery/limits work is complete and verified in
 `578e3992`. G6 regressions, stress verification, and independent audit
-closeout is commit `2bb83aec`. M4 is planned with G0 next; no production server
-implementation is present yet. Generated `.DS_Store` and `src/tmp/` entries
-remain unrelated and must not be included in future feature commits.
+closeout is commit `2bb83aec`. M4-G0–G4 are committed in the separate server
+fork through `15c07ab`; G5 standalone interoperability is next. Generated
+`.DS_Store` and `src/tmp/` entries remain unrelated and must not be included in
+future feature commits.
