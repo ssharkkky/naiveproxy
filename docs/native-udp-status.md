@@ -17,7 +17,7 @@ verified. Update it at every completed G target and milestone.
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
-| M4 — production server path | Planned; G0 next | Source boundary and G0–G6 execution plan are documented; no production server implementation exists | Pin the separate server repository and exact build tuple in M4-G0 |
+| M4 — production server path | In progress; G0 complete | Separate server fork, exact toolchain/dependency tuple, deterministic build, contract skeleton, and legacy server baseline are verified | M4-G1 Caddy/H3 Datagram capability spike |
 | M5 — end-to-end MVP | Not started | M3 client is complete; production M4 server is absent | M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
@@ -34,8 +34,8 @@ M4–M6 work is recorded in `docs/native-udp-development-plan.md`.
   the remaining production server, product-level integration, and release
   hardening more heavily than a simple milestone count.
 - Chromium-driven native UDP client: 100% complete and independently audited.
-- Production Caddy/`forwardproxy` native UDP server: 0% implementation;
-  planning and source inspection are complete, with M4-G0 next.
+- Production Caddy/`forwardproxy` native UDP server: G0 baseline complete;
+  no CONNECT-UDP relay implementation exists yet, with M4-G1 next.
 - End-to-end product MVP and release hardening: not started.
 
 Current remaining planning range:
@@ -728,7 +728,7 @@ Durable report: [`m3-agy-audit.md`](m3-agy-audit.md).
 
 ## M4 planning baseline — production server path
 
-Status: planned; M4-G0 is next. Detailed gates and contracts are in
+Status: in progress; M4-G0 is complete and M4-G1 is next. Detailed gates and contracts are in
 [`m4-execution-plan.md`](m4-execution-plan.md).
 
 Read-only source inspection recorded these exact reference snapshots:
@@ -766,6 +766,30 @@ G2 strict protocol/policy layer, G3 bounded UDP association, G4 production
 integration, G5 independent server interoperability, and G6 reproducible
 closeout plus independent `agy` audit. No production M4 implementation or
 runtime server marker is claimed yet.
+
+### M4-G0 — reproducible server baseline: complete
+
+- Production server fork: `https://github.com/ssharkkky/forwardproxy`, branch
+  `codex/native-udp-server`; local gate commit `bf092e6`.
+- Caddy patch fork: `https://github.com/ssharkkky/caddy`, branch
+  `codex/enable-h3-datagrams`, still at the clean v2.11.2 base for G0.
+- Locked Go `1.25.12` archive SHA-256
+  `fa2c88bbcf64bd3b2aef355f026cfec6d3a4a01c132f999c8f8c964eb767164f`,
+  xcaddy `v0.4.5`, Caddy `v2.11.2`, quic-go `v0.59.0`, and the exact base
+  commits recorded above.
+- Replaced the floating `xcaddy@latest` workflow and old Caddy v2.8.4 module
+  graph with the pinned tuple.
+- Modernized the pre-existing test topology to distinct `*.localhost` names;
+  this preserves Host/SNI separation while avoiding non-portable macOS
+  `127.x.y.z` loopback aliases. Existing TCP, auth, ACL, upstream, PAC, and
+  probe-resistance tests all pass on Caddy v2.11.2.
+- Froze the v1 protocol/result/resource baseline and explicit no-private-queue,
+  no-replay rule. The standalone script emits `M4_G0_SERVER_BASELINE_OK`.
+- Two clean pinned builds were byte-identical with SHA-256
+  `5b2d40b134e9b340e8fa9a9384c44d2b871bb43915fd485734be9003016b611d`.
+
+No Caddy H3 Datagram patch or production CONNECT-UDP handler is claimed in
+G0. M4-G1 must prove that runtime boundary before protocol/relay work begins.
 
 ## Current verification commands
 

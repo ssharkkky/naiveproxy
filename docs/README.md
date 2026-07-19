@@ -20,8 +20,10 @@ Repository-level agent operating rules are in [`../AGENTS.md`](../AGENTS.md).
 - M3 final regression/audit closeout commit: `2bb83aec`.
 - M3 audit record: [`m3-agy-audit.md`](m3-agy-audit.md).
 - M4 production-server execution plan: [`m4-execution-plan.md`](m4-execution-plan.md).
-- Next gate: M4-G0, which creates/pins the separate Caddy/`forwardproxy`
-  server workstream and freezes the reproducible dependency/build tuple.
+- M4-G0 server baseline commit: `bf092e6` in
+  `ssharkkky/forwardproxy` branch `codex/native-udp-server`.
+- Next gate: M4-G1, which proves Extended CONNECT visibility and bidirectional
+  H3 Datagrams through the real patched Caddy middleware chain.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   feature commits.
 
