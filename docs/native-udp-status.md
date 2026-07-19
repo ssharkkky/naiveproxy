@@ -16,7 +16,7 @@ verified. Update it at every completed G target and milestone.
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
-| M3 — native UDP client data path | G0 complete; G1 next | Immutable backend context/NAK factory, target identity, resource/admission contracts, scripted tunnel seam, test target and M3 script skeleton compile and pass | Execute M3-G1 single-target backend |
+| M3 — native UDP client data path | G0–G1 complete; G2 next | Backend contract plus cancellation-safe single-target sync/async connect, serialized write, continuous read, live oversize drop, empty datagram, EOF/short-write retirement and no-replay tests pass | Execute M3-G2 routing, limits, and failure isolation |
 | M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
 | M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
@@ -390,8 +390,8 @@ M2_SOCKS5_UDP_INGRESS_OK
 
 ## M3 execution ledger — native UDP client data path
 
-Status: G0 complete; ready to execute G1. The G0 backend skeleton is compiled
-but is not installed in the production binary; M2 fake/no-backend behavior is
+Status: G0 and G1 complete; ready to execute G2. The backend is compiled but
+is not installed in the production binary; M2 fake/no-backend behavior is
 unchanged.
 
 The plan was derived from direct inspection of the M1 tunnel and M2 ingress
@@ -462,6 +462,38 @@ M3_G0_BACKEND_CONTRACT_OK
 M3_G0_TEST_SKELETON_OK
 ```
 
+### M3-G1 — cancellation-safe single-target backend
+
+Status: complete.
+
+Completed:
+
+- Lazily creates one fixed-target tunnel on the first admitted datagram and
+  queues payloads while CONNECT-UDP is pending.
+- Serializes writes, retains every `IOBuffer` through pending callbacks, checks
+  exact byte counts, and clears ambiguous queued data without replay after a
+  short write or transport failure.
+- Keeps one read armed on an open tunnel, immediately rearms after delivery,
+  and yields after 32 synchronous completions.
+- Uses the live tunnel payload ceiling before every write; oversize payloads
+  are observable policy drops rather than association-fatal errors.
+- Distinguishes an empty UDP datagram from EOF through the scripted tunnel
+  contract, preserves the original SOCKS endpoint on responses, and supports
+  callback-triggered backend destruction without rearming or UAF.
+- Defers target destruction out of connect/read/write callback stacks and
+  orders tunnel destruction before retained pending-I/O buffers.
+
+Deterministic coverage includes synchronous and asynchronous connect/read/
+write, same-target reuse, byte equality, pending destruction, short write,
+EOF, synchronous and asynchronous zero-length datagrams, live oversize drop,
+and receive-callback destruction.
+
+Verified marker:
+
+```text
+M3_G1_SINGLE_TARGET_OK
+```
+
 ## Current verification commands
 
 ```bash
@@ -494,6 +526,7 @@ Expected markers:
 - `M2_SOCKS5_UDP_INGRESS_OK`
 - `M3_G0_BACKEND_CONTRACT_OK`
 - `M3_G0_TEST_SKELETON_OK`
+- `M3_G1_SINGLE_TARGET_OK`
 - exit code `0` from `tests/basic.sh`
 - `ninja: no work to do` or a successful link
 

@@ -27,24 +27,6 @@ namespace {
 constexpr net::NetworkTrafficAnnotationTag kTrafficAnnotation =
     net::DefineNetworkTrafficAnnotation("naive_connect_udp_backend_test", "");
 
-class UnusedScriptedTunnel final : public net::NaiveConnectUdpTargetTunnel {
- public:
-  int Start(net::CompletionOnceCallback callback) override { return net::OK; }
-  int Read(net::IOBuffer* buffer,
-           int buffer_length,
-           net::CompletionOnceCallback callback) override {
-    return net::ERR_IO_PENDING;
-  }
-  int Write(net::IOBuffer* buffer,
-            int buffer_length,
-            net::CompletionOnceCallback callback) override {
-    return buffer_length;
-  }
-  bool IsOpen() const override { return true; }
-  bool LastReadWasDatagram() const override { return false; }
-  size_t MaxPayloadSize() const override { return 1200; }
-};
-
 struct ScriptedTunnelState {
   int start_result = net::ERR_IO_PENDING;
   int read_result = net::ERR_IO_PENDING;
@@ -55,8 +37,11 @@ struct ScriptedTunnelState {
   int destructions = 0;
   int cancelled_callbacks = 0;
   std::vector<uint8_t> written;
+  std::vector<uint8_t> read_payload;
   scoped_refptr<net::IOBuffer> read_buffer;
   int read_buffer_length = 0;
+  scoped_refptr<net::IOBuffer> write_buffer;
+  int write_buffer_length = 0;
   net::CompletionOnceCallback start_callback;
   net::CompletionOnceCallback read_callback;
   net::CompletionOnceCallback write_callback;
@@ -77,6 +62,7 @@ class ScriptedTunnel final : public net::NaiveConnectUdpTargetTunnel {
       }
     }
     state_->read_buffer.reset();
+    state_->write_buffer.reset();
     ++state_->destructions;
   }
 
@@ -96,6 +82,13 @@ class ScriptedTunnel final : public net::NaiveConnectUdpTargetTunnel {
       state_->read_buffer = base::WrapRefCounted(buffer);
       state_->read_buffer_length = buffer_length;
       state_->read_callback = std::move(callback);
+    } else if (state_->read_result >= 0) {
+      CHECK_LE(state_->read_payload.size(),
+               static_cast<size_t>(buffer_length));
+      if (!state_->read_payload.empty()) {
+        buffer->first(state_->read_payload.size())
+            .copy_from(state_->read_payload);
+      }
     }
     return state_->read_result;
   }
@@ -106,6 +99,8 @@ class ScriptedTunnel final : public net::NaiveConnectUdpTargetTunnel {
     state_->written.assign(buffer->span().begin(),
                            buffer->span().begin() + buffer_length);
     if (state_->write_result == net::ERR_IO_PENDING) {
+      state_->write_buffer = base::WrapRefCounted(buffer);
+      state_->write_buffer_length = buffer_length;
       state_->write_callback = std::move(callback);
     }
     return state_->write_result;
@@ -121,6 +116,35 @@ class ScriptedTunnel final : public net::NaiveConnectUdpTargetTunnel {
   const std::shared_ptr<ScriptedTunnelState> state_;
 };
 
+void CompleteStart(const std::shared_ptr<ScriptedTunnelState>& state,
+                   int result) {
+  CHECK(state->start_callback);
+  state->open = result == net::OK;
+  std::move(state->start_callback).Run(result);
+}
+
+void CompleteWrite(const std::shared_ptr<ScriptedTunnelState>& state,
+                   int result) {
+  CHECK(state->write_callback);
+  state->write_buffer.reset();
+  state->write_buffer_length = 0;
+  std::move(state->write_callback).Run(result);
+}
+
+void CompleteRead(const std::shared_ptr<ScriptedTunnelState>& state,
+                  std::vector<uint8_t> payload,
+                  bool was_datagram = true) {
+  CHECK(state->read_callback);
+  CHECK_LE(payload.size(), static_cast<size_t>(state->read_buffer_length));
+  if (!payload.empty()) {
+    state->read_buffer->first(payload.size()).copy_from(payload);
+  }
+  state->last_read_was_datagram = was_datagram;
+  state->read_buffer.reset();
+  state->read_buffer_length = 0;
+  std::move(state->read_callback).Run(static_cast<int>(payload.size()));
+}
+
 int failures = 0;
 
 void Expect(bool condition, std::string_view description) {
@@ -128,6 +152,33 @@ void Expect(bool condition, std::string_view description) {
     std::cerr << "FAILED: " << description << "\n";
     ++failures;
   }
+}
+
+void RunUntilIdle() {
+  base::RunLoop run_loop;
+  run_loop.RunUntilIdle();
+}
+
+net::Socks5UdpBackendContext MakeContext(unsigned int association_id = 31) {
+  const net::ProxyChain chain = net::ProxyChain::FromSchemeHostAndPort(
+      net::ProxyServer::SCHEME_QUIC, "proxy.test", 443);
+  CHECK(chain.IsValid());
+  return net::Socks5UdpBackendContext(
+      association_id, reinterpret_cast<net::HttpNetworkSession*>(0x1), chain,
+      net::NetworkAnonymizationKey::CreateTransient(),
+      net::NetLogWithSource(), kTrafficAnnotation, base::Seconds(10),
+      base::Seconds(30));
+}
+
+net::Socks5UdpDatagram Datagram(std::vector<uint8_t> payload) {
+  return net::Socks5UdpDatagram{
+      .destination = net::Socks5UdpEndpoint{
+          .type = net::Socks5UdpAddressType::kDomain,
+          .host = "target.test",
+          .port = 443,
+      },
+      .payload = std::move(payload),
+  };
 }
 
 void TestFrozenContracts() {
@@ -174,21 +225,26 @@ void TestImmutableContextAndSkeleton() {
   net::Socks5UdpBackendContext context(
       17, fake_session, chain, nak, net_log, kTrafficAnnotation,
       base::Seconds(7), base::Seconds(23));
+  auto tunnel_state = std::make_shared<ScriptedTunnelState>();
+  tunnel_state->start_result = net::OK;
+  tunnel_state->write_result = 1;
   bool exact_context_seen = false;
   net::NaiveConnectUdpDatagramBackend backend(
       context,
       base::BindRepeating(
           [](const net::NetworkAnonymizationKey* expected_nak,
              bool* exact_context_seen,
+             std::shared_ptr<ScriptedTunnelState> tunnel_state,
              const net::Socks5UdpBackendContext& actual_context,
              const net::Socks5UdpEndpoint&)
                        -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
                      *exact_context_seen =
                          actual_context.network_anonymization_key ==
                          *expected_nak;
-                     return std::make_unique<UnusedScriptedTunnel>();
+                     return std::make_unique<ScriptedTunnel>(
+                         std::move(tunnel_state));
                    },
-          &nak, &exact_context_seen));
+          &nak, &exact_context_seen, tunnel_state));
   backend.Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
   const int result = backend.Send(
       net::Socks5UdpDatagram{
@@ -283,6 +339,242 @@ void TestScriptedTunnelSeam() {
          "scripted tunnel destruction cancels pending callbacks");
 }
 
+void TestAsyncSingleTargetRoundTripAndReuse() {
+  auto state = std::make_shared<ScriptedTunnelState>();
+  int factory_calls = 0;
+  std::vector<net::Socks5UdpDatagram> received;
+  net::NaiveConnectUdpDatagramBackend backend(
+      MakeContext(),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state, int* factory_calls,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            ++*factory_calls;
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          state, &factory_calls));
+  backend.Start(base::BindRepeating(
+      [](std::vector<net::Socks5UdpDatagram>* received,
+         net::Socks5UdpDatagram datagram) {
+        received->push_back(std::move(datagram));
+      },
+      &received));
+
+  Expect(backend.Send(Datagram({0x01, 0x02, 0x03}),
+                      net::CompletionOnceCallback()) == net::OK,
+         "async target admits first datagram");
+  Expect(factory_calls == 1 && backend.target_count_for_testing() == 1,
+         "first datagram lazily creates one target tunnel");
+  Expect(state->start_callback && !state->write_callback,
+         "outbound payload waits for pending CONNECT-UDP");
+
+  CompleteStart(state, net::OK);
+  Expect(state->read_callback && state->write_callback,
+         "successful connect arms read and serialized write");
+  Expect(state->written == std::vector<uint8_t>({0x01, 0x02, 0x03}) &&
+             state->write_buffer,
+         "pending write retains exact payload buffer");
+  CompleteWrite(state, 3);
+  Expect(backend.stats_for_testing().sent_datagrams == 1,
+         "async write completion accounts one datagram");
+
+  CompleteRead(state, {0x09, 0x08});
+  Expect(received.size() == 1 &&
+             received[0].destination == Datagram({}).destination &&
+             received[0].payload == std::vector<uint8_t>({0x09, 0x08}),
+         "async read returns bytes with original SOCKS endpoint");
+  Expect(!state->read_callback.is_null(),
+         "read pump immediately rearms after async datagram");
+
+  CompleteRead(state, {});
+  Expect(received.size() == 2 && received[1].payload.empty(),
+         "async zero-length UDP datagram is delivered, not treated as EOF");
+  Expect(backend.Send(Datagram({0x04}), net::CompletionOnceCallback()) ==
+             net::OK,
+         "same target admits a second datagram");
+  Expect(factory_calls == 1 && state->write_callback,
+         "same target reuses the connected tunnel");
+  CompleteWrite(state, 1);
+  Expect(backend.stats_for_testing().sent_datagrams == 2 &&
+             backend.stats_for_testing().received_datagrams == 2,
+         "single-target counters match bidirectional completions");
+}
+
+void TestSynchronousSingleTargetAndOversizeDrop() {
+  auto state = std::make_shared<ScriptedTunnelState>();
+  state->start_result = net::OK;
+  state->write_result = 3;
+  state->max_payload_size = 1200;
+  net::NaiveConnectUdpDatagramBackend backend(
+      MakeContext(), base::BindRepeating(
+                         [](std::shared_ptr<ScriptedTunnelState> state,
+                            const net::Socks5UdpBackendContext&,
+                            const net::Socks5UdpEndpoint&)
+                             -> std::unique_ptr<
+                                 net::NaiveConnectUdpTargetTunnel> {
+                           return std::make_unique<ScriptedTunnel>(state);
+                         },
+                         state));
+  backend.Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  Expect(backend.Send(Datagram({0x01, 0x02, 0x03}),
+                      net::CompletionOnceCallback()) == net::OK,
+         "all-synchronous single target is admitted");
+  Expect(backend.stats_for_testing().sent_datagrams == 1 &&
+             state->read_callback,
+         "all-synchronous connect/write still leaves continuous read armed");
+
+  auto oversize_state = std::make_shared<ScriptedTunnelState>();
+  oversize_state->start_result = net::OK;
+  oversize_state->max_payload_size = 2;
+  int oversize_responses = 0;
+  net::NaiveConnectUdpDatagramBackend oversize_backend(
+      MakeContext(32),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          oversize_state));
+  oversize_backend.Start(base::BindRepeating(
+      [](int* responses, net::Socks5UdpDatagram) { ++*responses; },
+      &oversize_responses));
+  Expect(oversize_backend.Send(Datagram({0x01, 0x02, 0x03}),
+                               net::CompletionOnceCallback()) == net::OK,
+         "oversize payload is a policy drop, not association-fatal");
+  Expect(oversize_backend.stats_for_testing().oversize_drops == 1 &&
+             !oversize_state->write_callback && oversize_responses == 0,
+         "live payload ceiling drops before tunnel Write");
+}
+
+void TestShortWriteEofAndPendingDestruction() {
+  auto short_state = std::make_shared<ScriptedTunnelState>();
+  short_state->start_result = net::OK;
+  short_state->write_result = 1;
+  net::NaiveConnectUdpDatagramBackend short_backend(
+      MakeContext(), base::BindRepeating(
+                         [](std::shared_ptr<ScriptedTunnelState> state,
+                            const net::Socks5UdpBackendContext&,
+                            const net::Socks5UdpEndpoint&)
+                             -> std::unique_ptr<
+                                 net::NaiveConnectUdpTargetTunnel> {
+                           return std::make_unique<ScriptedTunnel>(state);
+                         },
+                         short_state));
+  short_backend.Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  Expect(short_backend.Send(Datagram({0x01, 0x02, 0x03}),
+                            net::CompletionOnceCallback()) == net::OK,
+         "short-write target admission remains synchronous");
+  RunUntilIdle();
+  Expect(short_backend.target_count_for_testing() == 0 &&
+             short_backend.stats_for_testing().target_failures == 1 &&
+             short_backend.stats_for_testing().sent_datagrams == 0,
+         "short write retires target without replay");
+
+  auto eof_state = std::make_shared<ScriptedTunnelState>();
+  eof_state->start_result = net::OK;
+  eof_state->read_result = 0;
+  eof_state->last_read_was_datagram = false;
+  eof_state->write_result = 1;
+  net::NaiveConnectUdpDatagramBackend eof_backend(
+      MakeContext(), base::BindRepeating(
+                         [](std::shared_ptr<ScriptedTunnelState> state,
+                            const net::Socks5UdpBackendContext&,
+                            const net::Socks5UdpEndpoint&)
+                             -> std::unique_ptr<
+                                 net::NaiveConnectUdpTargetTunnel> {
+                           return std::make_unique<ScriptedTunnel>(state);
+                         },
+                         eof_state));
+  eof_backend.Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  Expect(eof_backend.Send(Datagram({0x01}),
+                          net::CompletionOnceCallback()) == net::OK,
+         "EOF case admits before transport outcome");
+  RunUntilIdle();
+  Expect(eof_backend.target_count_for_testing() == 0 &&
+             eof_backend.stats_for_testing().target_failures == 1,
+         "read zero without datagram evidence is EOF and retires target");
+
+  auto pending_state = std::make_shared<ScriptedTunnelState>();
+  auto pending_backend =
+      std::make_unique<net::NaiveConnectUdpDatagramBackend>(
+          MakeContext(),
+          base::BindRepeating(
+              [](std::shared_ptr<ScriptedTunnelState> state,
+                 const net::Socks5UdpBackendContext&,
+                 const net::Socks5UdpEndpoint&)
+                  -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+                return std::make_unique<ScriptedTunnel>(state);
+              },
+              pending_state));
+  pending_backend->Start(
+      base::BindRepeating([](net::Socks5UdpDatagram) {}));
+  pending_backend->Send(Datagram({0x01}), net::CompletionOnceCallback());
+  Expect(!pending_state->start_callback.is_null(),
+         "destruction case has pending connect callback");
+  pending_backend.reset();
+  Expect(pending_state->destructions == 1 &&
+             pending_state->cancelled_callbacks == 1,
+         "backend destruction cancels pending target connect");
+}
+
+void TestSynchronousZeroLengthAndCallbackDestruction() {
+  auto zero_state = std::make_shared<ScriptedTunnelState>();
+  zero_state->start_result = net::OK;
+  zero_state->read_result = 0;
+  zero_state->last_read_was_datagram = true;
+  zero_state->write_result = 1;
+  int zero_responses = 0;
+  net::NaiveConnectUdpDatagramBackend zero_backend(
+      MakeContext(), base::BindRepeating(
+                         [](std::shared_ptr<ScriptedTunnelState> state,
+                            const net::Socks5UdpBackendContext&,
+                            const net::Socks5UdpEndpoint&)
+                             -> std::unique_ptr<
+                                 net::NaiveConnectUdpTargetTunnel> {
+                           return std::make_unique<ScriptedTunnel>(state);
+                         },
+                         zero_state));
+  zero_backend.Start(base::BindRepeating(
+      [](std::shared_ptr<ScriptedTunnelState> state, int* responses,
+         net::Socks5UdpDatagram datagram) {
+        ++*responses;
+        CHECK(datagram.payload.empty());
+        state->read_result = net::ERR_IO_PENDING;
+      },
+      zero_state, &zero_responses));
+  zero_backend.Send(Datagram({0x01}), net::CompletionOnceCallback());
+  Expect(zero_responses == 1 && zero_state->read_callback,
+         "synchronous empty datagram is delivered once then read rearms");
+
+  auto destroy_state = std::make_shared<ScriptedTunnelState>();
+  destroy_state->start_result = net::OK;
+  destroy_state->write_result = 1;
+  std::unique_ptr<net::NaiveConnectUdpDatagramBackend> destroy_backend;
+  destroy_backend = std::make_unique<net::NaiveConnectUdpDatagramBackend>(
+      MakeContext(),
+      base::BindRepeating(
+          [](std::shared_ptr<ScriptedTunnelState> state,
+             const net::Socks5UdpBackendContext&,
+             const net::Socks5UdpEndpoint&)
+              -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+            return std::make_unique<ScriptedTunnel>(state);
+          },
+          destroy_state));
+  destroy_backend->Start(base::BindRepeating(
+      [](std::unique_ptr<net::NaiveConnectUdpDatagramBackend>* backend,
+         net::Socks5UdpDatagram) { backend->reset(); },
+      &destroy_backend));
+  destroy_backend->Send(Datagram({0x01}), net::CompletionOnceCallback());
+  Expect(!destroy_state->read_callback.is_null(),
+         "callback-destruction case has pending read");
+  CompleteRead(destroy_state, {0x02});
+  Expect(!destroy_backend && destroy_state->destructions == 1,
+         "receive callback can destroy backend without UAF or rearm");
+}
+
 }  // namespace
 
 int main() {
@@ -291,10 +583,15 @@ int main() {
   TestFrozenContracts();
   TestImmutableContextAndSkeleton();
   TestScriptedTunnelSeam();
+  TestAsyncSingleTargetRoundTripAndReuse();
+  TestSynchronousSingleTargetAndOversizeDrop();
+  TestShortWriteEofAndPendingDestruction();
+  TestSynchronousZeroLengthAndCallbackDestruction();
   if (failures != 0) {
     std::cerr << "M3 G0 failures=" << failures << "\n";
     return 1;
   }
   std::cout << "M3_G0_BACKEND_CONTRACT_OK\n";
+  std::cout << "M3_G1_SINGLE_TARGET_OK\n";
   return 0;
 }
