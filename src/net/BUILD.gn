@@ -2050,6 +2050,8 @@ executable("naive") {
     "tools/naive/naive_command_line.h",
     "tools/naive/naive_config.cc",
     "tools/naive/naive_config.h",
+    "tools/naive/naive_connect_udp_datagram_backend.cc",
+    "tools/naive/naive_connect_udp_datagram_backend.h",
     "tools/naive/naive_connect_udp_tunnel.cc",
     "tools/naive/naive_connect_udp_tunnel.h",
     "tools/naive/naive_connection.cc",
@@ -2077,6 +2079,7 @@ executable("naive") {
     "tools/naive/socks5_udp_association.h",
     "tools/naive/socks5_udp_codec.cc",
     "tools/naive/socks5_udp_codec.h",
+    "tools/naive/socks5_udp_datagram_backend.cc",
     "tools/naive/socks5_udp_datagram_backend.h",
     "tools/naive/preamble_getter.cc",
     "tools/naive/preamble_getter.h",
@@ -2100,6 +2103,23 @@ executable("naive") {
 # They remain standalone binaries so this reduced checkout does not need the
 # full Chromium net_unittests dependency graph.
 if (is_posix && !is_ios) {
+  executable("naive_connect_udp_backend_test") {
+    sources = [
+      "tools/naive/naive_connect_udp_backend_test_bin.cc",
+      "tools/naive/naive_connect_udp_datagram_backend.cc",
+      "tools/naive/naive_connect_udp_datagram_backend.h",
+      "tools/naive/socks5_udp_codec.cc",
+      "tools/naive/socks5_udp_codec.h",
+      "tools/naive/socks5_udp_datagram_backend.cc",
+      "tools/naive/socks5_udp_datagram_backend.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+    ]
+  }
+
   executable("naive_socks5_udp_test") {
     sources = [
       "tools/naive/naive_socks5_udp_test_bin.cc",
@@ -2135,6 +2155,7 @@ if (is_posix && !is_ios) {
       "tools/naive/socks5_udp_association.h",
       "tools/naive/socks5_udp_codec.cc",
       "tools/naive/socks5_udp_codec.h",
+      "tools/naive/socks5_udp_datagram_backend.cc",
       "tools/naive/socks5_udp_datagram_backend.h",
     ]
 
@@ -2174,6 +2195,7 @@ if (is_posix && !is_ios) {
       "tools/naive/socks5_udp_association.h",
       "tools/naive/socks5_udp_codec.cc",
       "tools/naive/socks5_udp_codec.h",
+      "tools/naive/socks5_udp_datagram_backend.cc",
       "tools/naive/socks5_udp_datagram_backend.h",
     ]
 

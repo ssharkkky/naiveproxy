@@ -320,13 +320,19 @@ void NaiveProxy::HandleSocksRequestRead(unsigned int connection_id,
       break;
     case Socks5ServerSocket::Command::kUdpAssociate:
       pending->action = PendingSocksHandshake::Action::kClose;
-      if (CanUseNativeUdp() && udp_backend_factory_) {
+      if (CanUseNativeUdp() && HasNativeUdpAssociationCapacity() &&
+          udp_backend_factory_) {
         result = pending->socket->GetPeerAddress(&pending->control_peer);
         if (result == OK) {
           result = BindUdpRelay(pending);
         }
         if (result == OK) {
-          pending->backend = udp_backend_factory_.Run();
+          pending->backend = udp_backend_factory_.Run(Socks5UdpBackendContext(
+              connection_id, session_, proxy_info_.proxy_chain(),
+              pending->network_anonymization_key, net_log_,
+              traffic_annotation_,
+              Socks5UdpBackendLimits::kDefaultConnectTimeout,
+              idle_timeout_));
         }
         if (result == OK && pending->backend) {
           pending->action = PendingSocksHandshake::Action::kStartUdp;
@@ -402,6 +408,16 @@ bool NaiveProxy::CanUseNativeUdp() const {
     }
   }
   return true;
+}
+
+bool NaiveProxy::HasNativeUdpAssociationCapacity() const {
+  size_t count = udp_association_by_id_.size();
+  for (const auto& [id, pending] : pending_socks_by_id_) {
+    if (pending->action == PendingSocksHandshake::Action::kStartUdp) {
+      ++count;
+    }
+  }
+  return count < Socks5UdpBackendLimits::kMaxActiveAssociationsPerProxy;
 }
 
 int NaiveProxy::BindUdpRelay(PendingSocksHandshake* pending) {

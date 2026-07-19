@@ -16,7 +16,7 @@ verified. Update it at every completed G target and milestone.
 | M0 — baseline and guardrails | Complete | Stable Chromium 150 tag, development branch, Release build, TCP baseline | None |
 | M1 — Chromium integration spike | Complete and independently audited | Real IPv4/IPv6 tunnel, auth echo, lifecycle and NetLog evidence; `agy` returned `AUDIT_PASS` | None |
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
-| M3 — native UDP client data path | Planned; implementation not started | G0–G6 execution plan freezes composition, ownership, limits, verification, and audit gates | Execute M3-G0 backend contract/context seam |
+| M3 — native UDP client data path | G0 complete; G1 next | Immutable backend context/NAK factory, target identity, resource/admission contracts, scripted tunnel seam, test target and M3 script skeleton compile and pass | Execute M3-G1 single-target backend |
 | M4 — production server path | Not started | QUICHE endpoint is test-only and is not the Caddy/forwardproxy implementation | Client behavior frozen by M1 |
 | M5 — end-to-end MVP | Not started | Local M2 ingress and M1 tunnel exist but are not composed | M2–M4 complete |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
@@ -388,9 +388,11 @@ M2_G3_NO_BACKEND_REJECTION_OK
 M2_SOCKS5_UDP_INGRESS_OK
 ```
 
-## M3 planning ledger — native UDP client data path
+## M3 execution ledger — native UDP client data path
 
-Status: planned; ready to execute G0. No M3 production code has started.
+Status: G0 complete; ready to execute G1. The G0 backend skeleton is compiled
+but is not installed in the production binary; M2 fake/no-backend behavior is
+unchanged.
 
 The plan was derived from direct inspection of the M1 tunnel and M2 ingress
 boundaries, then checked by three independent read-only reviews. The reviews
@@ -427,6 +429,39 @@ Planning estimate: 12–20 person-days for an audited M3, approximately 2–4
 elapsed weeks for one engineer plus an agent. The first single-target real path
 is not considered milestone completion.
 
+### M3-G0 — backend contract, context, and test seam
+
+Status: complete.
+
+Completed:
+
+- Replaced the zero-argument backend factory with an immutable per-association
+  context carrying the association id, non-owning session pointer, exact
+  transient NAK, selected proxy chain, NetLog source, traffic annotation,
+  10-second connect timeout, and target idle timeout.
+- Passed `PendingSocksHandshake::network_anonymization_key` directly into that
+  context before the successful UDP ASSOCIATE reply. The M2 runner now rejects
+  empty/non-transient keys and validates the remaining production-style
+  context inputs.
+- Froze target identity as SOCKS address type plus host plus port, so domains
+  and numerically equivalent IP literals remain separate routes.
+- Froze admission/no-replay comments and v1 limits: 32 targets, 16 queued
+  datagrams per target, 128 queued datagrams and 256 KiB per association, 32
+  synchronous pump operations, 10-second connect timeout, 1-second cooldown,
+  and 256 active UDP associations per NaiveProxy.
+- Added the narrow `NaiveConnectUdpTargetTunnel` seam for scripted and future
+  production M1 adapters, including explicit open-state, zero-length-read, and
+  safe-payload-limit queries.
+- Added the standalone `naive_connect_udp_backend_test` and the cumulative
+  `tests/socks5_udp_m3.sh` entry point.
+
+Verified markers:
+
+```text
+M3_G0_BACKEND_CONTRACT_OK
+M3_G0_TEST_SKELETON_OK
+```
+
 ## Current verification commands
 
 ```bash
@@ -434,12 +469,13 @@ cd src
 ninja -C out/Release naive naive_masque_server naive_masque_client \
   naive_masque_probe naive_connect_udp_runner naive_socks5_udp_test \
   naive_socks5_server_socket_state_test naive_socks5_udp_association_test \
-  naive_socks5_udp_runner
+  naive_socks5_udp_runner naive_connect_udp_backend_test
 ../tests/masque_g1_smoke.sh
 ../tests/masque_g2_naive_tunnel.sh
 ../tests/masque_g3_basic_auth.sh
 ../tests/masque_g5_lifecycle.sh
 ../tests/socks5_udp_m2.sh
+../tests/socks5_udp_m3.sh
 ../tests/basic.sh out/Release/naive
 git diff --check
 ```
@@ -456,6 +492,8 @@ Expected markers:
 - `M2_G2_AUTHENTICATED_UDP_OK`
 - `M2_G3_NO_BACKEND_REJECTION_OK`
 - `M2_SOCKS5_UDP_INGRESS_OK`
+- `M3_G0_BACKEND_CONTRACT_OK`
+- `M3_G0_TEST_SKELETON_OK`
 - exit code `0` from `tests/basic.sh`
 - `ninja: no work to do` or a successful link
 
