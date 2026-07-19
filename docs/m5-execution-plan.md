@@ -2,7 +2,7 @@
 
 Last updated: 2026-07-19 (Asia/Shanghai)
 
-Status: planned; M5-G0 is the next implementation gate.
+Status: M5-G0 complete; M5-G1 is the next implementation gate.
 
 Documentation entry point: [`README.md`](README.md). Verified project state:
 [`native-udp-status.md`](native-udp-status.md). Frozen v1 scope and M0–M6
@@ -148,7 +148,7 @@ and `docs/native-udp-status.md` records the evidence.
 
 ### M5-G0 — topology, trust, harness, and evidence contract
 
-Status: next.
+Status: complete.
 
 Work:
 
@@ -175,6 +175,30 @@ Exit:
 - marker: `M5_G0_PRODUCT_CONTRACT_OK`.
 
 Estimated effort: 1–2 person-days.
+
+Verified result:
+
+- `tests/socks5_udp_m5.sh` verifies the unchanged M3 client source, exact
+  forwardproxy `8f044e2`, exact Caddy `cce894a8`, Go 1.25.12 binary metadata,
+  clean server worktrees, and the named production client binaries;
+- `tests/m5/topology.py` allocates distinct dynamic loopback ports for the
+  shared TCP/UDP proxy listener, IPv4/IPv6 echo, DNS, and inner HTTP/3 fixtures
+  and rejects the historical fixed M4 port;
+- the macOS trust contract is tied to Chromium's `TrustStoreMac` user domain
+  and exposes a separate `--exercise` mode. A controlled primitive run proved
+  untrusted-before, trusted-during, and untrusted-after removal with no trust
+  residue; the default G0 run is read-only so sandboxed agents do not mutate
+  user trust state;
+- the independent probe is owned under `tests/m5`, pins quic-go `v0.59.0`,
+  imports no Naive tunnel code, and freezes a `net.PacketConn` plus retained
+  SOCKS control-channel contract with IPv4/IPv6/domain identity tests;
+- `tests/m5/contract.json` freezes all M5 revisions, markers, privacy
+  sentinels, artifact rules, and the size/timing-only no-padding fields;
+- the G0 aggregate, all M1 scripts, M2/M3 aggregates, all 56 Naive TCP cases,
+  M4 standalone interoperability, forwardproxy normal/race tests, and focused
+  Caddy HTTP tests passed. One resource-contended concurrent M3 invocation
+  outlived its runner deadline; the required standalone rerun passed fully;
+- marker: `M5_G0_PRODUCT_CONTRACT_OK`.
 
 ### M5-G1 — first audited-client-to-production-server echo
 
