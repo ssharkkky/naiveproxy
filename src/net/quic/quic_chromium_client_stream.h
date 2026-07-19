@@ -130,6 +130,11 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     // Unregisters an HTTP/3 datagram visitor.
     void UnregisterHttp3DatagramVisitor();
 
+    // Installs a one-shot notification for underlying stream/session closure.
+    // Datagram users need this because Http3DatagramVisitor only reports
+    // payloads and otherwise cannot complete a pending datagram read.
+    void SetDatagramStreamCloseCallback(CompletionOnceCallback callback);
+
     quic::QuicStreamId id() const;
     quic::QuicErrorCode connection_error() const;
     quic::QuicRstStreamErrorCode stream_error() const;
@@ -226,6 +231,9 @@ class NET_EXPORT_PRIVATE QuicChromiumClientStream
     // Callback to be invoked when WriteStreamData or WritevStreamData completes
     // asynchronously.
     CompletionOnceCallback write_callback_;
+
+    // Callback owned by a datagram adapter that needs stream-close delivery.
+    CompletionOnceCallback datagram_stream_close_callback_;
 
     quic::QuicStreamId id_;
     quic::QuicErrorCode connection_error_;

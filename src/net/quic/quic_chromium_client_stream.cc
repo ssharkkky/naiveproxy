@@ -180,8 +180,9 @@ void QuicChromiumClientStream::Handle::InvokeCallbacksOnClose(int error) {
   read_body_buffer_len_ = 0;
 
   auto guard(weak_factory_.GetWeakPtr());
-  for (auto* callback :
-       {&read_headers_callback_, &read_body_callback_, &write_callback_}) {
+  for (auto* callback : {&read_headers_callback_, &read_body_callback_,
+                         &write_callback_,
+                         &datagram_stream_close_callback_}) {
     if (*callback)
       ResetAndRun(std::move(*callback), error);
     if (!guard.get())
@@ -387,6 +388,14 @@ void QuicChromiumClientStream::Handle::UnregisterHttp3DatagramVisitor() {
   if (stream_) {
     stream_->UnregisterHttp3DatagramVisitor();
   }
+}
+
+void QuicChromiumClientStream::Handle::SetDatagramStreamCloseCallback(
+    CompletionOnceCallback callback) {
+  CHECK(stream_);
+  CHECK(callback);
+  CHECK(datagram_stream_close_callback_.is_null());
+  datagram_stream_close_callback_ = std::move(callback);
 }
 
 quic::QuicStreamId QuicChromiumClientStream::Handle::id() const {
