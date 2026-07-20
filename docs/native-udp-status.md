@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0 complete | Release/platform contract, audited-input checks, exact current-host toolchain, and focused build readiness pass; commit `80d37395a6` | M6-G1 payload ceiling and PMTU behavior |
+| M6 — hardening and release candidate | In progress; G0/G2/G4 complete; G1 and G3 open | G0 contract, G1b1/G1c measurements, three-run G2 impairment matrix, G4 frozen-budget fuzz/sanitizer/race/lifecycle gate; G3 qualification soak is running and G1b2/G1d remain open | G1 shipped-client/default-verifier measurement and G3 qualification result |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -31,9 +31,10 @@ M6 work is sequenced in `docs/m6-execution-plan.md` and summarized in
 ### Overall progress estimate
 
 - Milestone count: M0–M5 are complete, 6 of 7 milestones, or 86%.
-- Weighted engineering estimate: approximately 90–92% complete. This weights
-  the remaining product-level integration and release hardening more heavily
-  than a simple milestone count.
+- Weighted engineering estimate: approximately 93–95% complete. This weights
+  the remaining shipped-client policy, qualification, platform, and release
+  evidence more heavily than a simple milestone count; it is not a release
+  claim.
 - Chromium-driven native UDP client: M1-M3 are independently audited; the M5
   production-context ordering fix `333b7cb253` passed the complete owner matrix
   and is included in the completed M5-G6 audit boundary.
@@ -50,8 +51,8 @@ Current remaining planning range:
 | **Total remaining** | **10–20 person-days** |
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
-is not production-ready: the end-to-end MVP is independently audited, but M6
-release-hardening evidence does not yet exist.
+is not production-ready: M6 still lacks shipped-client G1b2/G1d evidence,
+cross-platform G5 qualification, and G6 release/audit closeout.
 
 ## M1 detailed status
 
@@ -1384,6 +1385,51 @@ G2 artifacts are temporary and deleted on success/failure/signal. Committed
 profile evidence is limited to profile, seed, direction, size, action, reason,
 elapsed time, and aggregate counts; it excludes endpoints, paths, credentials,
 and packet bytes.
+
+### M6-G3 — resource pressure and soak: qualification running
+
+Commit `325c77b95a` added the bounded association/churn/resource harness. The
+smoke evidence already passed with 256 active client associations, rejection
+of the 257th, reuse of 64 released slots, 101 waves, 1616 product datagrams,
+and recovery of runner/Caddy file descriptors. The unshortened qualification
+tier is currently running as one 3600-second fresh production root; its final
+marker is not recorded until the process exits and the aggregate resource
+checks pass.
+
+The G3 harness covers association admission, churn, post-close resource
+recovery, and bounded RSS/FD deltas. M5-G4 remains the inherited evidence for
+server restart, idle expiry, control close, outer-session shutdown, and no
+replay; G2's loss profile remains the inherited outer-QUIC impairment evidence.
+
+### M6-G4 — fuzz, sanitizer, race, and lifecycle hardening: complete
+
+Commit `5893f97f6e` adds a deterministic client codec-fuzz executable, the
+seeded asynchronous lifecycle schedule, a fail-closed ASan/UBSan configuration,
+and the frozen-budget cross-repository runner. It also extends the machine
+contract with the exact seeds, iteration counts, lifecycle count, and Go fuzz
+duration. The runner does not accept a shortened Go fuzz duration as a final
+pass; diagnostic short runs must be invoked outside the gate runner.
+
+Verified command and evidence:
+
+```bash
+./tests/m6/g4_sanitizer_fuzz.sh
+# M6_G4_CODEC_FUZZ_OK seed=20260720 iterations=1000000 valid=44027
+# M6_G4_CODEC_FUZZ_OK seed=9298 iterations=1000000 valid=43374
+# M6_G4_CODEC_FUZZ_OK seed=1928 iterations=1000000 valid=43459
+# M6_G4_RELEASE_CODEC_FUZZ_OK
+# M6_G4_SEEDED_LIFECYCLE_OK iterations=2000
+# M6_G4_ASAN_UBSAN_OK
+# M6_G4_GO_RACE_FUZZ_OK
+# M6_G4_SANITIZER_FUZZ_OK
+```
+
+The first full attempt exposed a transient race-detector failure during Caddy
+automatic HTTPS/certmagic startup and stopped without a pass marker. An exact
+second run passed the complete server race suite and both 30-second Go fuzz
+targets; the transient is retained as a diagnostic observation, not silently
+discarded. The server repository remains at test-only fuzz commit `d96fe7a` and
+the audited production runtime is unchanged.
 
 ## Canonical M5 verification commands
 

@@ -20,9 +20,12 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - Active milestone: M6 hardening and release-candidate qualification.
 - M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
   `80d37395a6`.
-- Active gate: M6-G1 inner payload ceiling and PMTU behavior.
-- Overall progress is 6 of 7 milestones (86%), approximately 90-92% by
-  weighted engineering scope.
+- Active M6 gates: G1 shipped-client/default-verifier and policy closeout,
+  G3 qualification soak, then G5 platform qualification and G6 release closeout.
+  G2 and G4 are complete; G4 commit is `5893f97f6e`.
+- Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
+  weighted engineering scope. This is not a production-release claim while
+  G1, G3, G5, and G6 evidence remains open.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   native UDP commits.
 
