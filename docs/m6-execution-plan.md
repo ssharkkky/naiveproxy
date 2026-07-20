@@ -151,7 +151,9 @@ Sub-gates:
   delivery, 1314-byte blackhole, recovery, target isolation, no replay, and
   redacted observability in three fresh roots; commit `9c72a7da08`.
 - [ ] G1d — choose/document the release payload policy and run the complete
-  focused/cumulative regression set three times.
+  focused/cumulative regression set three times. The single-window closeout
+  runner is prepared at `fc23ce4144`; it remains unexecuted pending G1b2 trust
+  authorization.
 
 Purpose: replace the MVP's 1200-byte/4096-byte probes with an explicit and
 measured release policy.
