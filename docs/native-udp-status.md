@@ -41,7 +41,7 @@ M6 work is sequenced in `docs/m6-execution-plan.md` and summarized in
 - Production Caddy/`forwardproxy` native UDP server: 100% complete and
   independently audited.
 - End-to-end product MVP: 100% complete and independently audited. Release
-  hardening is not started.
+  hardening is in progress through M6-G5 platform qualification.
 
 Current remaining planning range:
 
@@ -51,8 +51,9 @@ Current remaining planning range:
 | **Total remaining** | **10–20 person-days** |
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
-is not production-ready: M6 still lacks shipped-client G1b2/G1d evidence,
-cross-platform G5 qualification, and G6 release/audit closeout.
+is not production-ready: shipped-client G1b2 and the three-run G1d closeout
+pass, but cross-platform G5 qualification and the G6 release/audit closeout
+remain open.
 
 ## M1 detailed status
 
