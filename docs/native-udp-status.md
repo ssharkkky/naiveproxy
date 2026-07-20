@@ -1609,6 +1609,23 @@ M6_G5B_MACOS_ARM64_OK
 The machine-readable platform record now marks `macos-arm64` verified; Linux,
 Windows, and Android remain `not run`.
 
+### M6-G5e — Android arm64 build readiness: complete; runtime pending
+
+GitHub Actions run `29743425559` built the Android arm64 Naive binary and
+plugin APK at NaiveProxy `58a7ac9821d9b01d5ab95f154e0eeff33fb4ea84` on
+Ubuntu 22.04.5, then verified the packaged AArch64 ELF and exported SagerNet
+plugin provider boundary:
+
+```text
+M6_G5E_ANDROID_ARM64_ELF_OK
+M6_G5E_ANDROID_PLUGIN_PACKAGE_OK
+M6_G5E_ANDROID_ARM64_BUILD_READY
+```
+
+The machine record retains `state: not run`. This build evidence does not
+prove host-app UDP/DNS/H3/TCP, trust behavior, or suspend/resume/restart on a
+physical Android arm64 device; those remain required before G5e can close.
+
 ### M6-G5c — Linux x64 qualification: failed runs retained; corrected rerun pending
 
 The shipped-product fixture now selects the platform default verifier without

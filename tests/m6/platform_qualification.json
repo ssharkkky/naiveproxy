@@ -100,14 +100,23 @@
       "id": "android-arm64",
       "state": "not run",
       "os_version": "",
-      "architecture": "",
-      "naive_revision": "",
+      "architecture": "arm64-v8a",
+      "naive_revision": "58a7ac9821d9b01d5ab95f154e0eeff33fb4ea84",
       "forwardproxy_revision": "",
       "caddy_revision": "",
-      "build_commands": [],
+      "build_commands": [
+        "GitHub Actions run 29743425559: android-arm64-build"
+      ],
       "runtime_commands": [],
-      "markers": [],
-      "limitations": []
+      "markers": [
+        "M6_G5E_ANDROID_ARM64_ELF_OK",
+        "M6_G5E_ANDROID_PLUGIN_PACKAGE_OK",
+        "M6_G5E_ANDROID_ARM64_BUILD_READY"
+      ],
+      "limitations": [
+        "Build readiness ran on Ubuntu 22.04.5 and does not qualify Android runtime behavior.",
+        "Physical Android arm64 host-app/package runtime evidence is still required."
+      ]
     }
   ]
 }
