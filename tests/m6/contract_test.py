@@ -13,6 +13,7 @@ PLATFORM_QUALIFICATION = pathlib.Path(__file__).with_name(
     "platform_qualification.json"
 )
 G1_SHIPPED_CEILING = pathlib.Path(__file__).with_name("g1_shipped_ceiling.sh")
+G1_FINALIZE = pathlib.Path(__file__).with_name("g1_finalize.sh")
 
 
 class M6ContractTest(unittest.TestCase):
@@ -175,6 +176,17 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("temporary G1b2 root remained trusted", runner)
         self.assertNotIn("MockCertVerifier", runner)
         self.assertNotIn("ignore-certificate", runner.lower())
+
+    def test_g1d_finalize_requires_three_complete_regression_runs(self) -> None:
+        runner = G1_FINALIZE.read_text(encoding="utf-8")
+        self.assertIn('while [ "$run" -le 3 ]', runner)
+        self.assertIn("g1_shipped_ceiling.sh", runner)
+        self.assertIn("g1_live_ceiling.sh", runner)
+        self.assertIn("socks5_udp_m3.sh", runner)
+        self.assertIn("tests/basic.sh", runner)
+        self.assertIn('"$go_bin" test -count=1 ./...', runner)
+        self.assertIn("./modules/caddyhttp", runner)
+        self.assertIn("M6_G1_PAYLOAD_PMTU_OK", runner)
 
 
 if __name__ == "__main__":
