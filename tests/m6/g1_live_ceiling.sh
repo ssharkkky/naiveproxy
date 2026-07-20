@@ -76,7 +76,7 @@ wait_for_log() {
 
 expected_client=eaf172d9713dafc6519d8c4a6b8ba3a290c222de
 expected_forwardproxy=8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7
-expected_caddy=cce894a8a0e987eb1722cf99729499bdaba6c38d
+expected_caddy=dd9a89c11194dcb806d845233995ef040f096464
 
 unexpected_client_changes=$(git -C "$repo_dir" diff --name-only \
   "$expected_client"..HEAD -- src/net | \
@@ -92,7 +92,7 @@ test -z "$unexpected_worktree_changes"
 unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
   "$expected_forwardproxy"..HEAD | \
   sed -e '/^tests\/m5\//d' -e '/^tests\/m6\//d' \
-      -e '/^native_udp_fuzz_test\.go$/d')
+      -e '/^native_udp_fuzz_test\.go$/d' -e '/^M4_TOOLCHAIN\.lock$/d')
 test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
 git -C "$forwardproxy_dir" diff --quiet

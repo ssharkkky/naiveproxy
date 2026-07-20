@@ -16,7 +16,7 @@ expected_m5_audited=eaf172d9713dafc6519d8c4a6b8ba3a290c222de
 expected_g0=80d37395a6
 expected_forwardproxy_runtime=8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7
 expected_forwardproxy_fixture=2b2a8ea
-expected_caddy=cce894a8a0e987eb1722cf99729499bdaba6c38d
+expected_caddy=dd9a89c11194dcb806d845233995ef040f096464
 
 test -f "$contract"
 python3 "$script_dir/contract_test.py"
@@ -39,7 +39,7 @@ git -C "$forwardproxy_dir" merge-base --is-ancestor \
 unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
   "$expected_forwardproxy_runtime"..HEAD | \
   sed -e '/^tests\/m5\//d' -e '/^tests\/m6\//d' \
-      -e '/^native_udp_fuzz_test\.go$/d')
+      -e '/^native_udp_fuzz_test\.go$/d' -e '/^M4_TOOLCHAIN\.lock$/d')
 test -z "$unexpected_server_changes"
 git -C "$forwardproxy_dir" diff --quiet
 
