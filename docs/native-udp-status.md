@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-07-19 (Asia/Shanghai)
+Last updated: 2026-07-20 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
 [`m5-execution-plan.md`](m5-execution-plan.md).
@@ -18,7 +18,7 @@ verified. Update it at every completed G target and milestone.
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
-| M5 — end-to-end MVP | In progress; G0-G3 complete | Contract, production echo/application matrix, auth/policy/admission/malformed isolation, non-QUIC rejection, and privacy pass | M5-G4 |
+| M5 — end-to-end MVP | In progress; G0-G5 complete | Full product matrix, lifecycle/no-replay, shipped default-verifier client, production idle, H3 DATAGRAM evidence, TCP parity, and no-padding baseline pass | M5-G6 |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -30,22 +30,24 @@ M5–M6 work is recorded in `docs/native-udp-development-plan.md`.
 ### Overall progress estimate
 
 - Milestone count: M0–M4 are complete, 5 of 7 milestones, or 71%.
-- Weighted engineering estimate: approximately 75–80% complete. This weights
+- Weighted engineering estimate: approximately 88–90% complete. This weights
   the remaining product-level integration and release hardening more heavily
   than a simple milestone count.
-- Chromium-driven native UDP client: 100% complete and independently audited.
+- Chromium-driven native UDP client: M1-M3 are independently audited; the M5
+  production-context ordering fix `333b7cb253` passed the complete owner matrix
+  and is included in the pending M5-G6 audit boundary.
 - Production Caddy/`forwardproxy` native UDP server: 100% complete and
   independently audited.
-- End-to-end product MVP: in progress with G0-G3 complete; release hardening
-  is not started.
+- End-to-end product MVP: G0-G5 complete; G6 regressions/artifact closeout and
+  independent audit remain. Release hardening is not started.
 
 Current remaining planning range:
 
 | Remaining milestone | Estimated effort |
 | --- | ---: |
-| M5 — end-to-end MVP | 6–10 person-days |
+| M5-G6 — MVP closeout | 1–2 person-days |
 | M6 — hardening and release candidate | 10–20 person-days |
-| **Total remaining** | **16–30 person-days** |
+| **Total remaining** | **11–22 person-days** |
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
 is not production-ready: the client and production server are independently
@@ -956,7 +958,7 @@ Caddy product matrix, including product-level reconnect claims.
 
 ## M5 execution baseline — end-to-end MVP
 
-Status: in progress; M5-G0 through G3 are complete and M5-G4 is next. The
+Status: in progress; M5-G0 through G5 are complete and M5-G6 is next. The
 active plan is
 [`m5-execution-plan.md`](m5-execution-plan.md).
 
@@ -1089,8 +1091,69 @@ M5_G2_PRODUCT_MATRIX_OK
   `diff --check` remain green; the production M4 idle/restart/privacy suite
   passed immediately before this test-only gate.
 
-M5-G4 is next: control teardown, server restart, outer QUIC reconnect, real
-idle boundaries, unique sequence evidence, and no ambiguous replay.
+### M5-G4 — lifecycle, restart, reconnect, idle, and no replay: complete
+
+- `tests/m5/g4_lifecycle_matrix.sh` verifies idle/open/pending SOCKS control
+  closure, two production-Caddy restart cycles, a forced outer QUIC session
+  close with two independent targets, and the real 30-second production client
+  target-idle boundary;
+- unique payload counts prove pre-failure delivery exactly once, deliberately
+  ambiguous datagrams zero times, and recovery only from a later fresh
+  datagram. A healthy unrelated target remains isolated across session close;
+- the real two-minute production server idle is composed into G5's one
+  privileged trust window. The 125-second probe observed server
+  `idle_expired`, created fresh state, and emitted
+  `M5_G4_SERVER_IDLE_RECONNECT_OK`;
+- the focused non-privileged matrix passed during development, passed again
+  after removing its duplicate trust path, and leaves no process or temporary
+  root;
+- markers: `M5_G4_CONTROL_CLOSE_OK`, `M5_G4_SERVER_RESTART_OK` (twice),
+  `M5_G4_QUIC_RECONNECT_OK`, `M5_G4_CLIENT_IDLE_RECONNECT_OK`,
+  `M5_G4_IDLE_RECONNECT_OK`, and `M5_G4_NO_REPLAY_OK`.
+
+### M5-G5 — shipped binary, trust, wire evidence, and baseline: complete
+
+- The untrusted shipped-`naive` negative path failed before any CONNECT-UDP
+  `200`. The trusted positive used a temporary user-domain root in the current
+  user's login keychain and `CertVerifier::CreateDefault()`; cleanup removed
+  its trust/certificate and verified the same server certificate untrusted
+  again.
+- The first positive attempt exposed that production `naive_proxy_bin.cc`
+  configured forced QUIC origins after `URLRequestContextBuilder::Build()`.
+  Chromium had already copied `QuicParams`, so a locally trusted root was
+  accepted by the default verifier but rejected by the QUIC proof verifier.
+  Commit `333b7cb253` moves only the existing QUIC configuration before Build.
+- After the fix, shipped `out/Release/naive` passed authenticated IPv4 echo,
+  deterministic DNS, the independent SOCKS5-UDP HTTP/3 application request,
+  ordinary TCP SOCKS, and the 125-second production server-idle/reconnect case.
+- Production NetLog contains the QUIC proxy datagram source and redacted
+  CONNECT-UDP evidence; server logs contain redacted association lifecycle.
+  Size/timing evidence contains only the four frozen encrypted-shape fields
+  across echo, DNS, and HTTP/3 windows. Native UDP v1 adds no padding layer.
+- The complete M1-M3 target/script matrix, `M3_NATIVE_UDP_CLIENT_OK`, all 56
+  TCP cases, and `git diff --check` pass after `333b7cb253`.
+- markers: `M5_G5_UNTRUSTED_CERT_REJECTED_OK`,
+  `M5_G5_DEFAULT_CERT_VERIFIER_OK`, `M5_G5_PRODUCTION_BINARY_OK`,
+  `M5_G5_H3_DATAGRAM_EVIDENCE_OK`, and
+  `M5_G5_NO_PADDING_BASELINE_OK`.
+
+M5-G6 is next: complete cross-repository regressions, repeated fresh-root M5
+runs, artifact/privacy closeout, final `M5_NATIVE_UDP_MVP_OK`, and independent
+`AUDIT_PASS` with zero blocker/high/medium findings.
+
+## Canonical M5 verification commands
+
+```bash
+cd /Users/stoneshi/Documents/naive\ proxy
+./tests/m5/g4_lifecycle_matrix.sh
+./tests/m5/g5_production_binary.sh
+./tests/socks5_udp_m5.sh
+```
+
+`g4_lifecycle_matrix.sh` is non-privileged. The G5 and cumulative commands
+install one short-lived user-domain root after an explicit macOS confirmation;
+their traps remove the trust/certificate and verify the endpoint is untrusted
+again. `M5_G5_STOP_AFTER_NEGATIVE=1` runs only the non-mutating negative path.
 
 ## Canonical server verification commands
 
@@ -1228,6 +1291,8 @@ three audited patches end at `cce894a8`. M4's local verification and audit
 evidence are recorded in `4ec0f8bb9a`. The M5 G0–G6 execution plan now exists;
 M5-G0 is commit `014cdc4761`; M5-G1 is main commit `67caa8f131` plus the
 forwardproxy fixture commits `d922441` and `88ac298`. M5-G2 is commit
-`eeccb7cb30`; M5-G3 is recorded by the current gate commit and M5-G4 is next.
+`eeccb7cb30`; M5-G3 is `fbdd8af531`. The shipped-client QUIC context ordering
+fix is `333b7cb253`; M5-G4/G5 harness and evidence are the current closeout
+change set, and M5-G6 is next.
 Generated `.DS_Store` and `src/tmp/` entries remain unrelated and must not be
 included in future feature commits.
