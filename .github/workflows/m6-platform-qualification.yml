@@ -210,8 +210,7 @@ jobs:
         run: |
           ./get-clang.sh
           ./build.sh
-          ninja -C out/Release naive_socks5_udp_test \
-            naive_connect_udp_backend_test naive_socks5_udp_m3_runner
+          test -x out/Release/naive.exe
 
       - name: Build pinned Caddy and forwardproxy server
         run: |

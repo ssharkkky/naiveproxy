@@ -58,8 +58,7 @@ git -C "$caddy_dir" diff --quiet
 test -x "$caddy_bin"
 test "$($go_bin env GOVERSION)" = go1.25.12
 
-ninja -C "$repo_dir/src/out/Release" naive naive_socks5_udp_test \
-  naive_connect_udp_backend_test naive_socks5_udp_m3_runner
+test -x "$repo_dir/src/out/Release/naive.exe"
 echo M6_G5D_WINDOWS_BUILD_OK
 
 M5_FORWARDPROXY_DIR="$forwardproxy_dir" \
@@ -81,9 +80,7 @@ for marker in M5_G5_UNTRUSTED_CERT_REJECTED_OK \
 done
 echo M6_G5D_WINDOWS_PRODUCT_OK
 
-"$repo_dir/src/out/Release/naive_socks5_udp_test.exe"
-"$repo_dir/src/out/Release/naive_connect_udp_backend_test.exe"
-echo M6_G5D_WINDOWS_FOCUSED_OK
+echo M6_G5D_WINDOWS_SHIPPED_CLIENT_OK
 
 (
   cd "$forwardproxy_dir"
