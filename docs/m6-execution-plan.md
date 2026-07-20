@@ -284,11 +284,12 @@ Sub-gates:
   initial records remain `not run` and cannot become `verified` without every
   required command, revision, marker, OS version, and architecture field;
   contract commit `9869f1d6d1`, runner `09af3795c7`.
-- [ ] G5b — requalify macOS arm64 through the complete row below after the M6
+- [x] G5b — macOS arm64 requalification passed the complete row after the M6
   forwardproxy padding fix. The prior record is superseded because its
   loopback TCP probe honored `NO_PROXY` and did not prove a TCP tunnel. The
-  corrected qualification head is `f14924cd`; its hostless-listener gate
-  passes ordinary H3 CONNECT padding and CONNECT-UDP smoke independently.
+  corrected qualification head is `f14924cd`; its hostless-listener gate,
+  shipped/default-verifier product, impairment, stress, and frozen G4 budget
+  all pass at NaiveProxy `d402f9261c`.
 - [ ] G5c — qualify Linux x64 through the complete row below. The first native
   run reached UDP/DNS/H3 but exposed the same TCP parity defect; the corrected
   runner is pinned to qualification head `f14924cd` (runtime fix `baa7f2dd`)

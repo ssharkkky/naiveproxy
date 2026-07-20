@@ -32,18 +32,18 @@
   "platforms": [
     {
       "id": "macos-arm64",
-      "state": "failed",
+      "state": "verified",
       "os_version": "macOS 26.5.2 (25F84)",
       "architecture": "arm64",
-      "naive_revision": "3de3b340a926da5f1816435db6d3de553ceaf6a2",
-      "forwardproxy_revision": "444667f8f9f61c949ea66a37663f18ed2acae4f0",
+      "naive_revision": "d402f9261c6ff3fe92bbd699e57051bccef2d61e",
+      "forwardproxy_revision": "f14924cdedc93c28a2b92c8120538ea5beee28fb",
       "caddy_revision": "dd9a89c11194dcb806d845233995ef040f096464",
       "build_commands": [
         "ninja -C src/out/Release naive naive_socks5_udp_test naive_connect_udp_backend_test naive_socks5_udp_m3_runner"
       ],
       "runtime_commands": [
-        "M6_G5_TEMPORARY_TRUST_AUTHORIZED=1 ./tests/m6/g5_macos_qualification.sh (superseded because loopback TCP honored NO_PROXY)",
-        "./tests/m5/g5_production_binary.sh with --noproxy empty (failed at TCP parity)"
+        "M6_G5_NEGATIVE_ONLY=1 ./tests/m6/g5_macos_qualification.sh",
+        "M6_G5_TEMPORARY_TRUST_AUTHORIZED=1 ./tests/m6/g5_macos_qualification.sh"
       ],
       "markers": [
         "M6_G1_PAYLOAD_PMTU_OK",
@@ -51,11 +51,22 @@
         "M5_G5_UNTRUSTED_CERT_REJECTED_OK",
         "M5_G5_PRODUCTION_ECHO_OK",
         "M3_G4_DNS_OK",
-        "M5_G2_HTTP3_APPLICATION_OK"
+        "M5_G2_HTTP3_APPLICATION_OK",
+        "M5_G5_PRODUCTION_TCP_OK",
+        "M5_G4_CONTROL_CLOSE_OK",
+        "M5_G4_SERVER_IDLE_RECONNECT_OK",
+        "M5_G5_DEFAULT_CERT_VERIFIER_OK",
+        "M5_G5_PRODUCTION_BINARY_OK",
+        "M5_G5_H3_DATAGRAM_EVIDENCE_OK",
+        "M5_G5_NO_PADDING_BASELINE_OK",
+        "M5_G5_TRUST_CLEANUP_OK",
+        "M6_G2_NETWORK_IMPAIRMENT_OK",
+        "M6_G3_STRESS_SMOKE_MATRIX_OK",
+        "M6_G4_SANITIZER_FUZZ_OK",
+        "M6_G5B_MACOS_ARM64_OK"
       ],
       "limitations": [
-        "Corrected forced-SOCKS TCP parity failed after successful CONNECT-UDP traffic.",
-        "Requalification must use forwardproxy qualification head f14924cdedc93c28a2b92c8120538ea5beee28fb.",
+        "Qualification uses the hostless TLS-listener fixture required for ordinary CONNECT target authority.",
         "UDP payload padding remains outside native UDP v1."
       ]
     },

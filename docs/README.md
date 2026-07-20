@@ -20,16 +20,17 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - Active milestone: M6 hardening and release-candidate qualification.
 - M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
   `80d37395a6`.
-- Active M6 gates: G5b-G5f platform qualification and G6 release closeout.
-  G1-G4 are complete. G5b is being requalified after a forced-SOCKS TCP probe
+- Active M6 gates: G5c-G5f platform qualification and G6 release closeout.
+  G1-G4 and macOS G5b are complete. The forced-SOCKS TCP probe
   exposed a forwardproxy padding-negotiation defect; owner runtime fix
   `baa7f2dd` and qualification fixture head `f14924cd` are pinned for every
   new platform run. The fixture uses a hostless TLS listener because ordinary
   CONNECT carries the target authority, not the proxy hostname. Caddy race
   fix `dd9a89c1` passed owner regressions and the frozen G4 rerun. G4
   implementation commit is `5893f97f6e`. G5a's fail-closed
-  platform evidence schema is complete at `9869f1d6d1`; all corrected platform
-  runtime rows remain fail-closed until rerun.
+  platform evidence schema is complete at `9869f1d6d1`; macOS arm64 is now
+  verified at NaiveProxy `d402f9261c`, forwardproxy `f14924cd`, and Caddy
+  `dd9a89c1`. Linux, Windows, and Android remain fail-closed.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
   weighted engineering scope. This is not a production-release claim while
   G5 and G6 evidence remains open.
