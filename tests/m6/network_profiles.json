@@ -1,0 +1,31 @@
+{
+  "schema": 1,
+  "profiles": [
+    {"id": "delay", "seed": 101, "loss_percent": 0, "reorder_percent": 0, "delay_ms": 20, "jitter_ms": 5, "bandwidth_kbps": 0},
+    {"id": "loss", "seed": 202, "loss_percent": 5, "reorder_percent": 0, "delay_ms": 0, "jitter_ms": 0, "bandwidth_kbps": 0},
+    {"id": "reorder", "seed": 303, "loss_percent": 0, "reorder_percent": 20, "delay_ms": 2, "jitter_ms": 1, "bandwidth_kbps": 0},
+    {"id": "bandwidth", "seed": 404, "loss_percent": 0, "reorder_percent": 0, "delay_ms": 0, "jitter_ms": 0, "bandwidth_kbps": 256},
+    {"id": "combined", "seed": 505, "loss_percent": 2, "reorder_percent": 10, "delay_ms": 10, "jitter_ms": 5, "bandwidth_kbps": 512}
+  ],
+  "reorder_delay_ms": 30,
+  "per_profile_timeout_seconds": 60,
+  "committed_evidence_fields": [
+    "profile",
+    "seed",
+    "direction",
+    "packet_size",
+    "action",
+    "reason",
+    "elapsed_time",
+    "sent_count",
+    "received_count",
+    "reconnect_count"
+  ],
+  "forbidden_evidence_fields": [
+    "payload",
+    "destination",
+    "request_path",
+    "credential",
+    "packet_bytes"
+  ]
+}

@@ -106,7 +106,7 @@ print(topology.reserve_shared_ipv4_port())')
     --server-port "$server_port" --ceiling-file "$tmp_dir/outer-ceiling" \
     >"$tmp_dir/shaper.log" 2>&1 &
   shaper_pid=$!
-  wait_for_log '^READY udp-shaper$' "$tmp_dir/shaper.log" "$shaper_pid" 100 || \
+  wait_for_log '^READY udp-shaper ' "$tmp_dir/shaper.log" "$shaper_pid" 100 || \
     fail_with_logs "UDP shaper did not become ready"
 elif [ "$probe_mode" != ceiling ]; then
   fail_with_logs "unknown M6_G1_PROBE_MODE"
