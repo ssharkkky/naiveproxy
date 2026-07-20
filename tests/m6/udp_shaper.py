@@ -7,6 +7,7 @@ and relative delay. Packet bytes and endpoint addresses are never logged.
 
 import argparse
 import heapq
+import json
 import pathlib
 import random
 import selectors
@@ -75,7 +76,27 @@ def parse_args():
     parser.add_argument("--jitter-ms", type=float, default=0)
     parser.add_argument("--reorder-delay-ms", type=float, default=25)
     parser.add_argument("--bandwidth-kbps", type=float, default=0)
+    parser.add_argument("--profiles-file", type=pathlib.Path)
+    parser.add_argument("--profile")
     args = parser.parse_args()
+    if args.profile:
+        if not args.profiles_file:
+            parser.error("--profile requires --profiles-file")
+        document = json.loads(args.profiles_file.read_text(encoding="utf-8"))
+        matches = [item for item in document["profiles"] if item["id"] == args.profile]
+        if len(matches) != 1:
+            parser.error("profile must name exactly one configured profile")
+        profile = matches[0]
+        for key in (
+            "seed",
+            "loss_percent",
+            "reorder_percent",
+            "delay_ms",
+            "jitter_ms",
+            "bandwidth_kbps",
+        ):
+            setattr(args, key, profile[key])
+        args.reorder_delay_ms = document["reorder_delay_ms"]
     for value in (args.loss_percent, args.reorder_percent):
         if not 0 <= value <= 100:
             parser.error("percent values must be between 0 and 100")
@@ -103,7 +124,8 @@ def main():
     sock.setblocking(False)
     selector.register(sock, selectors.EVENT_READ)
     started = time.monotonic()
-    print(f"READY udp-shaper seed={args.seed}", flush=True)
+    profile = args.profile or "custom"
+    print(f"READY udp-shaper profile={profile} seed={args.seed}", flush=True)
 
     while True:
         now = time.monotonic()
