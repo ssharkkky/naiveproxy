@@ -138,10 +138,15 @@ Sub-gates:
 - [x] G1a — deterministic production-backend unit proof for exact ceiling,
   ceiling-plus-one drop, live ceiling reduction, later restoration, exact
   payload preservation, and accounting; commit `1870779147`.
-- [ ] G1b — live shipped-product ceiling measurement for IPv4, IPv6, and
-  domain targets without hard-coding a release value.
-- [ ] G1c — lowered/restored PMTU behavior, recovery, isolation, no replay,
-  and redacted observability.
+- [x] G1b1 — live production-backend/production-server ceiling measurement for
+  IPv4, IPv6, and domain targets without hard-coding a release value; three
+  fresh roots measured 1314 bytes; commit `9c72a7da08`.
+- [ ] G1b2 — repeat the frozen measurement through shipped `naive` with the
+  default verifier inside one explicitly authorized temporary-trust window.
+- [x] G1c — lower the outer UDP payload ceiling to 1232 bytes (IPv6 minimum
+  PMTU 1280 minus IPv6/UDP headers), then restore it; prove candidate 1200-byte
+  delivery, 1314-byte blackhole, recovery, target isolation, no replay, and
+  redacted observability in three fresh roots; commit `9c72a7da08`.
 - [ ] G1d — choose/document the release payload policy and run the complete
   focused/cumulative regression set three times.
 
@@ -155,9 +160,11 @@ Work:
 2. Test exact-ceiling success, ceiling-plus-one local drop, repeated oversize
    recovery, empty payload, and a later healthy datagram on the same and an
    unrelated association.
-3. Exercise a lowered and later restored path MTU. Verify the client queries
-   the live tunnel ceiling for each write and never fragments or converts an
-   oversized datagram into reliable stream data.
+3. Exercise a lowered and later restored path MTU. The deterministic unit seam
+   proves the backend queries the live tunnel ceiling for each write; the
+   black-box shaper proves the candidate safe payload under an IPv6-minimum
+   outer path. Neither test may fragment or convert an oversized datagram into
+   reliable stream data.
 4. Choose and document the v1 application-facing inner-payload policy. Do not
    hard-code a number before the measurements identify overhead and platform
    variance.

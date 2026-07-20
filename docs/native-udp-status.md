@@ -1276,6 +1276,61 @@ configuration change, an immediate full rerun exited `0` through
 single transient is retained as a G3/G4 flake/soak investigation input rather
 than being silently counted as a repeated qualification pass.
 
+#### M6-G1b1/G1c — live product ceiling and PMTU fixture: complete
+
+Commit `9c72a7da08` adds a black-box SOCKS5 UDP payload probe, a test-only
+production Caddy fixture with trust installation disabled, and a user-space
+outer-QUIC UDP shaper. It changes no production client/server source and does
+not modify system trust.
+
+Verified behavior:
+
+- Three independent production-backend/production-Caddy roots measured the
+  same live inner ceiling for IPv4, IPv6, and domain targets: 1314 bytes.
+- Each root repeated exact-ceiling delivery three times, rejected 1315 bytes
+  three times, then delivered later healthy traffic on the same association.
+- The PMTU fixture interprets IPv6 minimum PMTU 1280 correctly as an outer UDP
+  payload ceiling of 1232 bytes after 40-byte IPv6 and 8-byte UDP headers.
+- Under that ceiling, the 1200-byte candidate inner payload produced a
+  1225-byte outer QUIC packet and passed. The 1314-byte inner payload produced
+  a 1345-byte outer packet and was dropped by the shaper.
+- Restoring the outer ceiling delivered a fresh 1314-byte datagram; the
+  ambiguous dropped datagram was not replayed. A separate IPv6 target and
+  SOCKS association stayed healthy during the lower-PMTU interval.
+- Three fresh PMTU roots passed with size-only shaper evidence. Default NetLog
+  and production server logs contained no target path or credential. An early
+  development run using `--net-log-everything` correctly exposed configured
+  credentials to its local diagnostic artifact and was rejected by the
+  privacy gate; the final harness deliberately uses default NetLog and the
+  temporary diagnostic root was deleted.
+
+Verified commands:
+
+```bash
+./tests/m6/g1_live_ceiling.sh
+M6_G1_PROBE_MODE=pmtu ./tests/m6/g1_live_ceiling.sh
+python3 tests/m6/contract_test.py
+git diff --check
+```
+
+Verified markers:
+
+```text
+M6_G1_LIVE_PRODUCT_CEILING_OK bytes=1314
+M6_G1_LIVE_CEILING_PRIVACY_OK
+M6_G1B_LIVE_CEILING_OK
+M6_G1_PMTU_SAFE_PAYLOAD_OK bytes=1200
+M6_G1_PMTU_ISOLATION_OK
+M6_G1_PMTU_NO_REPLAY_OK
+M6_G1C_PMTU_RECOVERY_OK
+M6_G1C_PMTU_OK
+```
+
+G1 remains open. G1b2 must repeat the ceiling measurement through shipped
+`naive` and its default verifier in an explicitly authorized trust window;
+G1d must then freeze the 1200-byte release policy and run the complete focused
+and inherited regressions three times.
+
 ## Canonical M5 verification commands
 
 ```bash
