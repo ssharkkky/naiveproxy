@@ -1,0 +1,24 @@
+{
+	admin off
+	debug
+	grace_period 1s
+	skip_install_trust
+}
+
+https://127.0.0.1:{$M6_SERVER_PORT} {
+	tls internal
+	log {
+		output file {env.M6_ACCESS_LOG}
+		format json
+	}
+	route {
+		forward_proxy {
+			basic_auth m5-user m5-pass
+			acl {
+				allow 127.0.0.1/32 ::1/128
+				allow all
+			}
+		}
+		respond "camouflage"
+	}
+}
