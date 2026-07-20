@@ -131,6 +131,20 @@ pin is unavailable, or the current build cannot be reproduced incrementally.
 
 ### G1 — inner payload ceiling and PMTU behavior
 
+Status: in progress.
+
+Sub-gates:
+
+- [x] G1a — deterministic production-backend unit proof for exact ceiling,
+  ceiling-plus-one drop, live ceiling reduction, later restoration, exact
+  payload preservation, and accounting.
+- [ ] G1b — live shipped-product ceiling measurement for IPv4, IPv6, and
+  domain targets without hard-coding a release value.
+- [ ] G1c — lowered/restored PMTU behavior, recovery, isolation, no replay,
+  and redacted observability.
+- [ ] G1d — choose/document the release payload policy and run the complete
+  focused/cumulative regression set three times.
+
 Purpose: replace the MVP's 1200-byte/4096-byte probes with an explicit and
 measured release policy.
 

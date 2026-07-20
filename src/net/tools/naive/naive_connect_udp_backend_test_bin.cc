@@ -470,6 +470,34 @@ void TestSynchronousSingleTargetAndOversizeDrop() {
              !oversize_state->write_callback && oversize_responses == 0,
          "live payload ceiling drops before tunnel Write");
 
+  Expect(oversize_backend.Send(Datagram({0x01, 0x02}),
+                               net::CompletionOnceCallback()) == net::OK,
+         "payload at the exact live ceiling is admitted");
+  Expect(oversize_state->write_callback &&
+             oversize_state->written == std::vector<uint8_t>({0x01, 0x02}),
+         "exact-ceiling payload reaches the tunnel without truncation");
+  CompleteWrite(oversize_state, 2);
+
+  oversize_state->max_payload_size = 1;
+  Expect(oversize_backend.Send(Datagram({0x03, 0x04}),
+                               net::CompletionOnceCallback()) == net::OK,
+         "payload above a lowered live ceiling is a policy drop");
+  Expect(oversize_backend.stats_for_testing().oversize_drops == 2 &&
+             !oversize_state->write_callback,
+         "backend re-queries the live ceiling before every write");
+
+  oversize_state->max_payload_size = 2;
+  Expect(oversize_backend.Send(Datagram({0x05, 0x06}),
+                               net::CompletionOnceCallback()) == net::OK,
+         "payload is admitted after the live ceiling recovers");
+  Expect(oversize_state->write_callback &&
+             oversize_state->written == std::vector<uint8_t>({0x05, 0x06}),
+         "ceiling recovery preserves the later payload exactly");
+  CompleteWrite(oversize_state, 2);
+  Expect(oversize_backend.stats_for_testing().sent_datagrams == 2 &&
+             oversize_backend.stats_for_testing().oversize_drops == 2,
+         "ceiling transitions account admitted and dropped datagrams");
+
   auto closed_state = std::make_shared<ScriptedTunnelState>();
   closed_state->start_result = net::OK;
   closed_state->write_result = 1;
@@ -959,5 +987,6 @@ int main() {
   std::cout << "M3_G2_MULTI_TARGET_LIMITS_OK\n";
   std::cout << "M3_G2_FAILURE_ISOLATION_OK\n";
   std::cout << "M3_G5_DETERMINISTIC_LIFECYCLE_OK\n";
+  std::cout << "M6_G1_LIVE_CEILING_UNIT_OK\n";
   return 0;
 }

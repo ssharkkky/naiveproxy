@@ -65,6 +65,9 @@
     "qualification": "hours",
     "extended": "maintainer-scheduled"
   },
+  "intermediate_markers": [
+    "M6_G1_LIVE_CEILING_UNIT_OK"
+  ],
   "forbidden_artifact_suffixes": [
     ".key",
     ".pem",

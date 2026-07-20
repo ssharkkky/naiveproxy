@@ -20,6 +20,10 @@ class M6ContractTest(unittest.TestCase):
         markers = [gate["marker"] for gate in gates]
         self.assertEqual(len(markers), len(set(markers)))
         self.assertEqual(markers[-1], self.contract["final_marker"])
+        self.assertEqual(
+            self.contract["intermediate_markers"],
+            ["M6_G1_LIVE_CEILING_UNIT_OK"],
+        )
 
     def test_frozen_protocol_has_no_fallback_or_replay(self) -> None:
         protocol = self.contract["protocol"]
