@@ -58,8 +58,11 @@ test "$(git -C "$caddy_dir" rev-parse HEAD)" = \
   dd9a89c11194dcb806d845233995ef040f096464
 cp "$forwardproxy_dir/go.mod" "$tmp_dir/go.mod"
 cp "$forwardproxy_dir/go.sum" "$tmp_dir/go.sum"
-"$go_bin" mod edit -modfile="$tmp_dir/go.mod" \
-  -replace="github.com/caddyserver/caddy/v2=$caddy_dir"
+(
+  cd "$forwardproxy_dir"
+  "$go_bin" mod edit -modfile="$tmp_dir/go.mod" \
+    -replace="github.com/caddyserver/caddy/v2=$caddy_dir"
+)
 mkdir -p "$asan_dir"
 cp "$script_dir/asan_args.gn" "$asan_dir/args.gn"
 "$gn_bin" gen "$asan_dir" --root="$repo_dir/src"
