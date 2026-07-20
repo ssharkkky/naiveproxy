@@ -301,7 +301,9 @@ Sub-gates:
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android
-  runtime record from fail-closed without a physical arm64 device run.
+  runtime record from fail-closed without a physical arm64 device run. Build
+  readiness passed in GitHub Actions run `29743425559` at NaiveProxy
+  `58a7ac9821`; the runtime row remains `not run`.
 - [x] G5f — pinned macOS arm64 Chromium/Naive production backend to Linux
   arm64 Caddy/forwardproxy interoperability passed UDP, TCP, independent H3,
   and privacy gates at commit `13df84bfd9`. The Linux side is a pinned
