@@ -569,6 +569,8 @@ Next:
 - [x] Plan M6's G0-G6 release-contract, payload/PMTU, impairment, soak,
   fuzz/sanitizer, platform, and final-audit sequence in
   `docs/m6-execution-plan.md`.
-- [ ] Execute M6-G0: verify the machine-readable release contract, audited M5
+- [x] Execute M6-G0: verify the machine-readable release contract, audited M5
   inputs, current-host toolchain, platform evidence states, and focused build
-  readiness without changing production source.
+  readiness without changing production source; commit `80d37395a6`.
+- [ ] Execute M6-G1: measure the live payload ceiling, define the release
+  policy, and verify PMTU/oversize recovery, isolation, and no replay.

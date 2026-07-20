@@ -18,7 +18,9 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - M5 final marker: `M5_NATIVE_UDP_MVP_OK`; audited client revision
   `eaf172d971`.
 - Active milestone: M6 hardening and release-candidate qualification.
-- Active gate: M6-G0 release contract and environment readiness.
+- M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
+  `80d37395a6`.
+- Active gate: M6-G1 inner payload ceiling and PMTU behavior.
 - Overall progress is 6 of 7 milestones (86%), approximately 90-92% by
   weighted engineering scope.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside

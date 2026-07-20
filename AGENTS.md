@@ -25,8 +25,9 @@ revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
 review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
 sole low CI-pinning observation was closed by `8f044e2`. M5's independent
 review also returned `AUDIT_PASS` with zero blocker/high/medium findings. The
-active milestone is M6 release hardening. G5 found and fixed the production
-client's post-`Build()`
+active milestone is M6 release hardening. M6-G0 is complete at `80d37395a6`;
+M6-G1 payload-ceiling and PMTU qualification is next. G5 found and fixed the
+production client's post-`Build()`
 QUIC-parameter ordering defect in `333b7cb253`; its full M1-M3 and 56-case TCP
 owner matrix is green. The controlled QUICHE endpoint remains a test fixture,
 not the production server.
@@ -111,6 +112,8 @@ reconsideration.
 - `333b7cb253` — configure production QUIC origins before context build.
 - `c73b5a486f` — complete M5 G4/G5 lifecycle and shipped-binary gates.
 - `eaf172d971` — audited M5 local closeout revision.
+- `e70ee79e05` — complete M5 MVP audit/finalizer record.
+- `80d37395a6` — plan M6 and complete its release-contract/environment gate.
 
 If repository state has advanced beyond these commits, trust the current Git
 history and the newest status-ledger update rather than this snapshot.

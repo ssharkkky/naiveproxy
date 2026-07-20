@@ -2,7 +2,8 @@
 
 Last updated: 2026-07-20 (Asia/Shanghai)
 
-Status: M5 is complete and independently audited. M6-G0 is the active gate.
+Status: M5 is complete and independently audited. M6-G0 is complete at
+`80d37395a6`; M6-G1 is the active gate.
 
 Operational evidence belongs in [`native-udp-status.md`](native-udp-status.md).
 This document defines pending work, ordering, exit criteria, risks, and stop
@@ -97,6 +98,10 @@ tracked follow-up. A current-host gate may pass while another platform remains
 ## 5. Sequential gates
 
 ### G0 — release contract and environment readiness
+
+Status: complete. The read-only contract/environment runner and focused
+incremental Release build passed on macOS arm64 with final marker
+`M6_G0_CONTRACT_OK`. Exact evidence is in the status ledger.
 
 Purpose: freeze M6's contracts before changing or stressing a runtime boundary.
 
