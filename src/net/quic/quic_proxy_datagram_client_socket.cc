@@ -50,11 +50,13 @@ QuicProxyDatagramClientSocket::QuicProxyDatagramClientSocket(
     const std::string& user_agent,
     const NetLogWithSource& source_net_log,
     scoped_refptr<HttpAuthController> auth_controller,
-    ProxyDelegate* proxy_delegate)
+    ProxyDelegate* proxy_delegate,
+    bool notify_proxy_delegate_of_response)
     : url_(url),
       proxy_chain_(proxy_chain),
       auth_(std::move(auth_controller)),
       proxy_delegate_(proxy_delegate),
+      notify_proxy_delegate_of_response_(notify_proxy_delegate_of_response),
       user_agent_(user_agent),
       net_log_(NetLogWithSource::Make(
           source_net_log.net_log(),
@@ -641,7 +643,7 @@ int QuicProxyDatagramClientSocket::DoProcessResponseHeaders() {
   next_state_ = STATE_PROCESS_RESPONSE_HEADERS_COMPLETE;
 
   // TODO(crbug.com/326437102): Add case for Proxy Authentication.
-  if (proxy_delegate_) {
+  if (proxy_delegate_ && notify_proxy_delegate_of_response_) {
     return proxy_delegate_->OnTunnelHeadersReceived(
         proxy_chain(), proxy_chain_index(), *response_.headers,
         base::BindOnce(&QuicProxyDatagramClientSocket::OnIOComplete,
