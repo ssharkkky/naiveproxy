@@ -1244,6 +1244,29 @@ Next: M6-G1 must measure the live payload ceiling and PMTU-change behavior
 before choosing the release policy. The existing 1200-byte success and
 4096-byte oversize probes are inherited evidence, not the final G1 ceiling.
 
+### M6-G1 — inner payload ceiling and PMTU behavior: in progress
+
+The first narrow test-only step extends the existing production-backend
+deterministic target. It proves that the backend:
+
+- admits a payload exactly at the tunnel's current ceiling without truncation;
+- drops ceiling-plus-one before calling tunnel `Write()`;
+- re-queries the live ceiling before a later write after it shrinks;
+- resumes exact delivery after the ceiling is restored; and
+- counts two admitted/sent and two oversize-dropped datagrams without making
+  the association fatal.
+
+Verified command and marker:
+
+```bash
+ninja -C src/out/Release naive_connect_udp_backend_test
+src/out/Release/naive_connect_udp_backend_test
+# M6_G1_LIVE_CEILING_UNIT_OK
+```
+
+This is G1a evidence only. It does not establish the release payload value or
+claim a real PMTU change; G1b-G1d remain open.
+
 ## Canonical M5 verification commands
 
 ```bash

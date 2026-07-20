@@ -13,6 +13,7 @@ audit_doc="$repo_dir/docs/m5-agy-audit.md"
 
 expected_m5_final=e70ee79e056020b288e402b0a8fecfa67fb5aab4
 expected_m5_audited=eaf172d9713dafc6519d8c4a6b8ba3a290c222de
+expected_g0=80d37395a6
 expected_forwardproxy_runtime=8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7
 expected_forwardproxy_fixture=2b2a8ea
 expected_caddy=cce894a8a0e987eb1722cf99729499bdaba6c38d
@@ -25,8 +26,9 @@ echo M6_G0_PLATFORM_CONTRACT_OK
 test "$(git -C "$repo_dir" branch --show-current)" = \
   codex/native-udp-foundation
 git -C "$repo_dir" merge-base --is-ancestor "$expected_m5_final" HEAD
-git -C "$repo_dir" diff --quiet "$expected_m5_audited"..HEAD -- src/net
-git -C "$repo_dir" diff --quiet -- src/net
+git -C "$repo_dir" merge-base --is-ancestor "$expected_g0" HEAD
+git -C "$repo_dir" diff --quiet "$expected_m5_audited".."$expected_g0" -- \
+  src/net
 
 test "$(git -C "$forwardproxy_dir" branch --show-current)" = \
   codex/native-udp-server
