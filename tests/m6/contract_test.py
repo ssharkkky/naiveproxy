@@ -169,6 +169,7 @@ class M6ContractTest(unittest.TestCase):
         runner = G1_SHIPPED_CEILING.read_text(encoding="utf-8")
         self.assertIn('naive_bin="$repo_dir/src/out/Release/naive"', runner)
         self.assertIn("M6_G1B2_UNTRUSTED_CERT_REJECTED_OK", runner)
+        self.assertIn("M6_G1B2_NEGATIVE_ONLY_OK", runner)
         self.assertIn("security add-trusted-cert", runner)
         self.assertGreaterEqual(runner.count("security remove-trusted-cert"), 2)
         self.assertIn("temporary G1b2 root remained trusted", runner)
