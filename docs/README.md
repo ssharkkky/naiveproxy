@@ -22,8 +22,8 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   `80d37395a6`.
 - Active M6 gates: G1 shipped-client/default-verifier and policy closeout,
   G3 qualification soak, then G5 platform qualification and G6 release closeout.
-  G2 is complete; client/forwardproxy G4 evidence is superseded pending the
-  post-fix rerun on Caddy `dd9a89c1`. G4 implementation commit is
+  G2 and post-fix G4 are complete; Caddy race fix `dd9a89c1` passed owner
+  regressions and the frozen G4 rerun. G4 implementation commit is
   `5893f97f6e`. G5a's fail-closed
   platform evidence schema is complete at `9869f1d6d1`; all platform runtime
   rows remain `not run`.

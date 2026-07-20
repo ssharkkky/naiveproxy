@@ -36,7 +36,8 @@ not the production server.
 M6 currently carries a candidate Caddy race fix at `dd9a89c1` (forwardproxy
 build-lock commit `e9663e4`). This supersedes `cce894a8` only for M6
 release-candidate work; the immutable M4 audit remains evidence for its named
-`cce894a8` range, and post-fix M6 G4/G3 gates plus a scoped audit are required.
+`cce894a8` range. Post-fix G4 and owner regressions are green; G3 and a scoped
+independent audit are still required.
 
 ## Frozen engineering boundaries
 
@@ -115,7 +116,7 @@ reconsideration.
 - `7243519` — audited M4 server implementation; `8f044e2` closes the audit's
   CI-only Caddy pin finding.
 - `cce894a8` — final audited Caddy H3 Datagram/privacy patch stack.
-- `dd9a89c1` — M6 candidate Caddy TLS module race fix; pending post-fix audit.
+- `dd9a89c1` — M6 Caddy TLS module race fix; pending scoped post-fix audit.
 - `333b7cb253` — configure production QUIC origins before context build.
 - `c73b5a486f` — complete M5 G4/G5 lifecycle and shipped-binary gates.
 - `eaf172d971` — audited M5 local closeout revision.
