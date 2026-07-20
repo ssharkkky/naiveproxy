@@ -207,8 +207,10 @@ artifacts, needs production code, or makes a nondeterministic pass/fail claim.
 
 ### G3 — resource pressure and soak
 
-Status: smoke harness complete; qualification soak is running. Do not record
-`M6_G3_STRESS_SOAK_OK` until the unshortened one-hour tier exits successfully.
+Status: smoke harness complete; the first qualification body completed but its
+wrapper failed without the final marker. The portable-runner fix is
+`8ab48dbee1`, and a fresh unshortened qualification run is active. Do not
+record `M6_G3_STRESS_SOAK_OK` until that run exits successfully.
 
 Purpose: prove bounded operation beyond the short M5 concurrency matrix.
 
@@ -266,9 +268,10 @@ platform rather than extrapolating from macOS.
 
 Sub-gates:
 
-- [ ] G5a — freeze and validate the fail-closed platform evidence record;
+- [x] G5a — freeze and validate the fail-closed platform evidence record;
   initial records remain `not run` and cannot become `verified` without every
-  required command, revision, marker, OS version, and architecture field.
+  required command, revision, marker, OS version, and architecture field;
+  commit `9869f1d6d1`.
 - [ ] G5b — qualify macOS arm64 through the complete row below.
 - [ ] G5c — qualify Linux x64 through the complete row below.
 - [ ] G5d — qualify Windows x64 through the complete row below.
