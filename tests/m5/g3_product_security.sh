@@ -73,7 +73,7 @@ unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
   "$expected_forwardproxy"..HEAD | sed '/^tests\/m5\//d')
 test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
-git -C "$repo_dir" diff --quiet 2bb83aec36..HEAD -- src/net
+git -C "$repo_dir" diff --quiet 333b7cb253..HEAD -- src/net
 git -C "$repo_dir" diff --quiet -- src/net
 ninja -C "$repo_dir/src/out/Release" naive_socks5_udp_m3_runner \
   naive_socks5_udp_runner >/dev/null
