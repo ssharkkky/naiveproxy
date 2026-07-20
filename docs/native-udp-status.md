@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0-G4 complete; G5/G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; forwardproxy qualification head `f14924cd` adds the hostless-listener fixture gate | Requalify macOS, rerun Linux, then Windows/Android/G5f |
+| M6 — hardening and release candidate | In progress; G0-G4 and G5b complete; G5c-G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64 verified at NaiveProxy `d402f9261c`, forwardproxy `f14924cd`, Caddy `dd9a89c1` | Rerun Linux, then Windows/Android/G5f |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -1530,7 +1530,7 @@ it is not platform qualification evidence.
 # M6_G5_PLATFORM_CONTRACT_OK
 ```
 
-### M6-G5b — macOS arm64 qualification: superseded pending requalification
+### M6-G5b — macOS arm64 qualification: complete
 
 `tests/m6/g5_macos_qualification.sh` composes an exact-revision macOS arm64
 Release build, the shipped-client product smoke, and focused G2-G4 gates. Its
@@ -1590,8 +1590,24 @@ CONNECT sent unpadded bytes while forwardproxy expected Variant1. The narrow
 owner fix `baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285` advertises the negotiated
 padding capability on CONNECT-UDP responses without padding UDP DATAGRAM
 payloads. A controlled M3 production-path runner then completed a real SOCKS
-TCP request and logged `negotiated padding type: Variant1`. macOS remains
-fail-closed until the shipped/default-verifier matrix is rerun on that commit.
+TCP request and logged `negotiated padding type: Variant1`.
+
+The corrected requalification completed on macOS 26.5.2 build 25F84, arm64,
+at NaiveProxy `d402f9261c6ff3fe92bbd699e57051bccef2d61e`, forwardproxy
+`f14924cdedc93c28a2b92c8120538ea5beee28fb`, and Caddy
+`dd9a89c11194dcb806d845233995ef040f096464`. The negative-only preflight and
+the explicitly authorized full run both passed. The full run verified shipped
+UDP echo, DNS, independent HTTP/3 application, forced-SOCKS TCP, default
+verifier rejection/acceptance/cleanup, idle/reconnect, H3 Datagram evidence,
+all five impairment profiles, the 60-second 101-wave/1616-datagram stress
+root, and the complete ASan/UBSan/race/fuzz budget. Final marker:
+
+```text
+M6_G5B_MACOS_ARM64_OK
+```
+
+The machine-readable platform record now marks `macos-arm64` verified; Linux,
+Windows, and Android remain `not run`.
 
 ### M6-G5c — Linux x64 qualification: failed runs retained; corrected rerun pending
 
