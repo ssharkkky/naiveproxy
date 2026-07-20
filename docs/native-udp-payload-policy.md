@@ -48,7 +48,7 @@ The release implementation must preserve all of the following:
 
 - RFC 9298 CONNECT-UDP over HTTP/3 DATAGRAM with Context ID `0`;
 - no DATA/Capsule fallback, UDP-over-stream, UoT, or second QUIC stack;
-- no IP or SOCKS fragmentation/reassembly added by Flux/Naive code;
+- no IP or SOCKS fragmentation/reassembly added by Naive-owned code;
 - no automatic retry or replay after an ambiguous datagram write/session
   failure;
 - no cross-target or cross-association delivery;
