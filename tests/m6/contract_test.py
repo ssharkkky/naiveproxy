@@ -14,6 +14,7 @@ PLATFORM_QUALIFICATION = pathlib.Path(__file__).with_name(
 )
 G1_SHIPPED_CEILING = pathlib.Path(__file__).with_name("g1_shipped_ceiling.sh")
 G1_FINALIZE = pathlib.Path(__file__).with_name("g1_finalize.sh")
+G4_RUNNER = pathlib.Path(__file__).with_name("g4_sanitizer_fuzz.sh")
 
 
 class M6ContractTest(unittest.TestCase):
@@ -165,6 +166,13 @@ class M6ContractTest(unittest.TestCase):
                 self.assertNotEqual(record["state"], "verified")
         self.assertIn("payload", document["forbidden_evidence_fields"])
         self.assertIn("credential", document["forbidden_evidence_fields"])
+
+    def test_g4_server_race_uses_current_caddy_worktree(self) -> None:
+        runner = G4_RUNNER.read_text(encoding="utf-8")
+        self.assertIn("caddy_dir=", runner)
+        self.assertIn("dd9a89c11194dcb806d845233995ef040f096464", runner)
+        self.assertIn('"$go_bin" mod edit -modfile="$tmp_dir/go.mod"', runner)
+        self.assertIn('-modfile="$tmp_dir/go.mod" -race', runner)
 
     def test_g1b2_shipped_runner_preserves_default_verifier_and_cleanup(self) -> None:
         runner = G1_SHIPPED_CEILING.read_text(encoding="utf-8")

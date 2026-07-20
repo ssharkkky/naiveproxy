@@ -5,6 +5,7 @@ set -eu
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_dir=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 forwardproxy_dir=${M6_FORWARDPROXY_DIR:-/path/to/naive-forwardproxy-m4}
+caddy_dir=${M6_CADDY_DIR:-/path/to/caddy-naive-udp-m4}
 go_bin=${GO_BIN:-/path/to/naive-m4/go1.25.12/bin/go}
 gn_bin="$repo_dir/src/gn/out/gn"
 release_dir="$repo_dir/src/out/Release"
@@ -41,10 +42,24 @@ cleanup() {
   find "$tmp_dir" -type f -exec unlink {} \; >/dev/null 2>&1 || true
   find "$tmp_dir" -depth -type d -exec rmdir {} \; >/dev/null 2>&1 || true
 }
-trap cleanup EXIT HUP INT TERM
+
+on_signal() {
+  trap - EXIT HUP INT TERM
+  cleanup
+  exit 130
+}
+
+trap cleanup EXIT
+trap on_signal HUP INT TERM
 
 test -x "$gn_bin"
 test -x "$go_bin"
+test "$(git -C "$caddy_dir" rev-parse HEAD)" = \
+  dd9a89c11194dcb806d845233995ef040f096464
+cp "$forwardproxy_dir/go.mod" "$tmp_dir/go.mod"
+cp "$forwardproxy_dir/go.sum" "$tmp_dir/go.sum"
+"$go_bin" mod edit -modfile="$tmp_dir/go.mod" \
+  -replace="github.com/caddyserver/caddy/v2=$caddy_dir"
 mkdir -p "$asan_dir"
 cp "$script_dir/asan_args.gn" "$asan_dir/args.gn"
 "$gn_bin" gen "$asan_dir" --root="$repo_dir/src"
@@ -76,11 +91,14 @@ echo M6_G4_ASAN_UBSAN_OK
   cd "$forwardproxy_dir"
   export XDG_DATA_HOME="$tmp_dir/data"
   export XDG_CONFIG_HOME="$tmp_dir/config"
-  PATH="$(dirname "$go_bin"):$PATH" "$go_bin" test -race \
+  PATH="$(dirname "$go_bin"):$PATH" "$go_bin" test \
+    -modfile="$tmp_dir/go.mod" -race \
     -count="$race_count" ./...
-  PATH="$(dirname "$go_bin"):$PATH" "$go_bin" test -run='^$' \
+  PATH="$(dirname "$go_bin"):$PATH" "$go_bin" test \
+    -modfile="$tmp_dir/go.mod" -run='^$' \
     -fuzz=FuzzParseConnectUDPTarget -fuzztime="${fuzz_seconds}s"
-  PATH="$(dirname "$go_bin"):$PATH" "$go_bin" test -run='^$' \
+  PATH="$(dirname "$go_bin"):$PATH" "$go_bin" test \
+    -modfile="$tmp_dir/go.mod" -run='^$' \
     -fuzz=FuzzConnectUDPContextCodec -fuzztime="${fuzz_seconds}s"
 )
 echo M6_G4_GO_RACE_FUZZ_OK
