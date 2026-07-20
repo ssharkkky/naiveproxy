@@ -1,0 +1,86 @@
+{
+  "schema": 1,
+  "required_platforms": [
+    "macos-arm64",
+    "linux-x64",
+    "windows-x64",
+    "android-arm64"
+  ],
+  "allowed_states": [
+    "verified",
+    "not run",
+    "blocked",
+    "failed"
+  ],
+  "required_verified_fields": [
+    "os_version",
+    "architecture",
+    "naive_revision",
+    "forwardproxy_revision",
+    "caddy_revision",
+    "build_commands",
+    "runtime_commands",
+    "markers"
+  ],
+  "forbidden_evidence_fields": [
+    "payload",
+    "destination",
+    "request_path",
+    "credential",
+    "certificate_private_key"
+  ],
+  "platforms": [
+    {
+      "id": "macos-arm64",
+      "state": "not run",
+      "os_version": "",
+      "architecture": "",
+      "naive_revision": "",
+      "forwardproxy_revision": "",
+      "caddy_revision": "",
+      "build_commands": [],
+      "runtime_commands": [],
+      "markers": [],
+      "limitations": []
+    },
+    {
+      "id": "linux-x64",
+      "state": "not run",
+      "os_version": "",
+      "architecture": "",
+      "naive_revision": "",
+      "forwardproxy_revision": "",
+      "caddy_revision": "",
+      "build_commands": [],
+      "runtime_commands": [],
+      "markers": [],
+      "limitations": []
+    },
+    {
+      "id": "windows-x64",
+      "state": "not run",
+      "os_version": "",
+      "architecture": "",
+      "naive_revision": "",
+      "forwardproxy_revision": "",
+      "caddy_revision": "",
+      "build_commands": [],
+      "runtime_commands": [],
+      "markers": [],
+      "limitations": []
+    },
+    {
+      "id": "android-arm64",
+      "state": "not run",
+      "os_version": "",
+      "architecture": "",
+      "naive_revision": "",
+      "forwardproxy_revision": "",
+      "caddy_revision": "",
+      "build_commands": [],
+      "runtime_commands": [],
+      "markers": [],
+      "limitations": []
+    }
+  ]
+}

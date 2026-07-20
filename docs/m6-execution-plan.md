@@ -264,6 +264,19 @@ non-reproducible crash, or a corpus containing sensitive material.
 Purpose: establish separately attributable release evidence for each promised
 platform rather than extrapolating from macOS.
 
+Sub-gates:
+
+- [ ] G5a — freeze and validate the fail-closed platform evidence record;
+  initial records remain `not run` and cannot become `verified` without every
+  required command, revision, marker, OS version, and architecture field.
+- [ ] G5b — qualify macOS arm64 through the complete row below.
+- [ ] G5c — qualify Linux x64 through the complete row below.
+- [ ] G5d — qualify Windows x64 through the complete row below.
+- [ ] G5e — qualify Android arm64 host-app/package behavior through the
+  complete row below.
+- [ ] G5f — confirm cross-platform wire interoperability and close the final
+  record without promoting emulation-only evidence to runtime evidence.
+
 Minimum matrix:
 
 | Platform | Build evidence | Runtime evidence required |
