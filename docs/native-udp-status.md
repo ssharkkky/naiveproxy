@@ -1479,8 +1479,10 @@ Post-fix command and final evidence:
 # M6_G4_SANITIZER_FUZZ_OK
 ```
 
-The post-fix run used Caddy `dd9a89c1` and forwardproxy lock `e9663e4`; no race
-was reported. The macOS linker warning is unchanged and non-fatal.
+The post-fix run used Caddy `dd9a89c1` and forwardproxy lock `e9663e4`; runner
+commit `c58cc49b19` creates a temporary Go modfile replacing Caddy with that
+worktree, so the race/fuzz evidence cannot silently use the old module cache.
+No race was reported. The macOS linker warning is unchanged and non-fatal.
 
 ### M6-G5a — platform evidence contract: complete
 
