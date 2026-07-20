@@ -132,7 +132,10 @@ pin is unavailable, or the current build cannot be reproduced incrementally.
 
 ### G1 — inner payload ceiling and PMTU behavior
 
-Status: in progress.
+Status: complete. G1b2's shipped/default-verifier positive phase completed
+inside one temporary user-domain trust window and was followed by cleanup and
+an explicit untrusted check. G1d then passed three complete regression runs;
+the final marker is recorded in the status ledger.
 
 Sub-gates:
 
@@ -142,18 +145,17 @@ Sub-gates:
 - [x] G1b1 — live production-backend/production-server ceiling measurement for
   IPv4, IPv6, and domain targets without hard-coding a release value; three
   fresh roots measured 1314 bytes; commit `9c72a7da08`.
-- [ ] G1b2 — repeat the frozen measurement through shipped `naive` with the
-  default verifier inside one explicitly authorized temporary-trust window.
-  The fail-closed runner is prepared at `80abaad450`; it has not been executed
-  and no trust mutation is authorized by this commit.
+- [x] G1b2 — repeat the frozen measurement through shipped `naive` with the
+  default verifier inside one explicitly authorized temporary-trust window;
+  IPv4/IPv6/domain all measured 1314 bytes and trust cleanup restored the
+  untrusted negative result.
 - [x] G1c — lower the outer UDP payload ceiling to 1232 bytes (IPv6 minimum
   PMTU 1280 minus IPv6/UDP headers), then restore it; prove candidate 1200-byte
   delivery, 1314-byte blackhole, recovery, target isolation, no replay, and
   redacted observability in three fresh roots; commit `9c72a7da08`.
-- [ ] G1d — choose/document the release payload policy and run the complete
-  focused/cumulative regression set three times. The single-window closeout
-  runner is prepared through `a32e95d27a`; it remains unexecuted pending G1b2
-  trust authorization.
+- [x] G1d — choose/document the 1200-byte candidate policy and run the
+  complete focused/cumulative regression set three times; the final marker is
+  `M6_G1_PAYLOAD_PMTU_OK`.
 
 Purpose: replace the MVP's 1200-byte/4096-byte probes with an explicit and
 measured release policy.
@@ -172,9 +174,9 @@ Work:
    reliable stream data.
 4. Choose and document the v1 application-facing inner-payload policy. Do not
    hard-code a number before the measurements identify overhead and platform
-   variance. The measured candidate is documented in
-   [`native-udp-payload-policy.md`](native-udp-payload-policy.md) and remains
-   pending until G1b2/G1d close.
+   variance. The measured 1200-byte candidate is documented in
+   [`native-udp-payload-policy.md`](native-udp-payload-policy.md); it remains a
+   release candidate until platform qualification completes.
 5. Preserve rate-limited, redacted oversize/transport-error observability.
 
 Exit: deterministic boundary and PMTU-change tests pass three times, recovery

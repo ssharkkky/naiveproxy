@@ -20,9 +20,8 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - Active milestone: M6 hardening and release-candidate qualification.
 - M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
   `80d37395a6`.
-- Active M6 gates: G1 shipped-client/default-verifier and policy closeout,
-  G3 qualification soak, then G5 platform qualification and G6 release closeout.
-  G2 and post-fix G4 are complete; Caddy race fix `dd9a89c1` passed owner
+- Active M6 gates: G3 qualification soak, then G5 platform qualification and
+  G6 release closeout. G1, G2, and post-fix G4 are complete; Caddy race fix `dd9a89c1` passed owner
   regressions and the frozen G4 rerun. G4 implementation commit is
   `5893f97f6e`. G5a's fail-closed
   platform evidence schema is complete at `9869f1d6d1`; all platform runtime
