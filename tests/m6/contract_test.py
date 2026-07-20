@@ -20,10 +20,11 @@ class M6ContractTest(unittest.TestCase):
         markers = [gate["marker"] for gate in gates]
         self.assertEqual(len(markers), len(set(markers)))
         self.assertEqual(markers[-1], self.contract["final_marker"])
-        self.assertEqual(
-            self.contract["intermediate_markers"],
-            ["M6_G1_LIVE_CEILING_UNIT_OK"],
-        )
+        markers = self.contract["intermediate_markers"]
+        self.assertEqual(len(markers), len(set(markers)))
+        self.assertIn("M6_G1_LIVE_CEILING_UNIT_OK", markers)
+        self.assertIn("M6_G1B_LIVE_CEILING_OK", markers)
+        self.assertIn("M6_G1C_PMTU_OK", markers)
 
     def test_frozen_protocol_has_no_fallback_or_replay(self) -> None:
         protocol = self.contract["protocol"]
@@ -74,6 +75,18 @@ class M6ContractTest(unittest.TestCase):
             set(self.contract["duration_tiers"]),
             {"smoke", "qualification", "extended"},
         )
+
+    def test_payload_candidate_matches_ipv6_minimum_contract(self) -> None:
+        payload = self.contract["g1_payload_candidate"]
+        self.assertEqual(payload["measured_live_ceiling_bytes"], 1314)
+        self.assertEqual(payload["candidate_safe_payload_bytes"], 1200)
+        self.assertEqual(payload["ipv6_minimum_pmtu_bytes"], 1280)
+        self.assertEqual(payload["ipv6_udp_payload_ceiling_bytes"], 1232)
+        self.assertLessEqual(
+            payload["candidate_safe_payload_bytes"],
+            payload["ipv6_udp_payload_ceiling_bytes"],
+        )
+        self.assertIn("pending", payload["status"])
 
 
 if __name__ == "__main__":
