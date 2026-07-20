@@ -1331,6 +1331,60 @@ G1 remains open. G1b2 must repeat the ceiling measurement through shipped
 G1d must then freeze the 1200-byte release policy and run the complete focused
 and inherited regressions three times.
 
+### M6-G2 — deterministic network impairment: complete
+
+Commit `028d3984d4` extends the test-only UDP shaper with named, seeded loss,
+reordering, delay/jitter, and bandwidth scheduling; adds aggregate-only shaper
+logs; and composes the production M3 backend, pinned M4 Caddy/forwardproxy,
+generic UDP echo, DNS, and the independent quic-go HTTP/3 application probe.
+No production runtime source changed.
+
+Frozen profiles:
+
+| Profile | Seed | Contract |
+| --- | ---: | --- |
+| delay | 101 | 20ms delay, 5ms jitter |
+| loss | 202 | 5% seeded outer-packet loss |
+| reorder | 303 | 20% seeded reordering with 30ms extra delay |
+| bandwidth | 404 | 256 Kbit/s per-direction serialization |
+| combined | 505 | 2% loss, 10% reordering, 10ms delay/5ms jitter, 512 Kbit/s |
+
+Each profile verifies:
+
+- 20 unique application datagrams, zero duplicate/corrupt/cross-target
+  responses, and a protocol-aware delivery floor for unreliable profiles;
+- DNS success within a bounded retry budget;
+- an independent HTTP/3 request/response over a separate CONNECT-UDP target;
+- SOCKS control close stops the closed association under impairment;
+- removing the profile restores fresh traffic on the original association;
+- no ambiguous datagram replay and healthy H3 target isolation;
+- profile-specific shaper actions and default-NetLog/server privacy.
+
+The committed three-run matrix passed 15 independent product roots. Delay and
+bandwidth delivered 20/20 application datagrams in every run. Loss delivered
+17-18/20, reorder 15-17/20, and combined 17-19/20; all had zero duplicates,
+all DNS/H3 operations completed, and all removal/recovery checks passed. The
+variation is expected for unreliable DATAGRAM delivery because the seeded
+shaper sees the real runtime's packet sequence; the deterministic contract is
+the profile/seed and safety outcome, not an invented lossless UDP count.
+
+Verified commands and final markers:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONPATH=tests/m6 \
+  python3 tests/m6/test_udp_shaper.py
+./tests/m6/g2_network_matrix.sh
+# M6_G2_FRESH_ROOT_MATRIX_OK run=1
+# M6_G2_FRESH_ROOT_MATRIX_OK run=2
+# M6_G2_FRESH_ROOT_MATRIX_OK run=3
+# M6_G2_NETWORK_IMPAIRMENT_OK
+```
+
+G2 artifacts are temporary and deleted on success/failure/signal. Committed
+profile evidence is limited to profile, seed, direction, size, action, reason,
+elapsed time, and aggregate counts; it excludes endpoints, paths, credentials,
+and packet bytes.
+
 ## Canonical M5 verification commands
 
 ```bash

@@ -178,6 +178,10 @@ or a required production change that lacks owner-specific regressions.
 
 ### G2 — deterministic network impairment
 
+Status: complete at `028d3984d4`. Three full fresh-root matrices passed all
+five frozen profiles with echo, DNS, independent HTTP/3 application, control
+close, recovery, target isolation, no replay, and privacy evidence.
+
 Purpose: verify useful behavior under adverse but reproducible networks.
 
 Work:
