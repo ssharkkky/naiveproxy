@@ -81,11 +81,11 @@ while [ "$repeat" -le 3 ]; do
   repeat=$((repeat + 1))
 done
 
-PATH="$go_root/bin:$PATH" "$forwardproxy_dir/scripts/test-m4.sh"
-GO_BIN="$go_bin" CADDY_BIN="$caddy_bin" \
-  "$forwardproxy_dir/scripts/test-m4-g5-server.sh"
 (
   cd "$forwardproxy_dir"
+  PATH="$go_root/bin:$PATH" ./scripts/test-m4.sh
+  GO_BIN="$go_bin" CADDY_BIN="$caddy_bin" \
+    ./scripts/test-m4-g5-server.sh
   PATH="$go_root/bin:$PATH" "$go_bin" test -count=1 ./...
   PATH="$go_root/bin:$PATH" "$go_bin" test -race -count=1 ./...
 )
