@@ -2,8 +2,8 @@
 
 Last updated: 2026-07-20 (Asia/Shanghai)
 
-Status: M5-G0 through M5-G5 and G6 local closeout complete; independent G6
-review is next.
+Status: complete and independently audited. M5-G0 through M5-G6 are green;
+the final review returned `AUDIT_PASS` with zero blocker/high/medium findings.
 
 Documentation entry point: [`README.md`](README.md). Verified project state:
 [`native-udp-status.md`](native-udp-status.md). Frozen v1 scope and M0–M6
@@ -467,7 +467,7 @@ Verified result:
 
 ### M5-G6 — complete regressions, artifact closeout, and independent review
 
-Status: local verification complete; independent review next.
+Status: complete and independently audited.
 
 Work:
 
@@ -518,6 +518,21 @@ Verified local result:
   test process, generated private key/certificate/log/capture, or forbidden
   dependency tree remains;
 - local marker: `M5_G6_LOCAL_REGRESSIONS_OK`.
+
+Verified independent result:
+
+- a continuing read-only Gemini 3.1 Pro High `agy -p` review inspected the
+  actual NaiveProxy range `cd9a676df9..eaf172d971`, forwardproxy runtime base
+  `8f044e2` plus M5 fixtures through `2b2a8ea`, and exact Caddy
+  `cce894a8`;
+- it cross-checked protocol/TCP isolation, `333b7cb253`, default verification,
+  trust cleanup, independent application evidence, lifecycle/no replay,
+  privacy, G6 split evidence, and dependency pins;
+- it independently reran the required non-privileged G1 product smoke to exit
+  `0` with all five G1 evidence/privacy markers, then confirmed no review-
+  created worktree change;
+- findings: zero blocker, high, medium, or low; verdict `AUDIT_PASS`;
+- durable record: [`m5-agy-audit.md`](m5-agy-audit.md).
 
 ## 5. Required verification matrix
 

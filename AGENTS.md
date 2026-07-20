@@ -12,19 +12,20 @@ Read these files in order before changing code:
 1. `docs/README.md` — documentation map, authority rules, and handoff checklist.
 2. `docs/native-udp-status.md` — verified current state and exact test commands.
 3. `docs/m5-execution-plan.md` — the active M5 G0–G6 product-composition plan.
-4. `docs/native-udp-development-plan.md` — frozen v1 scope and M0–M6 roadmap.
-5. `docs/m4-execution-plan.md` and `docs/m4-agy-audit.md` — completed server
+4. `docs/m5-agy-audit.md` — completed independent M5 product audit.
+5. `docs/native-udp-development-plan.md` — frozen v1 scope and M0–M6 roadmap.
+6. `docs/m4-execution-plan.md` and `docs/m4-agy-audit.md` — completed server
    implementation and audit history.
-6. `docs/m3-execution-plan.md` and `docs/m3-agy-audit.md` — completed client
+7. `docs/m3-execution-plan.md` and `docs/m3-agy-audit.md` — completed client
    implementation and audit history.
 
-M1 through M4 are complete and independently audited. M4's final production
+M1 through M5 are complete and independently audited. M4's final production
 revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
 review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
-sole low CI-pinning observation was closed by `8f044e2`. The next milestone is
-M5 end-to-end product composition; M5-G0 through G5 and the M5-G6 local
-closeout matrix are complete. The independent M5 audit is next. G5 found and
-fixed the production client's post-`Build()`
+sole low CI-pinning observation was closed by `8f044e2`. M5's independent
+review also returned `AUDIT_PASS` with zero blocker/high/medium findings. The
+next milestone is M6 release hardening. G5 found and fixed the production
+client's post-`Build()`
 QUIC-parameter ordering defect in `333b7cb253`; its full M1-M3 and 56-case TCP
 owner matrix is green. The controlled QUICHE endpoint remains a test fixture,
 not the production server.
@@ -75,24 +76,24 @@ not the production server.
 
 1. Confirm all three recorded repositories and branches with `git status -sb`
    before editing.
-2. Read the current gate, exit criteria, contracts, risks, and stop conditions
-   in `docs/m5-execution-plan.md`.
+2. Read the completed M5 audit boundary and the M6 scope/exit criteria in
+   `docs/native-udp-development-plan.md`; create an M6 execution plan before
+   changing a runtime boundary.
 3. Make the narrowest client, server, or test-harness change needed for one
    gate; do not mix unrelated cross-repository changes into one commit.
 4. Build the affected Release/server targets and run the focused gate tests.
-5. Keep all completed M1–M4 markers, all 56 Naive TCP cases, server legacy and
+5. Keep all completed M1–M5 markers, all 56 Naive TCP cases, server legacy and
    privacy regressions, and `git diff --check` green.
 6. Update `docs/native-udp-status.md` only with verified commands, markers, and
    exact commits; update the roadmap only when a milestone boundary changes.
-7. Update the M5 plan only when sequencing, contracts, risks, or stop
-   conditions change. Stage explicit intended paths and commit one green gate
-   at a time.
+7. Treat the M5 plan and audit as historical evidence. Stage explicit intended
+   paths and commit one green M6 gate at a time.
 
 The canonical client and server build/verification commands live in
-`docs/native-udp-status.md`; M5-specific commands will be added there only
-after a gate runs successfully. Treat `docs/m4-agy-audit.md` as immutable
-evidence for the reviewed M4 ranges; any later server-source change requires
-scoped regression and audit reconsideration.
+`docs/native-udp-status.md`. Treat `docs/m4-agy-audit.md` and
+`docs/m5-agy-audit.md` as immutable evidence for their reviewed ranges; any
+later client/server runtime change requires scoped regression and audit
+reconsideration.
 
 ## Current baseline commits
 
@@ -106,6 +107,9 @@ scoped regression and audit reconsideration.
 - `7243519` — audited M4 server implementation; `8f044e2` closes the audit's
   CI-only Caddy pin finding.
 - `cce894a8` — final audited Caddy H3 Datagram/privacy patch stack.
+- `333b7cb253` — configure production QUIC origins before context build.
+- `c73b5a486f` — complete M5 G4/G5 lifecycle and shipped-binary gates.
+- `eaf172d971` — audited M5 local closeout revision.
 
 If repository state has advanced beyond these commits, trust the current Git
 history and the newest status-ledger update rather than this snapshot.

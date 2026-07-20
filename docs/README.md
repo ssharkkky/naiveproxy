@@ -10,14 +10,15 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 ## Current handoff
 
 - Branch: `codex/native-udp-foundation`.
-- M0-M4 are complete. M1-M4 are independently audited.
+- M0-M5 are complete. M1-M5 are independently audited.
 - M3 final client marker: `M3_NATIVE_UDP_CLIENT_OK`; closeout commit
   `2bb83aec`.
 - M4 final server marker: `M4_NATIVE_UDP_SERVER_OK`; forwardproxy `8f044e2`,
   Caddy `cce894a8`.
-- Active milestone: M5 end-to-end MVP. M5-G0 through G5 and G6 local closeout
-  are complete; the independent review and final record are next.
-- Overall progress remains 5 of 7 milestones (71%), approximately 88-90% by
+- M5 final marker: `M5_NATIVE_UDP_MVP_OK`; audited client revision
+  `eaf172d971`.
+- Active milestone: M6 hardening and release-candidate qualification.
+- Overall progress is 6 of 7 milestones (86%), approximately 90-92% by
   weighted engineering scope.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   native UDP commits.
@@ -37,11 +38,11 @@ SOCKS5 UDP / HTTP3 application
 | Document | Role | Update policy |
 | --- | --- | --- |
 | [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
-| [`m5-execution-plan.md`](m5-execution-plan.md) | Active M5 G0-G6 sequencing, contracts, test matrix, risks, and stop conditions | Update when an M5 design decision changes |
+| [`m5-execution-plan.md`](m5-execution-plan.md) | Completed M5 G0-G6 sequencing, contracts, test matrix, and verified results | Historical; factual clarifications only |
 | [`native-udp-development-plan.md`](native-udp-development-plan.md) | Stable v1 scope, architecture, M0-M6 roadmap, estimates, and release boundary | Update only when scope or milestone boundaries change |
 | [`m4-execution-plan.md`](m4-execution-plan.md) | Completed production-server plan and gate record | Historical; factual clarifications only |
 | [`m3-execution-plan.md`](m3-execution-plan.md) | Completed production-client plan and gate record | Historical; factual clarifications only |
-| [`m1-agy-audit.md`](m1-agy-audit.md), [`m2-agy-audit.md`](m2-agy-audit.md), [`m3-agy-audit.md`](m3-agy-audit.md), [`m4-agy-audit.md`](m4-agy-audit.md) | Immutable independent review evidence for the revisions named inside each report | Do not rewrite conclusions; append only labeled factual clarification |
+| [`m1-agy-audit.md`](m1-agy-audit.md), [`m2-agy-audit.md`](m2-agy-audit.md), [`m3-agy-audit.md`](m3-agy-audit.md), [`m4-agy-audit.md`](m4-agy-audit.md), [`m5-agy-audit.md`](m5-agy-audit.md) | Immutable independent review evidence for the revisions named inside each report | Do not rewrite conclusions; append only labeled factual clarification |
 
 This separation is intentional: the status ledger says what is verified, the
 active execution plan says what to do next, the development plan defines the
@@ -51,10 +52,10 @@ were accepted.
 ## Read in this order
 
 1. [`native-udp-status.md`](native-udp-status.md) — current facts and commands.
-2. [`m5-execution-plan.md`](m5-execution-plan.md) — current gate and exit
-   criteria.
+2. [`m5-agy-audit.md`](m5-agy-audit.md) and
+   [`m5-execution-plan.md`](m5-execution-plan.md) — completed MVP boundary.
 3. [`native-udp-development-plan.md`](native-udp-development-plan.md) — frozen
-   v1 scope and remaining M5/M6 boundary.
+   v1 scope and remaining M6 boundary.
 4. [`m4-agy-audit.md`](m4-agy-audit.md) and
    [`m4-execution-plan.md`](m4-execution-plan.md) — server evidence inherited
    by M5.
@@ -121,10 +122,10 @@ Then:
    ```
 
 5. Run the existing focused client/server verification commands from the
-   status ledger before changing an audited runtime boundary. M5-G0 may add
-   only the new harness skeleton and contract evidence.
+   status ledger before changing an audited runtime boundary. M6 must preserve
+   or explicitly reconsider the completed M5 audit boundary.
 
-## M5 immediate boundary
+## M5 completed boundary
 
 M5-G0 froze the topology, trust, application-probe, and evidence contracts;
 G1 proved the first authenticated production-server echo; G2 completed the
@@ -135,8 +136,8 @@ privacy. G4 proved control teardown, two server restarts, outer-QUIC recovery,
 real client idle, and no replay. G5 proved the shipped binary with the default
 certificate verifier, real production server idle, ordinary TCP SOCKS, H3
 DATAGRAM evidence, and the v1 no-padding baseline. G6's complete regressions,
-three fresh-root repetitions, and artifact closeout pass; the independent
-review and final marker remain.
+three fresh-root repetitions, artifact closeout, and independent G1 rerun pass;
+the final review returned `AUDIT_PASS` with zero blocker/high/medium findings.
 
 The deterministic M3 runner remains the broad-matrix fixture because it uses
 the real production backend/factory. The separate shipped-`naive` smoke now

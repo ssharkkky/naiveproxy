@@ -364,7 +364,7 @@ closed by the workflow-only forwardproxy commit `8f044e2`. The frozen M5
 server revisions are forwardproxy `8f044e2` and Caddy `cce894a8`. See
 [`m4-agy-audit.md`](m4-agy-audit.md).
 
-### M5 — End-to-end MVP (in progress; G0-G5 complete)
+### M5 — End-to-end MVP (complete and independently audited)
 
 The detailed sequential plan is in
 [`m5-execution-plan.md`](m5-execution-plan.md):
@@ -445,16 +445,13 @@ Current remaining planning ranges:
 
 | Milestone | Range | Current decision gate |
 | --- | ---: | --- |
-| M5-G6 MVP closeout | 1–2 person-days | Complete regressions, artifact/privacy closeout, and independent review |
 | M6 hardening/release | 10–20 person-days | Begin after the MVP matrix passes |
 
-The remaining range is therefore approximately 11–22 person-days, excluding
-long cross-platform soak time. M0–M4 are complete and M5-G0 through G5 are
-green; this remains 71% by completed-milestone count and approximately 88–90%
-by weighted engineering scope. The M1-M4 client/server boundaries are
-independently audited, while the M5 production-context ordering fix and full
-product matrix await the G6 audit. The product is not production-ready until
-M5-M6 pass. If M5 would require replacing standard H3
+The remaining range is approximately 10–20 person-days, excluding long
+cross-platform soak time. M0–M5 are complete and independently audited; this
+is 86% by completed-milestone count and approximately 90–92% by weighted
+engineering scope. The product MVP is complete, but it is not production-ready
+until M6 release qualification passes. If later work would require replacing standard H3
 Datagrams, bypassing existing server policy, altering the completed TCP path,
 or adding a private UDP protocol, stop and revise scope before continuing.
 
@@ -553,6 +550,6 @@ Next:
   verifier, independent HTTP/3 application traffic, ordinary TCP SOCKS,
   production server idle, H3 DATAGRAM evidence, and the v1 no-padding
   baseline. The gate's production-context ordering fix is `333b7cb253`.
-- [ ] Execute M5-G6: the complete cross-repository matrix, three fresh M5
-  roots, and artifact/privacy closeout pass locally; obtain independent
-  `AUDIT_PASS` with zero blocker/high/medium findings to finish the gate.
+- [x] Execute M5-G6: complete cross-repository regressions, three fresh M5
+  roots, artifact/privacy closeout, and independent `AUDIT_PASS` with zero
+  blocker/high/medium findings; see `docs/m5-agy-audit.md`.
