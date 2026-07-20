@@ -302,8 +302,12 @@ Sub-gates:
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android
   runtime record from fail-closed without a physical arm64 device run.
-- [ ] G5f — confirm cross-platform wire interoperability and close the final
-  record without promoting emulation-only evidence to runtime evidence.
+- [x] G5f — pinned macOS arm64 Chromium/Naive production backend to Linux
+  arm64 Caddy/forwardproxy interoperability passed UDP, TCP, independent H3,
+  and privacy gates at commit `13df84bfd9`. The Linux side is a pinned
+  Lima/Alpine test VM, so this closes wire interoperability only and does not
+  replace any required native platform record. The final G5 marker remains
+  withheld until G5c-G5e records close.
 
 Minimum matrix:
 

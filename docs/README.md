@@ -20,8 +20,9 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - Active milestone: M6 hardening and release-candidate qualification.
 - M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
   `80d37395a6`.
-- Active M6 gates: G5c-G5f platform qualification and G6 release closeout.
-  G1-G4 and macOS G5b are complete. The forced-SOCKS TCP probe
+- Active M6 gates: G5c-G5e platform qualification and G6 release closeout.
+  G1-G4, macOS G5b, and G5f cross-platform wire interoperability are
+  complete. The forced-SOCKS TCP probe
   exposed a forwardproxy padding-negotiation defect; owner runtime fix
   `baa7f2dd` and qualification fixture head `f14924cd` are pinned for every
   new platform run. The fixture uses a hostless TLS listener because ordinary

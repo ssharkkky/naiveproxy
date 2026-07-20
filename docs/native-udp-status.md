@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0-G4 and G5b complete; G5c-G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64 verified at NaiveProxy `d402f9261c`, forwardproxy `f14924cd`, Caddy `dd9a89c1` | Rerun Linux, then Windows/Android/G5f |
+| M6 — hardening and release candidate | In progress; G0-G4, G5b, and G5f complete; G5c-G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes | Finish Linux/Windows/Android, then G6 |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -1671,6 +1671,34 @@ resource, and log-privacy markers. Platform qualification scripts and the
 M5 shipped-product default pin now require
 `f14924cdedc93c28a2b92c8120538ea5beee28fb`; the runtime padding fix remains
 separately identified as `baa7f2dd`.
+
+### M6-G5f — cross-platform wire interoperability: complete
+
+Commit `13df84bfd9` adds a pinned cross-platform gate. The macOS arm64
+Chromium/Naive production backend connects over real QUIC/H3 to the exact
+forwardproxy/Caddy server built as a Linux arm64 ELF and executed in a Lima
+2.1.1 Alpine 3.23.3 VM. The VM image digest, Go/xcaddy/Caddy/forwardproxy
+inputs, guest architecture, and client source ancestry are all checked before
+traffic starts. This is wire-interoperability evidence, not a substitute for
+the native Linux x64 or Android arm64 platform rows.
+
+Verified markers:
+
+```text
+M6_G5F_UDP_OK
+M5_G2_HTTP3_APPLICATION_OK
+M6_G5F_LINUX_ARM64_SERVER_OK
+M6_G5F_HTTP3_APPLICATION_OK
+M6_G5F_TCP_OK
+M6_G5F_PRIVACY_OK
+M6_G5F_MACOS_CLIENT_LINUX_SERVER_OK
+```
+
+The gate uses only the test runner's local certificate verifier; default
+certificate-verifier evidence remains owned by each native G5 platform row.
+Temporary keys, logs, cross-built binaries, and guest processes are removed by
+the runner. The final `M6_G5_PLATFORM_QUALIFICATION_OK` marker remains withheld
+until Linux x64, Windows x64, and Android arm64 records are verified.
 
 ## Canonical M5 verification commands
 
