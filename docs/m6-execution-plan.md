@@ -3,7 +3,8 @@
 Last updated: 2026-07-20 (Asia/Shanghai)
 
 Status: M5 is complete and independently audited. M6-G0 is complete at
-`80d37395a6`; M6-G1 is the active gate.
+`80d37395a6`; M6-G1 remains release-blocking, M6-G3 qualification is running,
+and M6-G4 is complete at `5893f97f6e`.
 
 Operational evidence belongs in [`native-udp-status.md`](native-udp-status.md).
 This document defines pending work, ordering, exit criteria, risks, and stop
@@ -206,6 +207,9 @@ artifacts, needs production code, or makes a nondeterministic pass/fail claim.
 
 ### G3 — resource pressure and soak
 
+Status: smoke harness complete; qualification soak is running. Do not record
+`M6_G3_STRESS_SOAK_OK` until the unshortened one-hour tier exits successfully.
+
 Purpose: prove bounded operation beyond the short M5 concurrency matrix.
 
 Work:
@@ -229,6 +233,10 @@ Stop on unbounded growth, failure to reclaim capacity, cross-association
 delivery, or a result that depends on shortening production timeouts.
 
 ### G4 — fuzz, sanitizer, race, and lifecycle hardening
+
+Status: complete at `5893f97f6e`. The second full run passed the frozen budget;
+the first run's transient Caddy/certmagic race-detector failure is retained as
+diagnostic evidence and was independently rerun successfully before closeout.
 
 Purpose: attack parser and asynchronous ownership boundaries with automated
 defensive testing.
