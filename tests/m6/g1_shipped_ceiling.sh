@@ -222,6 +222,11 @@ if grep -q '"status":200' "$tmp_dir/access.log" 2>/dev/null; then
 fi
 stop_naive
 
+if [ "${M6_G1B2_STOP_AFTER_NEGATIVE:-0}" = 1 ]; then
+  echo M6_G1B2_NEGATIVE_ONLY_OK
+  exit 0
+fi
+
 install_temporary_trust || \
   fail_with_logs "temporary macOS trust confirmation did not complete"
 security verify-cert -c "$server_certificate" -p ssl \
