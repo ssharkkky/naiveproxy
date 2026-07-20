@@ -332,6 +332,23 @@ jobs:
           M6_ANDROID_APK="$apk_path" ./tests/m6/g5_android_build.sh | tee _m6/android-arm64-build.log
           grep -q '^M6_G5E_ANDROID_ARM64_BUILD_READY$' _m6/android-arm64-build.log
 
+      - name: Stage Android arm64 runtime package
+        run: |
+          mkdir -p _m6/android-runtime
+          apk_path=$(find apk/app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit)
+          test -n "$apk_path"
+          cp "$apk_path" _m6/android-runtime/naiveproxy-plugin-arm64-v8a-debug.apk
+          sha256sum _m6/android-runtime/naiveproxy-plugin-arm64-v8a-debug.apk \
+            >_m6/android-runtime/SHA256SUMS
+
+      - name: Upload Android arm64 runtime package
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6-android-arm64-runtime-${{ github.sha }}
+          path: _m6/android-runtime/
+          if-no-files-found: error
+          retention-days: 7
+
       - name: Write redacted build evidence
         if: always()
         run: |
