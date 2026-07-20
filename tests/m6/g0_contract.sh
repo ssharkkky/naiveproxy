@@ -16,6 +16,7 @@ expected_m5_audited=eaf172d9713dafc6519d8c4a6b8ba3a290c222de
 expected_g0=80d37395a6
 expected_forwardproxy_runtime=8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7
 expected_forwardproxy_m6_runtime=baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285
+expected_forwardproxy_m6_qualification=f14924cdedc93c28a2b92c8120538ea5beee28fb
 expected_forwardproxy_fixture=2b2a8ea
 expected_caddy=dd9a89c11194dcb806d845233995ef040f096464
 
@@ -37,12 +38,18 @@ git -C "$forwardproxy_dir" merge-base --is-ancestor \
   "$expected_forwardproxy_runtime" HEAD
 git -C "$forwardproxy_dir" merge-base --is-ancestor \
   "$expected_forwardproxy_m6_runtime" HEAD
+test "$(git -C "$forwardproxy_dir" rev-parse HEAD)" = \
+  "$expected_forwardproxy_m6_qualification"
 git -C "$forwardproxy_dir" merge-base --is-ancestor \
   "$expected_forwardproxy_fixture" HEAD
 unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
-  "$expected_forwardproxy_m6_runtime"..HEAD | \
+  "$expected_forwardproxy_m6_runtime".."$expected_forwardproxy_m6_qualification" | \
   sed -e '/^tests\/m5\//d' -e '/^tests\/m6\//d' \
-      -e '/^native_udp_fuzz_test\.go$/d' -e '/^M4_TOOLCHAIN\.lock$/d')
+      -e '/^scripts\/test-m6-hostless-forward-proxy\.sh$/d' \
+      -e '/^native_udp_fuzz_test\.go$/d' -e '/^M4_TOOLCHAIN\.lock$/d' \
+      -e '/^cmd\/m4-rfc9298-client\/main\.go$/d' \
+      -e '/^naive_padding_test\.go$/d' \
+      -e '/^scripts\/test-m4-g5-server\.sh$/d')
 test -z "$unexpected_server_changes"
 git -C "$forwardproxy_dir" diff --quiet
 

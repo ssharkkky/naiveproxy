@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0-G4 complete; G5/G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract | Requalify macOS, rerun Linux, then Windows/Android/G5f |
+| M6 — hardening and release candidate | In progress; G0-G4 complete; G5/G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; forwardproxy qualification head `f14924cd` adds the hostless-listener fixture gate | Requalify macOS, rerun Linux, then Windows/Android/G5f |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -1625,8 +1625,36 @@ the pinned production server successfully, then passed shipped UDP echo, DNS,
 and the independent HTTP/3 application probe. Its forced TCP parity request
 timed out, exposing the cross-protocol padding-cache defect described above;
 it did not emit `M6_G5C_LINUX_X64_OK` and is not qualification evidence. The
-next runner pins forwardproxy `baa7f2dd` and forces SOCKS independently of
-`NO_PROXY`.
+next runner pins forwardproxy qualification head `f14924cd` (runtime fix
+`baa7f2dd`) and forces SOCKS independently of `NO_PROXY`.
+
+### M6 forwardproxy qualification fixture correction — verified
+
+The failed hostname-site parity result was independently reduced to a Caddy
+route-matching issue, not an HTTP/3 response-header serialization defect.
+Ordinary CONNECT uses the target as its `:authority`, so a site address such
+as `https://m5-proxy.localhost:<port>` prevents the request from reaching the
+forwardproxy handler. CONNECT-UDP uses the proxy authority and therefore hid
+the fixture error. Forwardproxy qualification commit `f14924cd` changes
+`tests/m5/Caddyfile-trusted` to an explicit-certificate `https://:<port>` TLS
+listener without a Host matcher and adds
+`scripts/test-m6-hostless-forward-proxy.sh`.
+
+Verified with the rebuilt Caddy binary and the independent quic-go client:
+
+```text
+M6_H3_TCP_PADDING_INTEROP_OK
+M4_G5_BINARY_SMOKE_OK
+M6_HOSTLESS_TCP_UDP_INTEROP_OK
+```
+
+The same qualification head passed owner `go test ./...`, `go test -race ./...`,
+the complete `scripts/test-m4.sh`, and the complete
+`scripts/test-m4-g5-server.sh` matrix, including idle expiry, restart,
+resource, and log-privacy markers. Platform qualification scripts and the
+M5 shipped-product default pin now require
+`f14924cdedc93c28a2b92c8120538ea5beee28fb`; the runtime padding fix remains
+separately identified as `baa7f2dd`.
 
 ## Canonical M5 verification commands
 
