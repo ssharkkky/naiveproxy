@@ -172,7 +172,9 @@ Work:
    reliable stream data.
 4. Choose and document the v1 application-facing inner-payload policy. Do not
    hard-code a number before the measurements identify overhead and platform
-   variance.
+   variance. The measured candidate is documented in
+   [`native-udp-payload-policy.md`](native-udp-payload-policy.md) and remains
+   pending until G1b2/G1d close.
 5. Preserve rate-limited, redacted oversize/transport-error observability.
 
 Exit: deterministic boundary and PMTU-change tests pass three times, recovery

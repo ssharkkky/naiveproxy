@@ -47,6 +47,7 @@ SOCKS5 UDP / HTTP3 application
 | --- | --- | --- |
 | [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
 | [`m6-execution-plan.md`](m6-execution-plan.md) | Active M6 G0-G6 release-hardening sequence, release blockers, platform matrix, risks, and stop conditions | Update while M6 sequencing or contracts change |
+| [`native-udp-payload-policy.md`](native-udp-payload-policy.md) | Candidate M6 1200-byte application/PMTU policy and exact freeze criteria | Keep `candidate` until G1b2/G1d and platform evidence close |
 | [`../tests/m6/platform_qualification.json`](../tests/m6/platform_qualification.json) | Machine-readable G5 platform evidence state; all rows fail closed until exact build/runtime evidence is supplied | Update only from attributable platform results |
 | [`m5-execution-plan.md`](m5-execution-plan.md) | Completed M5 G0-G6 sequencing, contracts, test matrix, and verified results | Historical; factual clarifications only |
 | [`native-udp-development-plan.md`](native-udp-development-plan.md) | Stable v1 scope, architecture, M0-M6 roadmap, estimates, and release boundary | Update only when scope or milestone boundaries change |
