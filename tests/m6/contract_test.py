@@ -20,6 +20,7 @@ G5_MACOS_RUNNER = pathlib.Path(__file__).with_name("g5_macos_qualification.sh")
 G5_LINUX_RUNNER = pathlib.Path(__file__).with_name("g5_linux_qualification.sh")
 G5_WINDOWS_RUNNER = pathlib.Path(__file__).with_name("g5_windows_qualification.sh")
 G5_ANDROID_BUILD = pathlib.Path(__file__).with_name("g5_android_build.sh")
+M6_CADDYFILE = pathlib.Path(__file__).with_name("Caddyfile")
 G5_CROSS_PLATFORM = pathlib.Path(__file__).with_name(
     "g5_cross_platform_interop.sh"
 )
@@ -270,6 +271,10 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M6_G5C_LINUX_X64_OK", runner)
         self.assertIn("M6_G2_REPETITIONS=1", runner)
         self.assertIn("M6_G3_TIER=smoke", runner)
+        self.assertIn(
+            "auto_https disable_redirects",
+            M6_CADDYFILE.read_text(encoding="utf-8"),
+        )
 
         workflow = G5_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("runs-on: ubuntu-22.04", workflow)
@@ -280,9 +285,16 @@ class M6ContractTest(unittest.TestCase):
         windows = G5_WINDOWS_RUNNER.read_text(encoding="utf-8")
         self.assertIn("MINGW*|MSYS*|CYGWIN*", windows)
         self.assertIn("M6_G5D_WINDOWS_X64_OK", windows)
+        self.assertIn("M6_G5D_WINDOWS_SHIPPED_CLIENT_OK", windows)
+        self.assertNotIn("naive_socks5_udp_test.exe", windows)
         self.assertIn("M5_G4_CONTROL_CLOSE_OK", windows)
         self.assertIn("runs-on: windows-2022", workflow)
         self.assertIn("g5_windows_qualification.sh", workflow)
+        windows_job = workflow.split("  windows-x64:", 1)[1].split(
+            "  android-arm64-build:", 1
+        )[0]
+        self.assertIn("test -x out/Release/naive.exe", windows_job)
+        self.assertNotIn("naive_socks5_udp_test", windows_job)
 
         android = G5_ANDROID_BUILD.read_text(encoding="utf-8")
         self.assertIn("Machine:.*AArch64", android)
