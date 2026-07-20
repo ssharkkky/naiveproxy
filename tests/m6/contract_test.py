@@ -20,6 +20,10 @@ G5_MACOS_RUNNER = pathlib.Path(__file__).with_name("g5_macos_qualification.sh")
 G5_LINUX_RUNNER = pathlib.Path(__file__).with_name("g5_linux_qualification.sh")
 G5_WINDOWS_RUNNER = pathlib.Path(__file__).with_name("g5_windows_qualification.sh")
 G5_ANDROID_BUILD = pathlib.Path(__file__).with_name("g5_android_build.sh")
+G5_CROSS_PLATFORM = pathlib.Path(__file__).with_name(
+    "g5_cross_platform_interop.sh"
+)
+G5_LIMA = pathlib.Path(__file__).with_name("lima-g5f.yaml")
 M5_SHIPPED_PRODUCT = pathlib.Path(__file__).parents[1] / "m5" / "g5_production_binary.sh"
 G5_WORKFLOW = pathlib.Path(__file__).parents[2] / ".github" / "workflows" / "m6-platform-qualification.yml"
 CADDY_DIR = pathlib.Path(
@@ -285,6 +289,21 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M6_G5E_ANDROID_ARM64_BUILD_READY", android)
         self.assertIn("android-arm64-build", workflow)
         self.assertIn("g5_android_build.sh", workflow)
+
+    def test_g5f_cross_platform_gate_is_pinned(self) -> None:
+        runner = G5_CROSS_PLATFORM.read_text(encoding="utf-8")
+        lima = G5_LIMA.read_text(encoding="utf-8")
+        self.assertEqual(self.contract["inputs"]["g5f_lima"], "2.1.1")
+        self.assertEqual(self.contract["inputs"]["g5f_alpine"], "3.23.3")
+        self.assertIn("limactl version 2.1.1", runner)
+        self.assertIn("M6_G5F_MACOS_CLIENT_LINUX_SERVER_OK", runner)
+        self.assertIn("M6_G5F_HTTP3_APPLICATION_OK", runner)
+        self.assertIn("M6_G5F_PRIVACY_OK", runner)
+        self.assertIn("alpine-3.23.3-aarch64", lima)
+        self.assertIn(
+            "7a3cdfaefb0cbf3bb6824cd6ae80d6a3e0b0e367609e5fc50c5f714374d31e8d",
+            lima,
+        )
 
 
 if __name__ == "__main__":

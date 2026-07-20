@@ -12,7 +12,9 @@
     "go": "1.25.12",
     "xcaddy": "0.4.5",
     "quic_go": "0.59.0",
-    "chromium": "150.0.7871.63"
+    "chromium": "150.0.7871.63",
+    "g5f_lima": "2.1.1",
+    "g5f_alpine": "3.23.3"
   },
   "protocol": {
     "native_udp": "RFC 9298 CONNECT-UDP over HTTP/3 DATAGRAM",
@@ -135,7 +137,12 @@
     "M6_G5D_WINDOWS_X64_OK",
     "M6_G5E_ANDROID_ARM64_ELF_OK",
     "M6_G5E_ANDROID_PLUGIN_PACKAGE_OK",
-    "M6_G5E_ANDROID_ARM64_BUILD_READY"
+    "M6_G5E_ANDROID_ARM64_BUILD_READY",
+    "M6_G5F_LINUX_ARM64_SERVER_OK",
+    "M6_G5F_HTTP3_APPLICATION_OK",
+    "M6_G5F_TCP_OK",
+    "M6_G5F_PRIVACY_OK",
+    "M6_G5F_MACOS_CLIENT_LINUX_SERVER_OK"
   ],
   "forbidden_artifact_suffixes": [
     ".key",
