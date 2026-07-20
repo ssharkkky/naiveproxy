@@ -2,9 +2,10 @@
 
 Last updated: 2026-07-20 (Asia/Shanghai)
 
-Status: **candidate**. The policy is derived from completed M6-G1a/G1b1/G1c
-measurements, but it is not frozen for release until the shipped-client G1b2
-gate and three-run G1d closeout pass.
+Status: **candidate**. M6-G1a through G1d, including the shipped-client
+default-verifier measurement and three-run closeout, are complete. The policy
+remains unfrozen until the remaining G5 platform records either verify the
+1200-byte baseline or explicitly leave native UDP unqualified/disabled.
 
 ## Application contract
 
