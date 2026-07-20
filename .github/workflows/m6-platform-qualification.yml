@@ -327,6 +327,7 @@ jobs:
 
       - name: Verify Android arm64 package boundary
         run: |
+          mkdir -p _m6
           apk_path=$(find apk/app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit)
           test -n "$apk_path"
           M6_ANDROID_APK="$apk_path" ./tests/m6/g5_android_build.sh | tee _m6/android-arm64-build.log
