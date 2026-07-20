@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import json
+import os
 import pathlib
 import unittest
 
@@ -15,6 +16,9 @@ PLATFORM_QUALIFICATION = pathlib.Path(__file__).with_name(
 G1_SHIPPED_CEILING = pathlib.Path(__file__).with_name("g1_shipped_ceiling.sh")
 G1_FINALIZE = pathlib.Path(__file__).with_name("g1_finalize.sh")
 G4_RUNNER = pathlib.Path(__file__).with_name("g4_sanitizer_fuzz.sh")
+CADDY_DIR = pathlib.Path(
+    os.environ.get("M6_CADDY_DIR", "/Users/stoneshi/Documents/caddy-naive-udp-m4")
+)
 
 
 class M6ContractTest(unittest.TestCase):
@@ -173,6 +177,14 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("dd9a89c11194dcb806d845233995ef040f096464", runner)
         self.assertIn('"$go_bin" mod edit -modfile="$tmp_dir/go.mod"', runner)
         self.assertIn('-modfile="$tmp_dir/go.mod" -race', runner)
+
+    def test_caddy_tls_module_race_fix_is_pinned(self) -> None:
+        source = (CADDY_DIR / "modules/caddytls/tls.go").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("caddy.RegisterModule(new(TLS))", source)
+        self.assertIn("func (*TLS) CaddyModule() caddy.ModuleInfo", source)
+        self.assertNotIn("func (TLS) CaddyModule() caddy.ModuleInfo", source)
 
     def test_g1b2_shipped_runner_preserves_default_verifier_and_cleanup(self) -> None:
         runner = G1_SHIPPED_CEILING.read_text(encoding="utf-8")
