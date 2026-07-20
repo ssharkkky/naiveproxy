@@ -209,6 +209,7 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("security add-trusted-cert", runner)
         self.assertGreaterEqual(runner.count("security remove-trusted-cert"), 2)
         self.assertIn("temporary G1b2 root remained trusted", runner)
+        self.assertIn("root certificate remained in keychain", runner)
         self.assertNotIn("MockCertVerifier", runner)
         self.assertNotIn("ignore-certificate", runner.lower())
 

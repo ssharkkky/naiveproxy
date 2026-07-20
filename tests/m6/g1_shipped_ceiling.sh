@@ -252,6 +252,10 @@ stop_naive
 security remove-trusted-cert "$ca_certificate"
 security delete-certificate -Z "$ca_fingerprint" "$trust_keychain" \
   >/dev/null 2>&1 || true
+if security find-certificate -a -Z "$trust_keychain" 2>/dev/null | \
+    grep -q "SHA-256 hash: $ca_fingerprint"; then
+  fail_with_logs "temporary G1b2 root certificate remained in keychain"
+fi
 ca_fingerprint=
 if security verify-cert -c "$server_certificate" -p ssl \
   -s m5-proxy.localhost >/dev/null 2>&1; then
