@@ -8,7 +8,7 @@ import sys
 import time
 
 
-REPO_TESTS = str(__file__).rsplit("/m6/", 1)[0]
+REPO_TESTS = str(pathlib.Path(__file__).resolve().parents[1])
 sys.path.insert(0, REPO_TESTS)
 sys.path.insert(0, str(pathlib.Path(__file__).parent))
 

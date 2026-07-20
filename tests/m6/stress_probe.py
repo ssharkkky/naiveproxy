@@ -2,26 +2,30 @@
 """Association-cap, churn, resource-recovery, and soak probe."""
 
 import argparse
+from pathlib import Path
+import shutil
 import socket
 import subprocess
 import sys
 import time
 
 
-REPO_TESTS = str(__file__).rsplit("/m6/", 1)[0]
+REPO_TESTS = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, REPO_TESTS)
 
 from socks5_udp_m2 import open_control, send_command, udp_associate, udp_packet  # noqa: E402
 
 
 def process_metrics(pid):
+    lsof = shutil.which("lsof")
+    assert lsof is not None, "lsof is required for resource metrics"
     rss = int(
         subprocess.check_output(
             ["/bin/ps", "-o", "rss=", "-p", str(pid)], text=True
         ).strip()
     )
     descriptors = len(
-        subprocess.check_output(["/usr/sbin/lsof", "-p", str(pid)], text=True)
+        subprocess.check_output([lsof, "-p", str(pid)], text=True)
         .splitlines()
     ) - 1
     return rss, descriptors

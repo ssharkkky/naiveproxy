@@ -2,6 +2,7 @@
 
 import socket
 import unittest
+from unittest import mock
 
 import topology
 
@@ -29,6 +30,18 @@ class TopologyTest(unittest.TestCase):
         finally:
             tcp.close()
             udp.close()
+
+    def test_duplicate_allocation_retries_the_complete_topology(self) -> None:
+        with mock.patch.object(
+            topology, "reserve_shared_ipv4_port", side_effect=[10000, 20000]
+        ), mock.patch.object(
+            topology,
+            "reserve_udp_port",
+            side_effect=[10001, 10002, 10003, 10000, 20001, 20002, 20003, 20004],
+        ):
+            values = topology.allocate_topology()
+        self.assertEqual(values["proxy"], 20000)
+        self.assertEqual(len(set(values.values())), len(values))
 
 
 if __name__ == "__main__":
