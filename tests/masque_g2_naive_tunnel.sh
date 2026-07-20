@@ -66,10 +66,14 @@ grep '^READY ' "$test_dir/server.log"
 grep '^READY ' "$test_dir/echo.log"
 
 if ! "$src_dir/out/Release/naive_connect_udp_runner" \
-  ::1 "$server_port" ::1 "$echo_port" g2-naive-tunnel-echo; then
-  cat "$test_dir/server.log" "$test_dir/echo.log"
+  ::1 "$server_port" ::1 "$echo_port" g2-naive-tunnel-echo \
+  >"$test_dir/runner.log" 2>&1; then
+  cat "$test_dir/runner.log" "$test_dir/server.log" "$test_dir/echo.log"
   exit 1
 fi
+cat "$test_dir/runner.log"
+grep -q '^CONNECT_UDP_TCP_PADDING_CACHE_ISOLATION_OK$' \
+  "$test_dir/runner.log"
 
 grep '^CONNECT_HEADERS ' "$test_dir/server.log"
 grep '^RX ' "$test_dir/echo.log"

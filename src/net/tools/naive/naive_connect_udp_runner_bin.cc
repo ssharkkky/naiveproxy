@@ -467,6 +467,13 @@ int main(int argc, char* argv[]) {
       net::HostPortPair(args[2], static_cast<uint16_t>(target_port)), args[4],
       mode);
   const int result = runner.Run();
+  if (result == EXIT_SUCCESS && mode == ConnectUdpRunner::Mode::kEcho) {
+    auto* proxy_delegate = static_cast<net::NaiveProxyDelegate*>(
+        session->context().proxy_delegate);
+    CHECK(proxy_delegate);
+    CHECK(!proxy_delegate->GetProxyChainPaddingType(proxy_chain).has_value());
+    std::cout << "CONNECT_UDP_TCP_PADDING_CACHE_ISOLATION_OK" << std::endl;
+  }
 
   if (net_log_observer) {
     base::RunLoop flush_loop;
