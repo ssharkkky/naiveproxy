@@ -56,8 +56,14 @@ while [ "$run" -le 3 ]; do
   run_logged "m3-$run" "$repo_dir/tests/socks5_udp_m3.sh"
   grep -q '^M3_NATIVE_UDP_CLIENT_OK$' "$tmp_dir/m3-$run.log"
 
-  run_logged "tcp-$run" "$repo_dir/tests/basic.sh" \
-    "$repo_dir/src/out/Release/naive"
+  (
+    cd "$repo_dir/src"
+    "$repo_dir/tests/basic.sh" out/Release/naive
+  ) >"$tmp_dir/tcp-$run.log" 2>&1 || {
+    tail -120 "$tmp_dir/tcp-$run.log" >&2 || true
+    exit 1
+  }
+  cat "$tmp_dir/tcp-$run.log"
 
   (
     cd "$forwardproxy_dir"
