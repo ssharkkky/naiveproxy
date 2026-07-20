@@ -1347,11 +1347,13 @@ CONNECT-UDP association, and the run ended with
 `M6_G1B2_UNTRUSTED_CERT_REJECTED_OK` and `M6_G1B2_NEGATIVE_ONLY_OK`. This does
 not satisfy the positive ceiling or trust-cleanup half of G1b2.
 
-Commit `fc23ce4144` prepares the G1d closeout runner. After one G1b2 trust
-window it requires three complete repetitions of live ceiling, lowered/restored
-PMTU, the cumulative M3 client suite, all 56 TCP cases, uncached forwardproxy
+Commits `fc23ce4144` and `a32e95d27a` prepare the G1d closeout runner. After one
+G1b2 trust window it requires three complete repetitions of live ceiling,
+lowered/restored PMTU, the cumulative M3 client suite, all 56 TCP cases, uncached forwardproxy
 tests, and focused Caddy HTTP tests before emitting
-`M6_G1_PAYLOAD_PMTU_OK`. It is static/contract verified but not executed.
+`M6_G1_PAYLOAD_PMTU_OK`. The corrected `src/` working-directory invocation of
+the TCP matrix passed one non-mutating preflight through all 56 cases. The full
+three-run closeout remains unexecuted.
 
 ### M6-G2 — deterministic network impairment: complete
 

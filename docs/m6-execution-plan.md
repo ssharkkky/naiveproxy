@@ -152,8 +152,8 @@ Sub-gates:
   redacted observability in three fresh roots; commit `9c72a7da08`.
 - [ ] G1d — choose/document the release payload policy and run the complete
   focused/cumulative regression set three times. The single-window closeout
-  runner is prepared at `fc23ce4144`; it remains unexecuted pending G1b2 trust
-  authorization.
+  runner is prepared through `a32e95d27a`; it remains unexecuted pending G1b2
+  trust authorization.
 
 Purpose: replace the MVP's 1200-byte/4096-byte probes with an explicit and
 measured release policy.
