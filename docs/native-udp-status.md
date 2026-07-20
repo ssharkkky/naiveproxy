@@ -1425,8 +1425,19 @@ KiB and FD 12 -> 13. The wrapper then failed without
 G4 allowlist change and reached an inconsistent post-probe branch. That run is
 not counted as a pass and was invalidated by the subsequent Caddy race fix.
 Commit `8ab48dbee1` replaces the non-portable BSD `sed` allowlist expressions;
-a one-second stress smoke completed through privacy and harness markers, and a
-fresh 3600-second qualification root is now running on Caddy `dd9a89c1`.
+a one-second stress smoke completed through privacy and harness markers.
+
+A later post-fix 3600-second body on Caddy `dd9a89c1` completed 5391 waves and
+86256 product datagrams. Its runner RSS was 13376 -> 19776 KiB with a
+18864-KiB sampled peak; runner FDs were 10 -> 17 with a 526-FD admission-test
+peak. Caddy RSS was 42592 -> 42768 KiB with a 42480-KiB sampled peak, and
+Caddy FDs were 12 -> 13. Admission, churn, resource recovery, privacy, and
+harness markers passed, but the wrapper emitted only the explicit-duration
+smoke marker rather than `M6_G3_STRESS_SOAK_OK`. It therefore remains useful
+diagnostic evidence and is not counted as qualification. Commit `5257e2757f`
+records the pre-run explicit-duration decision directly; its one-second
+override regression passed. A clean 3600-second
+qualification root is now running with the override removed.
 
 The G3 harness covers association admission, churn, post-close resource
 recovery, and bounded RSS/FD deltas. M5-G4 remains the inherited evidence for
