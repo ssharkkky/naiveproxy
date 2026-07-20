@@ -242,11 +242,10 @@ delivery, or a result that depends on shortening production timeouts.
 
 ### G4 — fuzz, sanitizer, race, and lifecycle hardening
 
-Status: client/forwardproxy evidence passed at `5893f97f6e`, but release
-qualification is reopened by a real Caddy race finding. The minimum Caddy fix
-is `dd9a89c11194dcb806d845233995ef040f096464`; owner regressions passed and
-the G4 runner must be rerun against that new pinned binary before this gate is
-closed again.
+Status: complete on the post-fix runtime. Client/forwardproxy evidence is at
+`5893f97f6e`; Caddy race fix `dd9a89c11194dcb806d845233995ef040f096464`,
+owner regressions, and the full frozen-budget rerun all pass. A scoped
+independent audit of the new Caddy range remains part of G6.
 
 Purpose: attack parser and asynchronous ownership boundaries with automated
 defensive testing.

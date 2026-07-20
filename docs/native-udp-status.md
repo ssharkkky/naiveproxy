@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0/G2 complete; G1/G3/G4/G5 open | G0 contract, G1b1/G1c measurements, three-run G2 impairment matrix, client/forwardproxy G4 evidence, G5a record contract; Caddy race fix owner regressions passed but post-fix G4/G3 are required | Re-run G4 on Caddy `dd9a89c1`, then G3 qualification |
+| M6 — hardening and release candidate | In progress; G0/G2/G4 complete; G1/G3/G5/G6 open | G0 contract, G1b1/G1c measurements, three-run G2 impairment matrix, post-fix G4 frozen-budget gate, G5a record contract; G3 qualification is next | G3 qualification, then shipped-client G1b2/G1d |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -1431,7 +1431,7 @@ recovery, and bounded RSS/FD deltas. M5-G4 remains the inherited evidence for
 server restart, idle expiry, control close, outer-session shutdown, and no
 replay; G2's loss profile remains the inherited outer-QUIC impairment evidence.
 
-### M6-G4 — fuzz, sanitizer, race, and lifecycle hardening: reopened for Caddy fix
+### M6-G4 — fuzz, sanitizer, race, and lifecycle hardening: complete post-fix
 
 Commit `5893f97f6e` adds a deterministic client codec-fuzz executable, the
 seeded asynchronous lifecycle schedule, a fail-closed ASan/UBSan configuration,
@@ -1462,9 +1462,23 @@ writing it. Caddy commit `dd9a89c11194dcb806d845233995ef040f096464` changes the
 module registration and receiver to pointer semantics; forwardproxy build-lock
 commit `e9663e4` pins it. Caddy module ordinary/race tests, forwardproxy local-
 Caddy full race three times, M4 owner integration, G5 server smoke, and build
-reproduction passed. The final G4 runner and G3 soak must still be rerun on
-this new runtime. The previous `M6_G4_SANITIZER_FUZZ_OK` is retained as
-pre-fix evidence only.
+reproduction passed. The final G4 runner was rerun on this new runtime and
+passed. The previous marker is retained as pre-fix evidence only; the post-fix
+marker is the release evidence.
+
+Post-fix command and final evidence:
+
+```bash
+./tests/m6/g4_sanitizer_fuzz.sh
+# M6_G4_RELEASE_CODEC_FUZZ_OK
+# M6_G4_SEEDED_LIFECYCLE_OK iterations=2000
+# M6_G4_ASAN_UBSAN_OK
+# M6_G4_GO_RACE_FUZZ_OK
+# M6_G4_SANITIZER_FUZZ_OK
+```
+
+The post-fix run used Caddy `dd9a89c1` and forwardproxy lock `e9663e4`; no race
+was reported. The macOS linker warning is unchanged and non-fatal.
 
 ### M6-G5a — platform evidence contract: complete
 
