@@ -12,6 +12,7 @@ ASAN_ARGS = pathlib.Path(__file__).with_name("asan_args.gn")
 PLATFORM_QUALIFICATION = pathlib.Path(__file__).with_name(
     "platform_qualification.json"
 )
+G1_SHIPPED_CEILING = pathlib.Path(__file__).with_name("g1_shipped_ceiling.sh")
 
 
 class M6ContractTest(unittest.TestCase):
@@ -163,6 +164,16 @@ class M6ContractTest(unittest.TestCase):
                 self.assertNotEqual(record["state"], "verified")
         self.assertIn("payload", document["forbidden_evidence_fields"])
         self.assertIn("credential", document["forbidden_evidence_fields"])
+
+    def test_g1b2_shipped_runner_preserves_default_verifier_and_cleanup(self) -> None:
+        runner = G1_SHIPPED_CEILING.read_text(encoding="utf-8")
+        self.assertIn('naive_bin="$repo_dir/src/out/Release/naive"', runner)
+        self.assertIn("M6_G1B2_UNTRUSTED_CERT_REJECTED_OK", runner)
+        self.assertIn("security add-trusted-cert", runner)
+        self.assertGreaterEqual(runner.count("security remove-trusted-cert"), 2)
+        self.assertIn("temporary G1b2 root remained trusted", runner)
+        self.assertNotIn("MockCertVerifier", runner)
+        self.assertNotIn("ignore-certificate", runner.lower())
 
 
 if __name__ == "__main__":
