@@ -22,7 +22,9 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   `80d37395a6`.
 - Active M6 gates: G1 shipped-client/default-verifier and policy closeout,
   G3 qualification soak, then G5 platform qualification and G6 release closeout.
-  G2 and G4 are complete; G4 commit is `5893f97f6e`.
+  G2 and G4 are complete; G4 commit is `5893f97f6e`. G5a's fail-closed
+  platform evidence schema is complete at `9869f1d6d1`; all platform runtime
+  rows remain `not run`.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
   weighted engineering scope. This is not a production-release claim while
   G1, G3, G5, and G6 evidence remains open.

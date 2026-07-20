@@ -1386,15 +1386,22 @@ profile evidence is limited to profile, seed, direction, size, action, reason,
 elapsed time, and aggregate counts; it excludes endpoints, paths, credentials,
 and packet bytes.
 
-### M6-G3 — resource pressure and soak: qualification running
+### M6-G3 — resource pressure and soak: qualification retry running
 
 Commit `325c77b95a` added the bounded association/churn/resource harness. The
 smoke evidence already passed with 256 active client associations, rejection
 of the 257th, reuse of 64 released slots, 101 waves, 1616 product datagrams,
-and recovery of runner/Caddy file descriptors. The unshortened qualification
-tier is currently running as one 3600-second fresh production root; its final
-marker is not recorded until the process exits and the aggregate resource
-checks pass.
+and recovery of runner/Caddy file descriptors.
+
+The first unshortened qualification body's pressure work also passed: 5634
+waves, 90144 product datagrams, the same 256/257th/64 admission-reuse boundary,
+runner RSS 13376 -> 18496 KiB and FD 10 -> 17, and Caddy RSS 41968 -> 41152
+KiB and FD 12 -> 13. The wrapper then failed without
+`M6_G3_STRESS_SOAK_OK` because its long-running shell had started before the
+G4 allowlist change and reached an inconsistent post-probe branch. That run is
+not counted as a pass. Commit `8ab48dbee1` replaces the non-portable BSD `sed`
+allowlist expressions; a one-second stress smoke completed through privacy and
+harness markers, and a fresh 3600-second qualification root is now running.
 
 The G3 harness covers association admission, churn, post-close resource
 recovery, and bounded RSS/FD deltas. M5-G4 remains the inherited evidence for
@@ -1430,6 +1437,15 @@ second run passed the complete server race suite and both 30-second Go fuzz
 targets; the transient is retained as a diagnostic observation, not silently
 discarded. The server repository remains at test-only fuzz commit `d96fe7a` and
 the audited production runtime is unchanged.
+
+### M6-G5a — platform evidence contract: complete
+
+Commit `9869f1d6d1` adds the fail-closed platform record and splits G5 into
+separately attributable macOS arm64, Linux x64, Windows x64, Android arm64,
+and final interoperability sub-gates. All four records remain `not run` until
+their exact OS/architecture, three repository revisions, commands, and markers
+are populated. Contract validation passes, but this is record readiness only;
+it is not platform qualification evidence.
 
 ## Canonical M5 verification commands
 
