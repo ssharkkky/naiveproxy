@@ -7,6 +7,7 @@ import unittest
 
 CONTRACT = pathlib.Path(__file__).with_name("contract.json")
 NETWORK_PROFILES = pathlib.Path(__file__).with_name("network_profiles.json")
+SOAK_TIERS = pathlib.Path(__file__).with_name("soak_tiers.json")
 
 
 class M6ContractTest(unittest.TestCase):
@@ -106,6 +107,18 @@ class M6ContractTest(unittest.TestCase):
             )
         )
         self.assertIn("payload", document["forbidden_evidence_fields"])
+
+    def test_soak_tiers_preserve_real_qualification_duration_and_limits(self) -> None:
+        document = json.loads(SOAK_TIERS.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema"], 1)
+        self.assertEqual(document["tiers"]["smoke"], 60)
+        self.assertGreaterEqual(document["tiers"]["qualification"], 3600)
+        self.assertGreater(
+            document["tiers"]["extended"], document["tiers"]["qualification"]
+        )
+        self.assertEqual(document["client_association_cap"], 256)
+        self.assertEqual(document["server_per_client_cap"], 32)
+        self.assertLessEqual(document["wave_size"], 32)
 
 
 if __name__ == "__main__":

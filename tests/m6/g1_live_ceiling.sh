@@ -100,6 +100,7 @@ topology=$(python3 "$repo_dir/tests/m5/topology.py")
 proxy_port=$(printf '%s\n' "$topology" | python3 -c \
   'import json, sys; print(json.load(sys.stdin)["proxy"])')
 probe_mode=${M6_G1_PROBE_MODE:-ceiling}
+stress_duration=${M6_G3_DURATION_SECONDS:-60}
 server_port=$proxy_port
 if [ "$probe_mode" = pmtu ] || [ "$probe_mode" = impairment ]; then
   server_port=$(printf '%s\n' "$topology" | python3 -c \
@@ -123,7 +124,7 @@ if [ "$probe_mode" = pmtu ] || [ "$probe_mode" = impairment ]; then
   shaper_pid=$!
   wait_for_log '^READY udp-shaper ' "$tmp_dir/shaper.log" "$shaper_pid" 100 || \
     fail_with_logs "UDP shaper did not become ready"
-elif [ "$probe_mode" != ceiling ]; then
+elif [ "$probe_mode" != ceiling ] && [ "$probe_mode" != stress ]; then
   fail_with_logs "unknown M6_G1_PROBE_MODE"
 fi
 echo_port=$(printf '%s\n' "$topology" | python3 -c \
@@ -209,8 +210,14 @@ PY
 done
 test "$index" -lt 160 || fail_with_logs "production Caddy did not become ready"
 
+runner_ms=60000
+if [ "$probe_mode" = stress ]; then
+  runner_ms=$(python3 -c \
+    'import sys; print(int((float(sys.argv[1]) + 45) * 1000))' \
+    "$stress_duration")
+fi
 "$runner_bin" --proxy-host=127.0.0.1 --proxy-port="$proxy_port" \
-  --proxy-user=m5-user --proxy-pass=m5-pass --run-for-ms=60000 \
+  --proxy-user=m5-user --proxy-pass=m5-pass --run-for-ms="$runner_ms" \
   --log-net-log="$tmp_dir/netlog.json" \
   >"$tmp_dir/runner.log" 2>&1 &
 runner_pid=$!
@@ -230,6 +237,12 @@ elif [ "$probe_mode" = pmtu ]; then
     --echo-port "$echo_port" --ceiling-file "$tmp_dir/outer-ceiling" | \
     tee "$tmp_dir/probe.log"
   expected_marker=M6_G1C_PMTU_RECOVERY_OK
+elif [ "$probe_mode" = stress ]; then
+  python3 "$script_dir/stress_probe.py" --socks-port "$socks_port" \
+    --echo-port "$echo_port" --runner-pid "$runner_pid" \
+    --caddy-pid "$caddy_pid" --duration-seconds "$stress_duration" | \
+    tee "$tmp_dir/probe.log"
+  expected_marker=M6_G3_STRESS_SMOKE_OK
 else
   python3 "$script_dir/impairment_probe.py" --socks-port "$socks_port" \
     --echo-port "$echo_port" --dns-port "$dns_port" \
@@ -293,6 +306,12 @@ elif [ "$probe_mode" = pmtu ]; then
   ' "$tmp_dir/shaper.log" || \
     fail_with_logs "safe payload lacked IPv6-minimum PMTU wire evidence"
   echo M6_G1C_PMTU_OK
+elif [ "$probe_mode" = stress ]; then
+  grep -q 'M6_G3_ASSOCIATION_CAP_REUSE_OK' "$tmp_dir/probe.log" || \
+    fail_with_logs "association cap/reuse evidence is absent"
+  grep -q 'M6_G3_RESOURCE_RECOVERY_OK' "$tmp_dir/probe.log" || \
+    fail_with_logs "resource recovery evidence is absent"
+  echo M6_G3_STRESS_HARNESS_OK
 else
   grep -q "PROFILE id=$impairment_profile" "$tmp_dir/shaper.log" || \
     fail_with_logs "named impairment profile was not activated"
