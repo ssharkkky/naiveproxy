@@ -45,7 +45,7 @@ forwardproxy_revision=$(git -C "$forwardproxy_dir" rev-parse HEAD)
 caddy_revision=$(git -C "$caddy_dir" rev-parse HEAD)
 
 git -C "$repo_dir" merge-base --is-ancestor a35e487d8a HEAD
-test "$forwardproxy_revision" = 444667f8f9f61c949ea66a37663f18ed2acae4f0
+test "$forwardproxy_revision" = baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285
 test "$caddy_revision" = dd9a89c11194dcb806d845233995ef040f096464
 git -C "$repo_dir" diff --quiet -- src/net
 git -C "$forwardproxy_dir" diff --quiet
@@ -82,7 +82,8 @@ M5_CADDY_BIN="$caddy_bin" \
 for marker in M5_G5_UNTRUSTED_CERT_REJECTED_OK \
   M5_G5_PRODUCTION_ECHO_OK M3_G4_DNS_OK \
   M5_G2_HTTP3_APPLICATION_OK M5_G5_PRODUCTION_TCP_OK \
-  M5_G4_SERVER_IDLE_RECONNECT_OK M5_G5_DEFAULT_CERT_VERIFIER_OK \
+  M5_G4_CONTROL_CLOSE_OK M5_G4_SERVER_IDLE_RECONNECT_OK \
+  M5_G5_DEFAULT_CERT_VERIFIER_OK \
   M5_G5_PRODUCTION_BINARY_OK M5_G5_H3_DATAGRAM_EVIDENCE_OK \
   M5_G5_NO_PADDING_BASELINE_OK M5_G5_TRUST_CLEANUP_OK; do
   grep -q "^$marker" "$tmp_dir/product.log"

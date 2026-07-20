@@ -5,6 +5,7 @@
     "naive_m5_audited": "eaf172d9713dafc6519d8c4a6b8ba3a290c222de",
     "naive_quic_context_fix": "333b7cb253",
     "forwardproxy_runtime": "8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7",
+    "forwardproxy_m6_runtime": "baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285",
     "forwardproxy_m5_fixture_head": "2b2a8ea",
     "caddy": "dd9a89c11194dcb806d845233995ef040f096464",
     "go": "1.25.12",
@@ -125,7 +126,12 @@
     "M6_G5C_LINUX_BUILD_OK",
     "M6_G5C_LINUX_PRODUCT_OK",
     "M6_G5C_LINUX_SERVER_OK",
-    "M6_G5C_LINUX_X64_OK"
+    "M6_G5C_LINUX_X64_OK",
+    "M6_G5D_WINDOWS_BUILD_OK",
+    "M6_G5D_WINDOWS_PRODUCT_OK",
+    "M6_G5D_WINDOWS_FOCUSED_OK",
+    "M6_G5D_WINDOWS_SERVER_OK",
+    "M6_G5D_WINDOWS_X64_OK"
   ],
   "forbidden_artifact_suffixes": [
     ".key",

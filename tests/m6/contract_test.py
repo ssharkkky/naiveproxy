@@ -18,6 +18,7 @@ G1_FINALIZE = pathlib.Path(__file__).with_name("g1_finalize.sh")
 G4_RUNNER = pathlib.Path(__file__).with_name("g4_sanitizer_fuzz.sh")
 G5_MACOS_RUNNER = pathlib.Path(__file__).with_name("g5_macos_qualification.sh")
 G5_LINUX_RUNNER = pathlib.Path(__file__).with_name("g5_linux_qualification.sh")
+G5_WINDOWS_RUNNER = pathlib.Path(__file__).with_name("g5_windows_qualification.sh")
 M5_SHIPPED_PRODUCT = pathlib.Path(__file__).parents[1] / "m5" / "g5_production_binary.sh"
 G5_WORKFLOW = pathlib.Path(__file__).parents[2] / ".github" / "workflows" / "m6-platform-qualification.yml"
 CADDY_DIR = pathlib.Path(
@@ -59,6 +60,15 @@ class M6ContractTest(unittest.TestCase):
                 "second QUIC stack",
             },
         )
+
+    def test_m6_server_runtime_fix_is_pinned(self) -> None:
+        self.assertEqual(
+            self.contract["inputs"]["forwardproxy_m6_runtime"],
+            "baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285",
+        )
+        g0 = (CONTRACT.parent / "g0_contract.sh").read_text(encoding="utf-8")
+        self.assertIn("expected_forwardproxy_m6_runtime", g0)
+        self.assertIn("baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285", g0)
 
     def test_release_policy_is_fail_closed(self) -> None:
         policy = self.contract["release_policy"]
@@ -225,7 +235,7 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M5_EXPECTED_FORWARDPROXY", product)
         self.assertIn("M5_EXPECTED_CADDY", product)
         self.assertIn("M5_EXPECTED_CLIENT", product)
-        self.assertIn("8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7", product)
+        self.assertIn("baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285", product)
         self.assertIn("cce894a8a0e987eb1722cf99729499bdaba6c38d", product)
 
     def test_g5_desktop_trust_and_linux_ci_are_pinned(self) -> None:
@@ -244,9 +254,16 @@ class M6ContractTest(unittest.TestCase):
 
         workflow = G5_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("runs-on: ubuntu-22.04", workflow)
-        self.assertIn("444667f8f9f61c949ea66a37663f18ed2acae4f0", workflow)
+        self.assertIn("baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285", workflow)
         self.assertIn("dd9a89c11194dcb806d845233995ef040f096464", workflow)
         self.assertIn("g5_linux_qualification.sh", workflow)
+
+        windows = G5_WINDOWS_RUNNER.read_text(encoding="utf-8")
+        self.assertIn("MINGW*|MSYS*|CYGWIN*", windows)
+        self.assertIn("M6_G5D_WINDOWS_X64_OK", windows)
+        self.assertIn("M5_G4_CONTROL_CLOSE_OK", windows)
+        self.assertIn("runs-on: windows-2022", workflow)
+        self.assertIn("g5_windows_qualification.sh", workflow)
 
 
 if __name__ == "__main__":

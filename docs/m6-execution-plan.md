@@ -2,9 +2,11 @@
 
 Last updated: 2026-07-20 (Asia/Shanghai)
 
-Status: M5 is complete and independently audited. M6-G0 is complete at
-`80d37395a6`; M6-G1 remains release-blocking, M6-G3 qualification is running,
-and M6-G4 is complete at `5893f97f6e`.
+Status: M5 is complete and independently audited. M6-G0 through G4 are
+complete, but G5 remains open. A cross-platform TCP-parity probe exposed a
+post-M4 forwardproxy/Naive padding-negotiation defect; forwardproxy commit
+`baa7f2dd` is the narrow owner fix and every platform qualification must
+consume that revision.
 
 Operational evidence belongs in [`native-udp-status.md`](native-udp-status.md).
 This document defines pending work, ordering, exit criteria, risks, and stop
@@ -40,7 +42,7 @@ platform that has not yet been qualified.
 | --- | --- | --- |
 | NaiveProxy M5 closeout | `e70ee79e05` | Must remain an ancestor |
 | Audited NaiveProxy runtime | audited through `eaf172d971`, including `333b7cb253` | Any later `src/net` change reopens the affected client audit boundary |
-| forwardproxy runtime | `8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7` plus build-lock commit `e9663e4`; platform-fixture head `444667f` | Fixture-only changes do not replace the audited runtime; runtime/build-pin changes require owner regressions and review |
+| forwardproxy runtime | M4 audited base `8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7`; M6 TCP-padding fix `baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285`; build-lock `e9663e4` | The M6 owner delta negotiates Naive padding on CONNECT-UDP responses while UDP DATAGRAM payloads remain unpadded. Owner normal/race tests, product TCP/UDP qualification, and scoped G6 review are required |
 | forwardproxy M5 fixture head | `2b2a8ea` | Must remain an ancestor of later fixture commits |
 | Caddy | `dd9a89c11194dcb806d845233995ef040f096464` | M6 race-fix pin; owner regression and independent audit required |
 | Server toolchain | Go `1.25.12`, xcaddy `0.4.5`, quic-go `0.59.0` | No floating tool or module versions |
@@ -281,13 +283,16 @@ Sub-gates:
   initial records remain `not run` and cannot become `verified` without every
   required command, revision, marker, OS version, and architecture field;
   contract commit `9869f1d6d1`, runner `09af3795c7`.
-- [x] G5b — qualify macOS arm64 through the complete row below. The
-  authorized shipped-product and focused G2-G4 matrix passed on macOS 26.5.2
-  arm64 and the exact evidence record is `verified`.
-- [ ] G5c — qualify Linux x64 through the complete row below. A native-x64
-  fail-closed runner and pinned GitHub Actions job are prepared; runtime
-  evidence remains `not run` until the remote job succeeds.
-- [ ] G5d — qualify Windows x64 through the complete row below.
+- [ ] G5b — requalify macOS arm64 through the complete row below after the M6
+  forwardproxy padding fix. The prior record is superseded because its
+  loopback TCP probe honored `NO_PROXY` and did not prove a TCP tunnel.
+- [ ] G5c — qualify Linux x64 through the complete row below. The first native
+  run reached UDP/DNS/H3 but exposed the same TCP parity defect; the corrected
+  runner is pinned to `baa7f2dd` and remains `not run` until a clean remote job
+  emits the final marker.
+- [ ] G5d — qualify Windows x64 through the complete row below. A native
+  Windows x64 shipped-product runner and pinned GitHub Actions job are
+  prepared; runtime evidence remains `not run` until that job succeeds.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below.
 - [ ] G5f — confirm cross-platform wire interoperability and close the final

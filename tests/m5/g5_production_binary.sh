@@ -248,7 +248,7 @@ record_window() {
     >>"$tmp_dir/baseline-windows.log"
 }
 
-expected_forwardproxy=${M5_EXPECTED_FORWARDPROXY:-8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7}
+expected_forwardproxy=${M5_EXPECTED_FORWARDPROXY:-baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285}
 expected_caddy=${M5_EXPECTED_CADDY:-cce894a8a0e987eb1722cf99729499bdaba6c38d}
 expected_client=${M5_EXPECTED_CLIENT:-333b7cb253}
 test "$(git -C "$forwardproxy_dir" rev-parse "$expected_forwardproxy")" = \
@@ -278,6 +278,7 @@ dns_port=$(topology_value dns)
 h3_port=$(topology_value http3)
 tap_port=$(reserve_udp_port)
 http_port=$(reserve_tcp_port)
+pending_port=$(reserve_udp_port)
 
 ca_private_key="$tmp_dir/m5-ca.key"
 ca_certificate="$tmp_dir/m5-ca.pem"
@@ -352,10 +353,40 @@ wait_for_log 'M5_G2_H3_ORIGIN_READY' "$tmp_dir/h3v4.log" "$h3v4_pid" 200 || \
   fail_with_logs "IPv4 HTTP/3 fixture did not become ready"
 wait_for_log 'M5_G2_H3_ORIGIN_READY' "$tmp_dir/h3v6.log" "$h3v6_pid" 200 || \
   fail_with_logs "IPv6 HTTP/3 fixture did not become ready"
+http_ready=0
+http_attempt=0
+while [ "$http_attempt" -lt 100 ]; do
+  if curl --silent --fail --max-time 1 --noproxy '*' \
+      "http://127.0.0.1:$http_port/" >/dev/null 2>&1; then
+    http_ready=1
+    break
+  fi
+  if ! kill -0 "$http_pid" 2>/dev/null; then
+    break
+  fi
+  sleep 0.05
+  http_attempt=$((http_attempt + 1))
+done
+[ "$http_ready" -eq 1 ] || fail_with_logs "TCP HTTP fixture did not become ready"
 
-M5_PROXY_PORT="$proxy_port" M5_SERVER_CERT="$server_certificate" \
-M5_SERVER_KEY="$server_private_key" M5_ACCESS_LOG="$tmp_dir/access.log" \
-XDG_DATA_HOME="$tmp_dir/caddy-data" XDG_CONFIG_HOME="$tmp_dir/caddy-config" \
+caddy_server_certificate=$server_certificate
+caddy_server_private_key=$server_private_key
+caddy_access_log=$tmp_dir/access.log
+caddy_data_home=$tmp_dir/caddy-data
+caddy_config_home=$tmp_dir/caddy-config
+case "$platform" in
+  MINGW*|MSYS*|CYGWIN*)
+    caddy_server_certificate=$(cygpath -w "$caddy_server_certificate")
+    caddy_server_private_key=$(cygpath -w "$caddy_server_private_key")
+    caddy_access_log=$(cygpath -w "$caddy_access_log")
+    caddy_data_home=$(cygpath -w "$caddy_data_home")
+    caddy_config_home=$(cygpath -w "$caddy_config_home")
+    ;;
+esac
+
+M5_PROXY_PORT="$proxy_port" M5_SERVER_CERT="$caddy_server_certificate" \
+M5_SERVER_KEY="$caddy_server_private_key" M5_ACCESS_LOG="$caddy_access_log" \
+XDG_DATA_HOME="$caddy_data_home" XDG_CONFIG_HOME="$caddy_config_home" \
   "$caddy_bin" run --config "$forwardproxy_dir/tests/m5/Caddyfile-trusted" \
     --adapter caddyfile >"$tmp_dir/caddy.log" 2>&1 &
 caddy_pid=$!
@@ -406,12 +437,18 @@ start=$(baseline_rows)
 end=$(baseline_rows)
 record_window http3 "$start" "$end"
 
-tcp_response=$(curl --silent --show-error --max-time 10 \
-  --proxy "socks5h://127.0.0.1:$socks_port" \
-  "http://127.0.0.1:$http_port/")
+if ! tcp_response=$(curl --silent --show-error --max-time 20 --noproxy '' \
+    --proxy "socks5h://127.0.0.1:$socks_port" \
+    "http://127.0.0.1:$http_port/"); then
+  fail_with_logs "production TCP SOCKS request failed"
+fi
 [ "$tcp_response" = m5-production-tcp-ok ] || \
   fail_with_logs "production TCP SOCKS regression failed"
 echo M5_G5_PRODUCTION_TCP_OK
+
+python3 "$script_dir/g4_matrix.py" --mode control-close \
+  --socks-port "$socks_port" --target-port "$echo_port" \
+  --pending-port "$pending_port"
 
 python3 "$script_dir/g4_matrix.py" --mode idle \
   --socks-port "$socks_port" --target-port "$echo_port" --pause-seconds=125 \
