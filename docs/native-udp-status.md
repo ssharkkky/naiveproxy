@@ -18,7 +18,7 @@ verified. Update it at every completed G target and milestone.
 | M2 — SOCKS5 UDP ingress | Complete, audited, and committed | Codec, handshake, real relay, fake backend, deterministic lifecycle and 56 TCP regressions pass; `agy` returned `AUDIT_PASS`; commit `fe817a87` | None |
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
-| M5 — end-to-end MVP | In progress; G0-G5 complete | Full product matrix, lifecycle/no-replay, shipped default-verifier client, production idle, H3 DATAGRAM evidence, TCP parity, and no-padding baseline pass | M5-G6 |
+| M5 — end-to-end MVP | In progress; G0-G5 and G6 local closeout complete | Full product matrix, lifecycle/no-replay, shipped default-verifier client, complete client/server regressions, three fresh-root repetitions, and artifact closeout pass | Independent G6 audit |
 | M6 — hardening and release candidate | Not started | Verification matrix exists | MVP passes |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
@@ -38,8 +38,9 @@ M5–M6 work is recorded in `docs/native-udp-development-plan.md`.
   and is included in the pending M5-G6 audit boundary.
 - Production Caddy/`forwardproxy` native UDP server: 100% complete and
   independently audited.
-- End-to-end product MVP: G0-G5 complete; G6 regressions/artifact closeout and
-  independent audit remain. Release hardening is not started.
+- End-to-end product MVP: G0-G5 and G6 local regressions/artifact closeout are
+  complete; independent audit and final record remain. Release hardening is
+  not started.
 
 Current remaining planning range:
 
@@ -958,7 +959,8 @@ Caddy product matrix, including product-level reconnect claims.
 
 ## M5 execution baseline — end-to-end MVP
 
-Status: in progress; M5-G0 through G5 are complete and M5-G6 is next. The
+Status: in progress; M5-G0 through G5 and G6 local closeout are complete; the
+independent G6 audit is next. The
 active plan is
 [`m5-execution-plan.md`](m5-execution-plan.md).
 
@@ -1137,9 +1139,31 @@ M5_G2_PRODUCT_MATRIX_OK
   `M5_G5_H3_DATAGRAM_EVIDENCE_OK`, and
   `M5_G5_NO_PADDING_BASELINE_OK`.
 
-M5-G6 is next: complete cross-repository regressions, repeated fresh-root M5
-runs, artifact/privacy closeout, final `M5_NATIVE_UDP_MVP_OK`, and independent
-`AUDIT_PASS` with zero blocker/high/medium findings.
+### M5-G6 — local regressions and artifact closeout: complete; audit pending
+
+- Rebuilt every named M1-M3 Release target and reran all M1 scripts, M2, M3,
+  `M3_NATIVE_UDP_CLIENT_OK`, and all 56 TCP cases.
+- Rebuilt Caddy from the pinned Go 1.25.12/xcaddy 0.4.5, Caddy `cce894a8`,
+  forwardproxy `8f044e2` runtime plus test-only M5 fixtures, and quic-go 0.59.0
+  inputs. That binary passed cumulative M5 G0-G5.
+- G1-G4 then passed three consecutive additional fresh-root repetitions.
+  Each produced `M5_G6_FRESH_ROOT_OK`; every run included control close, two
+  Caddy restarts, outer-QUIC reconnect, client idle, and no replay.
+- Forwardproxy cumulative/legacy, standalone `M4_G5_SERVER_INTEROP_OK`,
+  uncached normal/race, and focused Caddy HTTP tests pass. The only race build
+  diagnostic is the already recorded harmless macOS `LC_DYSYMTAB` warning.
+- The first all-in-one closeout invocation stopped after those completed
+  client/product repetitions because the new runner launched the standalone
+  server script outside its Go module. No product test failed. The cwd-only
+  harness fix is `d1aee3663f`; the corrected server half was rebuilt and run
+  independently to `M5_G6_SERVER_REGRESSIONS_OK`.
+- Three-repository diff/status checks, M5 diff extension/path scan, exact
+  process-name scan, and login-keychain certificate scan pass. Only unrelated
+  `.DS_Store` and `src/tmp/` remain untracked.
+- local marker: `M5_G6_LOCAL_REGRESSIONS_OK`.
+
+The remaining M5-G6 work is the bounded independent audit, durable audit
+record, final `M5_NATIVE_UDP_MVP_OK`, and milestone closeout commit.
 
 ## Canonical M5 verification commands
 
@@ -1292,7 +1316,8 @@ evidence are recorded in `4ec0f8bb9a`. The M5 G0–G6 execution plan now exists;
 M5-G0 is commit `014cdc4761`; M5-G1 is main commit `67caa8f131` plus the
 forwardproxy fixture commits `d922441` and `88ac298`. M5-G2 is commit
 `eeccb7cb30`; M5-G3 is `fbdd8af531`. The shipped-client QUIC context ordering
-fix is `333b7cb253`; M5-G4/G5 harness and evidence are the current closeout
-change set, and M5-G6 is next.
+fix is `333b7cb253`; M5-G4/G5 harness and evidence are `c73b5a486f`; the G6
+runner is `4a395a7f4e` with module-cwd correction `d1aee3663f`. Local G6 is
+green and the independent audit is next.
 Generated `.DS_Store` and `src/tmp/` entries remain unrelated and must not be
 included in future feature commits.

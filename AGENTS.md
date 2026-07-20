@@ -22,8 +22,9 @@ M1 through M4 are complete and independently audited. M4's final production
 revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
 review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
 sole low CI-pinning observation was closed by `8f044e2`. The next milestone is
-M5 end-to-end product composition; M5-G0 through G5 are complete and M5-G6
-closeout is next. G5 found and fixed the production client's post-`Build()`
+M5 end-to-end product composition; M5-G0 through G5 and the M5-G6 local
+closeout matrix are complete. The independent M5 audit is next. G5 found and
+fixed the production client's post-`Build()`
 QUIC-parameter ordering defect in `333b7cb253`; its full M1-M3 and 56-case TCP
 owner matrix is green. The controlled QUICHE endpoint remains a test fixture,
 not the production server.

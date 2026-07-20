@@ -15,8 +15,8 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   `2bb83aec`.
 - M4 final server marker: `M4_NATIVE_UDP_SERVER_OK`; forwardproxy `8f044e2`,
   Caddy `cce894a8`.
-- Active milestone: M5 end-to-end MVP. M5-G0 through G5 are complete; M5-G6
-  closeout and independent review are next.
+- Active milestone: M5 end-to-end MVP. M5-G0 through G5 and G6 local closeout
+  are complete; the independent review and final record are next.
 - Overall progress remains 5 of 7 milestones (71%), approximately 88-90% by
   weighted engineering scope.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
@@ -134,8 +134,9 @@ malformed/spoofed input isolation, exact non-QUIC rejection, and cross-layer
 privacy. G4 proved control teardown, two server restarts, outer-QUIC recovery,
 real client idle, and no replay. G5 proved the shipped binary with the default
 certificate verifier, real production server idle, ordinary TCP SOCKS, H3
-DATAGRAM evidence, and the v1 no-padding baseline. M5-G6 now owns complete
-regressions, artifact closeout, the final marker, and independent review.
+DATAGRAM evidence, and the v1 no-padding baseline. G6's complete regressions,
+three fresh-root repetitions, and artifact closeout pass; the independent
+review and final marker remain.
 
 The deterministic M3 runner remains the broad-matrix fixture because it uses
 the real production backend/factory. The separate shipped-`naive` smoke now

@@ -553,6 +553,6 @@ Next:
   verifier, independent HTTP/3 application traffic, ordinary TCP SOCKS,
   production server idle, H3 DATAGRAM evidence, and the v1 no-padding
   baseline. The gate's production-context ordering fix is `333b7cb253`.
-- [ ] Execute M5-G6: rerun the complete cross-repository matrix, repeat fresh
-  M5 roots, close artifacts/privacy, and obtain independent `AUDIT_PASS` with
-  zero blocker/high/medium findings.
+- [ ] Execute M5-G6: the complete cross-repository matrix, three fresh M5
+  roots, and artifact/privacy closeout pass locally; obtain independent
+  `AUDIT_PASS` with zero blocker/high/medium findings to finish the gate.
