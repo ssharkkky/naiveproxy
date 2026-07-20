@@ -2,7 +2,8 @@
 
 Last updated: 2026-07-20 (Asia/Shanghai)
 
-Status: M5-G0 through M5-G5 complete; M5-G6 closeout is next.
+Status: M5-G0 through M5-G5 and G6 local closeout complete; independent G6
+review is next.
 
 Documentation entry point: [`README.md`](README.md). Verified project state:
 [`native-udp-status.md`](native-udp-status.md). Frozen v1 scope and M0–M6
@@ -466,7 +467,7 @@ Verified result:
 
 ### M5-G6 — complete regressions, artifact closeout, and independent review
 
-Status: next.
+Status: local verification complete; independent review next.
 
 Work:
 
@@ -498,6 +499,25 @@ Exit:
 - M6 receives a frozen MVP artifact and an explicit hardening backlog.
 
 Estimated effort: 1 person-day.
+
+Verified local result:
+
+- all named M1-M3 Release targets/scripts, `M3_NATIVE_UDP_CLIENT_OK`, and all
+  56 TCP HTTP/HTTPS/auth/chain cases pass from the M5 production-client fix;
+- a newly built pinned Caddy binary passed the cumulative M5 G0-G5 path,
+  including one temporary user-domain trust window and the real 125-second
+  production idle case;
+- the non-privileged G1-G4 product matrix passed three further consecutive
+  fresh-root runs, each ending in `M5_G6_FRESH_ROOT_OK`;
+- forwardproxy legacy/cumulative tests, standalone M4 G5 RFC 9298 matrix,
+  uncached normal/race tests, and focused Caddy HTTP tests pass. The standalone
+  matrix again included its 2m5s server-idle, shutdown/restart, resource, and
+  privacy cases;
+- all three repositories pass `git diff --check`; only the pre-existing
+  `.DS_Store` and `src/tmp/` remain untracked in NaiveProxy. No temporary root,
+  test process, generated private key/certificate/log/capture, or forbidden
+  dependency tree remains;
+- local marker: `M5_G6_LOCAL_REGRESSIONS_OK`.
 
 ## 5. Required verification matrix
 
