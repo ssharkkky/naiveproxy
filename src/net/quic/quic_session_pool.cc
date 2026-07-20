@@ -1922,7 +1922,8 @@ int QuicSessionPool::CreateSessionOnProxyStream(
 
   auto socket = std::make_unique<QuicProxyDatagramClientSocket>(
       url, key.session_key().proxy_chain(), user_agent, net_log,
-      /*auth_controller=*/nullptr, proxy_delegate_);
+      /*auth_controller=*/nullptr, proxy_delegate_,
+      /*notify_proxy_delegate_of_response=*/true);
   QuicProxyDatagramClientSocket* socket_ptr = socket.get();
 
   socket->ApplySocketTag(key.session_key().socket_tag());

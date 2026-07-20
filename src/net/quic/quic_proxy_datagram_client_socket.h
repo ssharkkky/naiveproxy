@@ -65,7 +65,8 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
                                 const std::string& user_agent,
                                 const NetLogWithSource& source_net_log,
                                 scoped_refptr<HttpAuthController> auth_controller,
-                                ProxyDelegate* proxy_delegate);
+                                ProxyDelegate* proxy_delegate,
+                                bool notify_proxy_delegate_of_response);
 
   QuicProxyDatagramClientSocket(const QuicProxyDatagramClientSocket&) = delete;
   QuicProxyDatagramClientSocket& operator=(
@@ -260,6 +261,12 @@ class NET_EXPORT_PRIVATE QuicProxyDatagramClientSocket
 
   // This delegate must outlive this proxy client socket.
   const raw_ptr<ProxyDelegate> proxy_delegate_;
+
+  // Some callers need request headers from ProxyDelegate but own response
+  // capability state in a different protocol domain. When false, the CONNECT-
+  // UDP response is still validated normally but is not reported to the
+  // delegate.
+  const bool notify_proxy_delegate_of_response_;
 
   std::string user_agent_;
 

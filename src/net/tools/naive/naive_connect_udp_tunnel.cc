@@ -143,13 +143,13 @@ int NaiveConnectUdpTunnel::DoRequestStreamComplete(int result) {
       session_->http_auth_handler_factory(), session_->host_resolver());
   socket_ = std::make_unique<QuicProxyDatagramClientSocket>(
       url, proxy_chain_, stream_request_->GetUserAgent(), net_log_,
-      std::move(auth_controller), /*proxy_delegate=*/nullptr);
+      std::move(auth_controller), session_->context().proxy_delegate,
+      /*notify_proxy_delegate_of_response=*/false);
 
-  // CONNECT-UDP has its own authentication controller above, but it must not
-  // participate in Naive's TCP padding capability negotiation. Feeding a UDP
-  // response through NaiveProxyDelegate mutates the per-proxy TCP padding
-  // cache and can enable H3 CONNECT fast-open before a TCP response has been
-  // validated. UDP application datagrams remain unpadded in native UDP v1.
+  // Preserve NaiveProxyDelegate's outgoing extra headers, but do not report a
+  // CONNECT-UDP response back into its TCP padding capability cache. Doing so
+  // can enable H3 CONNECT fast-open before a TCP response has been validated.
+  // UDP application datagrams remain unpadded in native UDP v1.
 
   next_state_ = State::kConnectUdpComplete;
   return socket_->ConnectViaStream(
