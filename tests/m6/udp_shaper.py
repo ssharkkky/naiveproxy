@@ -13,6 +13,7 @@ import random
 import selectors
 import socket
 import time
+import types
 
 
 def read_ceiling(path):
@@ -21,6 +22,44 @@ def read_ceiling(path):
     except (OSError, ValueError):
         return 0
     return max(0, value)
+
+
+def read_profile_id(path, fallback):
+    if path is None:
+        return fallback
+    try:
+        value = path.read_text(encoding="ascii").strip()
+    except OSError:
+        return fallback
+    return value or fallback
+
+
+def profile_arguments(args, profile_id):
+    values = {
+        "seed": args.seed,
+        "loss_percent": args.loss_percent,
+        "reorder_percent": args.reorder_percent,
+        "delay_ms": args.delay_ms,
+        "jitter_ms": args.jitter_ms,
+        "reorder_delay_ms": args.reorder_delay_ms,
+        "bandwidth_kbps": args.bandwidth_kbps,
+    }
+    if profile_id == "none":
+        values.update(
+            loss_percent=0,
+            reorder_percent=0,
+            delay_ms=0,
+            jitter_ms=0,
+            bandwidth_kbps=0,
+        )
+    elif args.profiles_file:
+        document = json.loads(args.profiles_file.read_text(encoding="utf-8"))
+        matches = [item for item in document["profiles"] if item["id"] == profile_id]
+        if len(matches) != 1:
+            raise ValueError(f"unknown impairment profile: {profile_id}")
+        values.update(matches[0])
+        values["reorder_delay_ms"] = document["reorder_delay_ms"]
+    return types.SimpleNamespace(**values)
 
 
 class ImpairmentPolicy:
@@ -78,7 +117,10 @@ def parse_args():
     parser.add_argument("--bandwidth-kbps", type=float, default=0)
     parser.add_argument("--profiles-file", type=pathlib.Path)
     parser.add_argument("--profile")
+    parser.add_argument("--profile-control-file", type=pathlib.Path)
     args = parser.parse_args()
+    if args.profile_control_file and not args.profiles_file:
+        parser.error("--profile-control-file requires --profiles-file")
     if args.profile:
         if not args.profiles_file:
             parser.error("--profile requires --profiles-file")
@@ -117,15 +159,16 @@ def main():
     client = None
     sequence = 0
     pending = []
-    policy = ImpairmentPolicy(args)
+    active_profile = None
+    policy = None
     selector = selectors.DefaultSelector()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
     sock.bind((args.listen_host, args.listen_port))
     sock.setblocking(False)
     selector.register(sock, selectors.EVENT_READ)
     started = time.monotonic()
-    profile = args.profile or "custom"
-    print(f"READY udp-shaper profile={profile} seed={args.seed}", flush=True)
+    initial_profile = args.profile or "custom"
+    print(f"READY udp-shaper profile={initial_profile} seed={args.seed}", flush=True)
 
     while True:
         now = time.monotonic()
@@ -168,6 +211,13 @@ def main():
             )
             continue
 
+        requested_profile = read_profile_id(
+            args.profile_control_file, args.profile or "custom"
+        )
+        if requested_profile != active_profile:
+            policy = ImpairmentPolicy(profile_arguments(args, requested_profile))
+            active_profile = requested_profile
+            print(f"PROFILE id={active_profile}", flush=True)
         drop, send_at, reason = policy.decide(
             direction, len(packet), time.monotonic()
         )

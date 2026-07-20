@@ -81,7 +81,14 @@
     "M6_G1_PMTU_ISOLATION_OK",
     "M6_G1_PMTU_NO_REPLAY_OK",
     "M6_G1C_PMTU_RECOVERY_OK",
-    "M6_G1C_PMTU_OK"
+    "M6_G1C_PMTU_OK",
+    "M6_G2_PROFILE_RECOVERY_OK",
+    "M6_G2_UDP_DNS_OK",
+    "M6_G2_CONTROL_CLOSE_OK",
+    "M6_G2_NO_REPLAY_OK",
+    "M6_G2_HTTP3_APPLICATION_OK",
+    "M6_G2_TARGET_ISOLATION_OK",
+    "M6_G2_NETWORK_IMPAIRMENT_OK"
   ],
   "forbidden_artifact_suffixes": [
     ".key",

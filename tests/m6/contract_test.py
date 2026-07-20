@@ -6,6 +6,7 @@ import unittest
 
 
 CONTRACT = pathlib.Path(__file__).with_name("contract.json")
+NETWORK_PROFILES = pathlib.Path(__file__).with_name("network_profiles.json")
 
 
 class M6ContractTest(unittest.TestCase):
@@ -87,6 +88,24 @@ class M6ContractTest(unittest.TestCase):
             payload["ipv6_udp_payload_ceiling_bytes"],
         )
         self.assertIn("pending", payload["status"])
+
+    def test_network_profiles_are_named_seeded_and_privacy_bounded(self) -> None:
+        document = json.loads(NETWORK_PROFILES.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema"], 1)
+        profiles = document["profiles"]
+        self.assertEqual(
+            [profile["id"] for profile in profiles],
+            ["delay", "loss", "reorder", "bandwidth", "combined"],
+        )
+        self.assertEqual(len({profile["seed"] for profile in profiles}), 5)
+        for profile in profiles:
+            self.assertGreater(profile["seed"], 0)
+        self.assertTrue(
+            set(document["committed_evidence_fields"]).isdisjoint(
+                document["forbidden_evidence_fields"]
+            )
+        )
+        self.assertIn("payload", document["forbidden_evidence_fields"])
 
 
 if __name__ == "__main__":
