@@ -2,10 +2,11 @@
 """Product-level RFC 1928 matrix for the M5 production server path."""
 
 import argparse
+from pathlib import Path
 import socket
 import sys
 
-sys.path.insert(0, str(__file__).rsplit("/m5/", 1)[0])
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from socks5_udp_m2 import expect_no_udp, udp_associate, udp_packet
 from socks5_udp_m3 import dns_query, extract_payload

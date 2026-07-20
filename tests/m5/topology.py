@@ -38,19 +38,18 @@ def reserve_udp_port(family: socket.AddressFamily, host: str) -> int:
 
 
 def allocate_topology() -> dict[str, int]:
-    values = {
-        "proxy": reserve_shared_ipv4_port(),
-        "echo_ipv4": reserve_udp_port(socket.AF_INET, "127.0.0.1"),
-        "echo_ipv6": reserve_udp_port(socket.AF_INET6, "::1"),
-        "dns": reserve_udp_port(socket.AF_INET, "127.0.0.1"),
-        "http3": reserve_udp_port(socket.AF_INET, "127.0.0.1"),
-    }
-    ports = list(values.values())
-    if len(set(ports)) != len(ports):
-        raise RuntimeError(f"topology contains duplicate ports: {values}")
-    if FIXED_M4_PORT in ports:
-        raise RuntimeError(f"topology reused forbidden fixed port: {values}")
-    return values
+    for _ in range(100):
+        values = {
+            "proxy": reserve_shared_ipv4_port(),
+            "echo_ipv4": reserve_udp_port(socket.AF_INET, "127.0.0.1"),
+            "echo_ipv6": reserve_udp_port(socket.AF_INET6, "::1"),
+            "dns": reserve_udp_port(socket.AF_INET, "127.0.0.1"),
+            "http3": reserve_udp_port(socket.AF_INET, "127.0.0.1"),
+        }
+        ports = list(values.values())
+        if len(set(ports)) == len(ports) and FIXED_M4_PORT not in ports:
+            return values
+    raise RuntimeError("could not allocate a distinct dynamic topology")
 
 
 def main() -> None:

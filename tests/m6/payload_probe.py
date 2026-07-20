@@ -2,12 +2,13 @@
 """Black-box live payload-ceiling probe through a SOCKS5 UDP relay."""
 
 import argparse
+from pathlib import Path
 import socket
 import sys
 import time
 
 
-REPO_TESTS = str(__file__).rsplit("/m6/", 1)[0]
+REPO_TESTS = str(Path(__file__).resolve().parents[1])
 sys.path.insert(0, REPO_TESTS)
 
 from socks5_udp_m2 import udp_associate, udp_packet  # noqa: E402

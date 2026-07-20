@@ -3,11 +3,12 @@
 
 import argparse
 import os
+from pathlib import Path
 import socket
 import sys
 import time
 
-sys.path.insert(0, str(__file__).rsplit("/m5/", 1)[0])
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from socks5_udp_m2 import expect_no_udp, udp_associate, udp_packet
 
