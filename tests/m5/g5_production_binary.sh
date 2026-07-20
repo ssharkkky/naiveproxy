@@ -29,6 +29,7 @@ h3v6_pid=
 http_pid=
 trust_keychain=${M5_TRUST_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}
 ca_fingerprint=
+ca_fingerprint_sha256=
 ca_certificate=
 server_certificate=
 server_private_key=
@@ -220,7 +221,7 @@ remove_temporary_trust() {
   case "$platform" in
     Darwin)
       security remove-trusted-cert "$ca_certificate" >/dev/null 2>&1 || true
-      security delete-certificate -Z "$ca_fingerprint" "$trust_keychain" \
+      security delete-certificate -Z "$ca_fingerprint_sha256" "$trust_keychain" \
         >/dev/null 2>&1 || true
       ;;
     Linux)
@@ -298,6 +299,8 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -sha256 \
   -keyout "$ca_private_key" -out "$ca_certificate" >/dev/null 2>&1
 ca_fingerprint=$(openssl x509 -in "$ca_certificate" -noout \
   -fingerprint -sha1 | sed 's/^.*=//; s/://g')
+ca_fingerprint_sha256=$(openssl x509 -in "$ca_certificate" -noout \
+  -fingerprint -sha256 | sed 's/^.*=//; s/://g')
 openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=m5-proxy.localhost' \
   -keyout "$server_private_key" -out "$server_request" >/dev/null 2>&1
 printf '%s\n' 'subjectAltName=DNS:m5-proxy.localhost' \

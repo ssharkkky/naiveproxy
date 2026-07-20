@@ -182,7 +182,7 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -sha256 \
   -addext 'keyUsage=critical,keyCertSign,cRLSign' \
   -keyout "$ca_private_key" -out "$ca_certificate" >/dev/null 2>&1
 ca_fingerprint=$(openssl x509 -in "$ca_certificate" -noout \
-  -fingerprint -sha1 | sed 's/^.*=//; s/://g')
+  -fingerprint -sha256 | sed 's/^.*=//; s/://g')
 openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=m5-proxy.localhost' \
   -keyout "$server_private_key" -out "$server_request" >/dev/null 2>&1
 printf '%s\n' 'subjectAltName=DNS:m5-proxy.localhost' \
