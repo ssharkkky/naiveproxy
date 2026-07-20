@@ -84,7 +84,7 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y ninja-build pkg-config ccache bubblewrap openssl
+          sudo apt-get install -y ninja-build pkg-config ccache bubblewrap openssl lsof
           go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.5
 
       - name: Build NaiveProxy Release and native UDP targets
