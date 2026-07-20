@@ -27,8 +27,8 @@ sole low CI-pinning observation was closed by `8f044e2`. M5's independent
 review also returned `AUDIT_PASS` with zero blocker/high/medium findings. The
 active milestone is M6 release hardening. M6-G0 is complete at `80d37395a6`;
 M6-G1 payload/PMTU gate is complete with final marker
-`M6_G1_PAYLOAD_PMTU_OK`; M6-G2 is complete at `028d3984d4`, and G3
-pressure/soak is the next non-privileged gate. G5 found and fixed the
+`M6_G1_PAYLOAD_PMTU_OK`; M6-G2 is complete at `028d3984d4`, and G3's
+qualification soak passed with `M6_G3_STRESS_SOAK_OK`. G5 found and fixed the
 production client's post-`Build()`
 QUIC-parameter ordering defect in `333b7cb253`; its full M1-M3 and 56-case TCP
 owner matrix is green. The controlled QUICHE endpoint remains a test fixture,
@@ -37,8 +37,8 @@ not the production server.
 M6 currently carries a candidate Caddy race fix at `dd9a89c1` (forwardproxy
 build-lock commit `e9663e4`). This supersedes `cce894a8` only for M6
 release-candidate work; the immutable M4 audit remains evidence for its named
-`cce894a8` range. Post-fix G4 and owner regressions are green; G3 and a scoped
-independent audit are still required.
+`cce894a8` range. Post-fix G3/G4 and owner regressions are green; a scoped
+independent audit is still required during G6.
 
 ## Frozen engineering boundaries
 

@@ -1403,7 +1403,7 @@ profile evidence is limited to profile, seed, direction, size, action, reason,
 elapsed time, and aggregate counts; it excludes endpoints, paths, credentials,
 and packet bytes.
 
-### M6-G3 — resource pressure and soak: final qualification running
+### M6-G3 — resource pressure and soak: complete
 
 Commit `325c77b95a` added the bounded association/churn/resource harness. The
 smoke evidence already passed with 256 active client associations, rejection
@@ -1430,8 +1430,30 @@ harness markers passed, but the wrapper emitted only the explicit-duration
 smoke marker rather than `M6_G3_STRESS_SOAK_OK`. It therefore remains useful
 diagnostic evidence and is not counted as qualification. Commit `5257e2757f`
 records the pre-run explicit-duration decision directly; its one-second
-override regression passed. A clean 3600-second
-qualification root is now running with the override removed.
+override regression passed.
+
+The clean command below then completed on Caddy `dd9a89c1` and forwardproxy
+lock `e9663e4`:
+
+```bash
+env -u M6_G3_DURATION_SECONDS M6_G3_TIER=qualification \
+  ./tests/m6/g3_stress_soak.sh
+# M6_G3_ASSOCIATION_CAP_REUSE_OK active=256 rejected=1 reused=64
+# M6_G3_RESOURCE_PEAK process=runner rss_kib=19904 fd=526
+# M6_G3_RESOURCE_PEAK process=caddy rss_kib=44240 fd=13
+# M6_G3_RESOURCE_SAMPLE process=runner rss_before_kib=13392 rss_after_kib=18832 fd_before=10 fd_after=17
+# M6_G3_RESOURCE_SAMPLE process=caddy rss_before_kib=42672 rss_after_kib=40144 fd_before=12 fd_after=13
+# M6_G3_CHURN_OK waves=5787 datagrams=92592
+# M6_G3_RESOURCE_RECOVERY_OK
+# M6_G3_STRESS_HARNESS_OK
+# M6_G3_TIER_OK tier=qualification duration_seconds=3600
+# M6_G3_STRESS_SOAK_OK
+```
+
+The final root had no crash, hang, stale process, capacity leak, privacy leak,
+or replay. Runner RSS remained bounded and runner FDs returned from the
+526-FD admission-test peak to 17; Caddy RSS decreased across the soak and its
+FD count ended at 13.
 
 The G3 harness covers association admission, churn, post-close resource
 recovery, and bounded RSS/FD deltas. M5-G4 remains the inherited evidence for
