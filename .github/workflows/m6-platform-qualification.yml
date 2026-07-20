@@ -17,7 +17,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: m6-platform-${{ github.ref }}
+  group: m6-platform-${{ github.ref }}-${{ inputs.platform }}
   cancel-in-progress: false
 
 env:
