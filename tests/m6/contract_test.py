@@ -8,6 +8,7 @@ import unittest
 CONTRACT = pathlib.Path(__file__).with_name("contract.json")
 NETWORK_PROFILES = pathlib.Path(__file__).with_name("network_profiles.json")
 SOAK_TIERS = pathlib.Path(__file__).with_name("soak_tiers.json")
+ASAN_ARGS = pathlib.Path(__file__).with_name("asan_args.gn")
 
 
 class M6ContractTest(unittest.TestCase):
@@ -119,6 +120,24 @@ class M6ContractTest(unittest.TestCase):
         self.assertEqual(document["client_association_cap"], 256)
         self.assertEqual(document["server_per_client_cap"], 32)
         self.assertLessEqual(document["wave_size"], 32)
+
+    def test_sanitizer_configuration_is_fail_closed(self) -> None:
+        configuration = ASAN_ARGS.read_text(encoding="utf-8")
+        self.assertIn("is_asan = true", configuration)
+        self.assertIn("is_ubsan = true", configuration)
+        self.assertIn("is_ubsan_no_recover = true", configuration)
+        self.assertIn('target_cpu = "arm64"', configuration)
+
+    def test_g4_fuzz_budget_is_frozen(self) -> None:
+        budget = self.contract["g4_fuzz_budget"]
+        self.assertEqual(budget["client_release_seeds"], [20260720, 9298, 1928])
+        self.assertEqual(budget["client_release_iterations_per_seed"], 1000000)
+        self.assertEqual(budget["client_sanitizer_seed"], 20260720)
+        self.assertEqual(budget["client_sanitizer_iterations"], 1000000)
+        self.assertEqual(budget["client_lifecycle_seed"], "0x4d3655494645")
+        self.assertEqual(budget["client_lifecycle_iterations"], 2000)
+        self.assertEqual(budget["server_fuzz_seconds_per_target"], 30)
+        self.assertEqual(budget["server_race_count"], 1)
 
 
 if __name__ == "__main__":

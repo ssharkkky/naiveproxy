@@ -2135,6 +2135,19 @@ if (is_posix && !is_ios) {
     ]
   }
 
+  executable("naive_socks5_udp_fuzz_test") {
+    sources = [
+      "tools/naive/naive_socks5_udp_fuzz_test_bin.cc",
+      "tools/naive/socks5_udp_codec.cc",
+      "tools/naive/socks5_udp_codec.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+    ]
+  }
+
   executable("naive_socks5_server_socket_state_test") {
     sources = [
       "tools/naive/naive_socks5_server_socket_state_test_bin.cc",

@@ -38,7 +38,7 @@ git -C "$forwardproxy_dir" merge-base --is-ancestor \
   "$expected_forwardproxy_fixture" HEAD
 unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
   "$expected_forwardproxy_runtime"..HEAD | \
-  sed '/^tests\/m5\//d; /^tests\/m6\//d')
+  sed '/^tests\/m5\//d; /^tests\/m6\//d; /^native_udp_fuzz_test\.go$/d')
 test -z "$unexpected_server_changes"
 git -C "$forwardproxy_dir" diff --quiet
 
