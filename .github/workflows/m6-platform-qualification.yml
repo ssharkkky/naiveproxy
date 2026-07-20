@@ -338,8 +338,10 @@ jobs:
           apk_path=$(find apk/app/build/outputs/apk/debug -maxdepth 1 -name '*.apk' -print -quit)
           test -n "$apk_path"
           cp "$apk_path" _m6/android-runtime/naiveproxy-plugin-arm64-v8a-debug.apk
-          sha256sum _m6/android-runtime/naiveproxy-plugin-arm64-v8a-debug.apk \
-            >_m6/android-runtime/SHA256SUMS
+          (
+            cd _m6/android-runtime
+            sha256sum naiveproxy-plugin-arm64-v8a-debug.apk >SHA256SUMS
+          )
 
       - name: Upload Android arm64 runtime package
         uses: actions/upload-artifact@v4
