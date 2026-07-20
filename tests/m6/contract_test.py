@@ -238,6 +238,13 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M5_EXPECTED_CLIENT", product)
         self.assertIn("baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285", product)
         self.assertIn("cce894a8a0e987eb1722cf99729499bdaba6c38d", product)
+        self.assertIn("ca_fingerprint_sha256", product)
+        self.assertIn("-fingerprint -sha256", product)
+        self.assertIn("SHA-256 hash: $ca_fingerprint_sha256", product)
+        self.assertLess(
+            product.index("trust_installed=1\n      security add-trusted-cert"),
+            product.index("M5_G5_TRUST_CONFIRMATION_PENDING"),
+        )
 
     def test_g5_desktop_trust_and_linux_ci_are_pinned(self) -> None:
         product = M5_SHIPPED_PRODUCT.read_text(encoding="utf-8")

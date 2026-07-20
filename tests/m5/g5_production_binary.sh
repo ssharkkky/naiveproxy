@@ -166,6 +166,10 @@ stop_naive() {
 install_temporary_trust() {
   case "$platform" in
     Darwin)
+      # Mark cleanup as required before starting the asynchronous keychain
+      # mutation. SecurityAgent can install the certificate just as the
+      # confirmation timeout expires.
+      trust_installed=1
       security add-trusted-cert -r trustRoot -p ssl -k "$trust_keychain" \
         "$ca_certificate" &
       trust_pid=$!
@@ -191,6 +195,7 @@ install_temporary_trust() {
       naive_ssl_cert_file=$ca_certificate
       ;;
     MINGW*|MSYS*|CYGWIN*)
+      trust_installed=1
       certutil -user -addstore Root "$ca_certificate" >/dev/null
       ;;
     *)
@@ -217,17 +222,24 @@ verify_temporary_trust() {
 }
 
 remove_temporary_trust() {
-  [ "$trust_installed" -eq 1 ] || return 0
   case "$platform" in
     Darwin)
+      # Always attempt exact cleanup once a certificate was generated. This
+      # also covers a late SecurityAgent completion after our timeout path.
       security remove-trusted-cert "$ca_certificate" >/dev/null 2>&1 || true
       security delete-certificate -Z "$ca_fingerprint_sha256" "$trust_keychain" \
         >/dev/null 2>&1 || true
+      if security find-certificate -a -Z "$trust_keychain" 2>/dev/null | \
+          grep -q "SHA-256 hash: $ca_fingerprint_sha256"; then
+        return 1
+      fi
       ;;
     Linux)
+      [ "$trust_installed" -eq 1 ] || return 0
       naive_ssl_cert_file=
       ;;
     MINGW*|MSYS*|CYGWIN*)
+      [ "$trust_installed" -eq 1 ] || return 0
       certutil -user -delstore Root "$ca_fingerprint" >/dev/null 2>&1 || true
       ;;
   esac
