@@ -277,7 +277,7 @@ Sub-gates:
 - [x] G5a — freeze and validate the fail-closed platform evidence record;
   initial records remain `not run` and cannot become `verified` without every
   required command, revision, marker, OS version, and architecture field;
-  commit `9869f1d6d1`.
+  contract commit `9869f1d6d1`, runner `09af3795c7`.
 - [ ] G5b — qualify macOS arm64 through the complete row below.
 - [ ] G5c — qualify Linux x64 through the complete row below.
 - [ ] G5d — qualify Windows x64 through the complete row below.

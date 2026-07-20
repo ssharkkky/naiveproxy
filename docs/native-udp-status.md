@@ -1463,12 +1463,22 @@ the audited production runtime is unchanged.
 
 ### M6-G5a — platform evidence contract: complete
 
-Commit `9869f1d6d1` adds the fail-closed platform record and splits G5 into
+Commits `9869f1d6d1` and `09af3795c7` add the fail-closed platform record and
+its contract runner, and split G5 into
 separately attributable macOS arm64, Linux x64, Windows x64, Android arm64,
 and final interoperability sub-gates. All four records remain `not run` until
 their exact OS/architecture, three repository revisions, commands, and markers
 are populated. Contract validation passes, but this is record readiness only;
 it is not platform qualification evidence.
+
+```bash
+./tests/m6/g5_platform_contract.sh
+# M6_G5_PLATFORM_STATE id=macos-arm64 state=not run
+# M6_G5_PLATFORM_STATE id=linux-x64 state=not run
+# M6_G5_PLATFORM_STATE id=windows-x64 state=not run
+# M6_G5_PLATFORM_STATE id=android-arm64 state=not run
+# M6_G5_PLATFORM_CONTRACT_OK
+```
 
 ## Canonical M5 verification commands
 
