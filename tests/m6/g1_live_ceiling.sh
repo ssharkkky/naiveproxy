@@ -80,18 +80,19 @@ expected_caddy=cce894a8a0e987eb1722cf99729499bdaba6c38d
 
 unexpected_client_changes=$(git -C "$repo_dir" diff --name-only \
   "$expected_client"..HEAD -- src/net | \
-  sed '/^src\/net\/tools\/naive\/naive_connect_udp_backend_test_bin\.cc$/d; \
-       /^src\/net\/tools\/naive\/naive_socks5_udp_fuzz_test_bin\.cc$/d; \
-       /^src\/net\/BUILD\.gn$/d')
+  sed -e '/^src\/net\/tools\/naive\/naive_connect_udp_backend_test_bin\.cc$/d' \
+      -e '/^src\/net\/tools\/naive\/naive_socks5_udp_fuzz_test_bin\.cc$/d' \
+      -e '/^src\/net\/BUILD\.gn$/d')
 test -z "$unexpected_client_changes"
 unexpected_worktree_changes=$(git -C "$repo_dir" diff --name-only -- src/net | \
-  sed '/^src\/net\/tools\/naive\/naive_connect_udp_backend_test_bin\.cc$/d; \
-       /^src\/net\/tools\/naive\/naive_socks5_udp_fuzz_test_bin\.cc$/d; \
-       /^src\/net\/BUILD\.gn$/d')
+  sed -e '/^src\/net\/tools\/naive\/naive_connect_udp_backend_test_bin\.cc$/d' \
+      -e '/^src\/net\/tools\/naive\/naive_socks5_udp_fuzz_test_bin\.cc$/d' \
+      -e '/^src\/net\/BUILD\.gn$/d')
 test -z "$unexpected_worktree_changes"
 unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
   "$expected_forwardproxy"..HEAD | \
-  sed '/^tests\/m5\//d; /^tests\/m6\//d; /^native_udp_fuzz_test\.go$/d')
+  sed -e '/^tests\/m5\//d' -e '/^tests\/m6\//d' \
+      -e '/^native_udp_fuzz_test\.go$/d')
 test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
 git -C "$forwardproxy_dir" diff --quiet
