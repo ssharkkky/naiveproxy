@@ -3,7 +3,7 @@
 Last updated: 2026-07-20 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
-[`m5-execution-plan.md`](m5-execution-plan.md).
+[`m6-execution-plan.md`](m6-execution-plan.md).
 
 This is the execution ledger for the native UDP project. The development plan
 defines scope and design; this file records what has actually been built and
@@ -19,13 +19,14 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | Not started | Verification matrix exists | Create M6 execution plan |
+| M6 — hardening and release candidate | Planned; G0 active | G0-G6 execution plan and machine-readable contract added; verification pending | Run M6-G0 contract and environment gate |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
 that ingress with the real M1 CONNECT-UDP tunnel in production while keeping
 the M2 runner independent, and the independent final audit passed. Remaining
-M6 work is recorded in `docs/native-udp-development-plan.md`.
+M6 work is sequenced in `docs/m6-execution-plan.md` and summarized in
+`docs/native-udp-development-plan.md`.
 
 ### Overall progress estimate
 
