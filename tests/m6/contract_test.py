@@ -9,6 +9,9 @@ CONTRACT = pathlib.Path(__file__).with_name("contract.json")
 NETWORK_PROFILES = pathlib.Path(__file__).with_name("network_profiles.json")
 SOAK_TIERS = pathlib.Path(__file__).with_name("soak_tiers.json")
 ASAN_ARGS = pathlib.Path(__file__).with_name("asan_args.gn")
+PLATFORM_QUALIFICATION = pathlib.Path(__file__).with_name(
+    "platform_qualification.json"
+)
 
 
 class M6ContractTest(unittest.TestCase):
@@ -138,6 +141,28 @@ class M6ContractTest(unittest.TestCase):
         self.assertEqual(budget["client_lifecycle_iterations"], 2000)
         self.assertEqual(budget["server_fuzz_seconds_per_target"], 30)
         self.assertEqual(budget["server_race_count"], 1)
+
+    def test_g5_platform_records_fail_closed(self) -> None:
+        document = json.loads(PLATFORM_QUALIFICATION.read_text(encoding="utf-8"))
+        self.assertEqual(document["schema"], 1)
+        expected = [item["id"] for item in self.contract["platforms"]]
+        self.assertEqual(document["required_platforms"], expected)
+        self.assertEqual(
+            set(document["allowed_states"]),
+            set(self.contract["release_policy"]["allowed_states"]),
+        )
+        records = document["platforms"]
+        self.assertEqual([record["id"] for record in records], expected)
+        required = document["required_verified_fields"]
+        for record in records:
+            self.assertIn(record["state"], document["allowed_states"])
+            if record["state"] == "verified":
+                for field in required:
+                    self.assertTrue(record[field], (record["id"], field))
+            else:
+                self.assertNotEqual(record["state"], "verified")
+        self.assertIn("payload", document["forbidden_evidence_fields"])
+        self.assertIn("credential", document["forbidden_evidence_fields"])
 
 
 if __name__ == "__main__":
