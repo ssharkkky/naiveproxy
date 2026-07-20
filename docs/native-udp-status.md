@@ -1246,8 +1246,8 @@ before choosing the release policy. The existing 1200-byte success and
 
 ### M6-G1 — inner payload ceiling and PMTU behavior: in progress
 
-The first narrow test-only step extends the existing production-backend
-deterministic target. It proves that the backend:
+Commit `1870779147` is the first narrow test-only step. It extends the existing
+production-backend deterministic target and proves that the backend:
 
 - admits a payload exactly at the tunnel's current ceiling without truncation;
 - drops ceiling-plus-one before calling tunnel `Write()`;
@@ -1262,10 +1262,19 @@ Verified command and marker:
 ninja -C src/out/Release naive_connect_udp_backend_test
 src/out/Release/naive_connect_udp_backend_test
 # M6_G1_LIVE_CEILING_UNIT_OK
+./tests/socks5_udp_m3.sh
+# M3_NATIVE_UDP_CLIENT_OK
 ```
 
 This is G1a evidence only. It does not establish the release payload value or
 claim a real PMTU change; G1b-G1d remain open.
+
+Hardening observation: the first cumulative M3 invocation stopped in its
+pre-existing idle-reconnect segment before the final marker. With no source or
+configuration change, an immediate full rerun exited `0` through
+`M3_NATIVE_UDP_CLIENT_OK`. The successful rerun is regression evidence, but the
+single transient is retained as a G3/G4 flake/soak investigation input rather
+than being silently counted as a repeated qualification pass.
 
 ## Canonical M5 verification commands
 
