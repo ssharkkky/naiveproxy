@@ -1530,7 +1530,7 @@ it is not platform qualification evidence.
 # M6_G5_PLATFORM_CONTRACT_OK
 ```
 
-### M6-G5b — macOS arm64 qualification: negative preflight complete
+### M6-G5b — macOS arm64 qualification: complete
 
 `tests/m6/g5_macos_qualification.sh` composes an exact-revision macOS arm64
 Release build, the shipped-client product smoke, and focused G2-G4 gates. Its
@@ -1550,10 +1550,35 @@ M6_G5_NEGATIVE_ONLY=1 ./tests/m6/g5_macos_qualification.sh
 # M6_G5B_MACOS_NEGATIVE_ONLY_OK
 ```
 
-This proves current build readiness and default-verifier rejection without
-modifying trust. The macOS platform row remains `not run` until the explicitly
-authorized positive product smoke and focused matrix emit
-`M6_G5B_MACOS_ARM64_OK`; no platform qualification claim is made yet.
+This proved build readiness and default-verifier rejection without modifying
+trust. The later explicitly authorized positive command used one temporary
+user-domain trust window and removed it before the non-privileged focused
+gates:
+
+```bash
+M6_G5_TEMPORARY_TRUST_AUTHORIZED=1 \
+  ./tests/m6/g5_macos_qualification.sh
+# M6_G5B_MACOS_BUILD_OK
+# M6_G5B_MACOS_PRODUCT_OK
+# M6_G2_NETWORK_IMPAIRMENT_OK
+# M6_G3_STRESS_SMOKE_MATRIX_OK
+# M6_G4_SANITIZER_FUZZ_OK
+# M6_G5B_MACOS_ARM64_OK
+```
+
+The shipped binary passed untrusted/trusted default-verifier behavior, UDP
+echo, DNS, an independent HTTP/3 application, ordinary TCP SOCKS, the real
+125-second server idle/reconnect boundary, H3 Datagram wire evidence, and the
+no-padding baseline. All five focused impairment profiles passed; the 60-second
+stress root completed 101 waves/1616 datagrams and reclaimed capacity; the
+full frozen G4 codec/ASan/UBSan/race/Go-fuzz budget passed again. The temporary
+CA was removed and later gates required no trust mutation.
+
+The machine record now binds `verified` macOS arm64 evidence to macOS 26.5.2
+build 25F84, NaiveProxy `350fc4e694c3dece134e5aa110ed24f307733e16`,
+forwardproxy `e9663e4bd7222fd3ec3bd516c71e23fd5d482188`, and Caddy
+`dd9a89c11194dcb806d845233995ef040f096464`. This does not qualify Linux,
+Windows, or Android.
 
 ## Canonical M5 verification commands
 
