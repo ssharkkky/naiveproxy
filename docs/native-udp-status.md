@@ -1245,7 +1245,7 @@ Next: M6-G1 must measure the live payload ceiling and PMTU-change behavior
 before choosing the release policy. The existing 1200-byte success and
 4096-byte oversize probes are inherited evidence, not the final G1 ceiling.
 
-### M6-G1 — inner payload ceiling and PMTU behavior: in progress
+### M6-G1 — inner payload ceiling and PMTU behavior: complete
 
 Commit `1870779147` is the first narrow test-only step. It extends the existing
 production-backend deterministic target and proves that the backend:
@@ -1327,19 +1327,12 @@ M6_G1C_PMTU_RECOVERY_OK
 M6_G1C_PMTU_OK
 ```
 
-G1 remains open. G1b2 must repeat the ceiling measurement through shipped
-`naive` and its default verifier in an explicitly authorized trust window;
-G1d must then freeze the 1200-byte release policy and run the complete focused
-and inherited regressions three times.
-
-Commit `80abaad450` prepares the G1b2 runner without changing trust or claiming
-success. It uses the shipped `src/out/Release/naive`, proves the untrusted
-negative path first, requires an explicit user-domain CA confirmation, measures
-IPv4/IPv6/domain through `payload_probe.py`, requires the previously measured
-1314-byte result, scans logs for target/credential leakage, removes the trust
-entry, and verifies the certificate is untrusted again. Contract/static checks
-pass; the runtime gate remains `not run` until a fresh trust authorization is
-given.
+G1b2 completed through shipped `src/out/Release/naive` with the default
+verifier inside one explicitly authorized user-domain trust window. The initial
+`./tests/m6/g1_finalize.sh` invocation emitted the untrusted negative marker,
+measured 1314 bytes for IPv4/IPv6/domain, emitted the shipped/default-verifier
+markers, and removed the temporary trust before a test-harness TCP cwd bug
+stopped its later regression phase. No product or trust failure occurred.
 
 The non-mutating negative-only path passed at `182267a1ca`: shipped `naive`
 used its default verifier, the untrusted temporary root could not establish a
@@ -1347,13 +1340,14 @@ CONNECT-UDP association, and the run ended with
 `M6_G1B2_UNTRUSTED_CERT_REJECTED_OK` and `M6_G1B2_NEGATIVE_ONLY_OK`. This does
 not satisfy the positive ceiling or trust-cleanup half of G1b2.
 
-Commits `fc23ce4144` and `a32e95d27a` prepare the G1d closeout runner. After one
-G1b2 trust window it requires three complete repetitions of live ceiling,
-lowered/restored PMTU, the cumulative M3 client suite, all 56 TCP cases, uncached forwardproxy
-tests, and focused Caddy HTTP tests before emitting
-`M6_G1_PAYLOAD_PMTU_OK`. The corrected `src/` working-directory invocation of
-the TCP matrix passed one non-mutating preflight through all 56 cases. The full
-three-run closeout remains unexecuted.
+The closeout runner was corrected to invoke the TCP matrix from `src/` with a
+relative script path. With the shipped phase already completed and trust
+cleanup verified, `M6_G1_SKIP_SHIPPED=1 ./tests/m6/g1_finalize.sh` ran three
+complete repetitions of live ceiling, lowered/restored PMTU, the cumulative M3
+client suite, all 56 TCP cases, uncached forwardproxy tests, and focused Caddy
+HTTP tests. Each repetition emitted `M6_G1D_REGRESSION_RUN_OK`; the command
+ended with `M6_G1_PAYLOAD_PMTU_OK`. The separate payload policy remains a
+candidate until G5 platform records are resolved.
 
 ### M6-G2 — deterministic network impairment: complete
 

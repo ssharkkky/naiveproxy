@@ -26,8 +26,9 @@ review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
 sole low CI-pinning observation was closed by `8f044e2`. M5's independent
 review also returned `AUDIT_PASS` with zero blocker/high/medium findings. The
 active milestone is M6 release hardening. M6-G0 is complete at `80d37395a6`;
-M6-G1's shipped-client trust-window check remains open; M6-G2 is complete at
-`028d3984d4`, and G3 pressure/soak is the next non-privileged gate. G5 found and fixed the
+M6-G1 payload/PMTU gate is complete with final marker
+`M6_G1_PAYLOAD_PMTU_OK`; M6-G2 is complete at `028d3984d4`, and G3
+pressure/soak is the next non-privileged gate. G5 found and fixed the
 production client's post-`Build()`
 QUIC-parameter ordering defect in `333b7cb253`; its full M1-M3 and 56-case TCP
 owner matrix is green. The controlled QUICHE endpoint remains a test fixture,
