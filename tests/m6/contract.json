@@ -116,7 +116,8 @@
     "M6_G4_SEEDED_LIFECYCLE_OK",
     "M6_G4_ASAN_UBSAN_OK",
     "M6_G4_GO_RACE_FUZZ_OK",
-    "M6_G4_SANITIZER_FUZZ_OK"
+    "M6_G4_SANITIZER_FUZZ_OK",
+    "M6_G5_PLATFORM_CONTRACT_OK"
   ],
   "forbidden_artifact_suffixes": [
     ".key",
