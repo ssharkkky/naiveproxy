@@ -1409,22 +1409,24 @@ profile evidence is limited to profile, seed, direction, size, action, reason,
 elapsed time, and aggregate counts; it excludes endpoints, paths, credentials,
 and packet bytes.
 
-### M6-G3 — resource pressure and soak: qualification retry running
+### M6-G3 — resource pressure and soak: final qualification running
 
 Commit `325c77b95a` added the bounded association/churn/resource harness. The
 smoke evidence already passed with 256 active client associations, rejection
 of the 257th, reuse of 64 released slots, 101 waves, 1616 product datagrams,
 and recovery of runner/Caddy file descriptors.
 
-The first unshortened qualification body's pressure work also passed: 5634
+The first unshortened qualification body's pressure work on the pre-fix runtime
+also passed: 5634
 waves, 90144 product datagrams, the same 256/257th/64 admission-reuse boundary,
 runner RSS 13376 -> 18496 KiB and FD 10 -> 17, and Caddy RSS 41968 -> 41152
 KiB and FD 12 -> 13. The wrapper then failed without
 `M6_G3_STRESS_SOAK_OK` because its long-running shell had started before the
 G4 allowlist change and reached an inconsistent post-probe branch. That run is
-not counted as a pass. Commit `8ab48dbee1` replaces the non-portable BSD `sed`
-allowlist expressions; a one-second stress smoke completed through privacy and
-harness markers, and a fresh 3600-second qualification root is now running.
+not counted as a pass and was invalidated by the subsequent Caddy race fix.
+Commit `8ab48dbee1` replaces the non-portable BSD `sed` allowlist expressions;
+a one-second stress smoke completed through privacy and harness markers, and a
+fresh 3600-second qualification root is now running on Caddy `dd9a89c1`.
 
 The G3 harness covers association admission, churn, post-close resource
 recovery, and bounded RSS/FD deltas. M5-G4 remains the inherited evidence for

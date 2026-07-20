@@ -213,9 +213,9 @@ artifacts, needs production code, or makes a nondeterministic pass/fail claim.
 
 ### G3 — resource pressure and soak
 
-Status: smoke harness complete; the first qualification body completed but its
-wrapper failed without the final marker. The portable-runner fix is
-`8ab48dbee1`, and a fresh unshortened qualification run is active. Do not
+Status: smoke harness complete; the first qualification body was invalidated
+by the pre-fix Caddy runtime. The portable-runner fix is `8ab48dbee1`, and the
+final unshortened qualification run is active on Caddy `dd9a89c1`. Do not
 record `M6_G3_STRESS_SOAK_OK` until that run exits successfully.
 
 Purpose: prove bounded operation beyond the short M5 concurrency matrix.
