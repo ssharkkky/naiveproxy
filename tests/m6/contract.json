@@ -6,7 +6,7 @@
     "naive_quic_context_fix": "333b7cb253",
     "forwardproxy_runtime": "8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7",
     "forwardproxy_m5_fixture_head": "2b2a8ea",
-    "caddy": "cce894a8a0e987eb1722cf99729499bdaba6c38d",
+    "caddy": "dd9a89c11194dcb806d845233995ef040f096464",
     "go": "1.25.12",
     "xcaddy": "0.4.5",
     "quic_go": "0.59.0",
