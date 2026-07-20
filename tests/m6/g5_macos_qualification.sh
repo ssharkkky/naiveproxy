@@ -63,6 +63,8 @@ if [ "$negative_only" = 1 ]; then
   M5_EXPECTED_CLIENT="$naive_revision" \
   M5_EXPECTED_FORWARDPROXY="$forwardproxy_revision" \
   M5_EXPECTED_CADDY="$caddy_revision" \
+  M5_FORWARDPROXY_DIR="$forwardproxy_dir" \
+  M5_CADDY_DIR="$caddy_dir" \
   M5_CADDY_BIN="$caddy_bin" \
     run_logged product-negative \
       "$repo_dir/tests/m5/g5_production_binary.sh"
@@ -77,6 +79,8 @@ test "${M6_G5_TEMPORARY_TRUST_AUTHORIZED:-0}" = 1
 M5_EXPECTED_CLIENT="$naive_revision" \
 M5_EXPECTED_FORWARDPROXY="$forwardproxy_revision" \
 M5_EXPECTED_CADDY="$caddy_revision" \
+M5_FORWARDPROXY_DIR="$forwardproxy_dir" \
+M5_CADDY_DIR="$caddy_dir" \
 M5_CADDY_BIN="$caddy_bin" \
   run_logged product "$repo_dir/tests/m5/g5_production_binary.sh"
 for marker in M5_G5_UNTRUSTED_CERT_REJECTED_OK \
