@@ -144,6 +144,8 @@ Sub-gates:
   fresh roots measured 1314 bytes; commit `9c72a7da08`.
 - [ ] G1b2 — repeat the frozen measurement through shipped `naive` with the
   default verifier inside one explicitly authorized temporary-trust window.
+  The fail-closed runner is prepared at `80abaad450`; it has not been executed
+  and no trust mutation is authorized by this commit.
 - [x] G1c — lower the outer UDP payload ceiling to 1232 bytes (IPv6 minimum
   PMTU 1280 minus IPv6/UDP headers), then restore it; prove candidate 1200-byte
   delivery, 1314-byte blackhole, recovery, target isolation, no replay, and

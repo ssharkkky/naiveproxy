@@ -1332,6 +1332,15 @@ G1 remains open. G1b2 must repeat the ceiling measurement through shipped
 G1d must then freeze the 1200-byte release policy and run the complete focused
 and inherited regressions three times.
 
+Commit `80abaad450` prepares the G1b2 runner without changing trust or claiming
+success. It uses the shipped `src/out/Release/naive`, proves the untrusted
+negative path first, requires an explicit user-domain CA confirmation, measures
+IPv4/IPv6/domain through `payload_probe.py`, requires the previously measured
+1314-byte result, scans logs for target/credential leakage, removes the trust
+entry, and verifies the certificate is untrusted again. Contract/static checks
+pass; the runtime gate remains `not run` until a fresh trust authorization is
+given.
+
 ### M6-G2 — deterministic network impairment: complete
 
 Commit `028d3984d4` extends the test-only UDP shaper with named, seeded loss,
