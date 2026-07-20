@@ -65,6 +65,16 @@
     "qualification": "hours",
     "extended": "maintainer-scheduled"
   },
+  "g4_fuzz_budget": {
+    "client_release_seeds": [20260720, 9298, 1928],
+    "client_release_iterations_per_seed": 1000000,
+    "client_sanitizer_seed": 20260720,
+    "client_sanitizer_iterations": 1000000,
+    "client_lifecycle_seed": "0x4d3655494645",
+    "client_lifecycle_iterations": 2000,
+    "server_fuzz_seconds_per_target": 30,
+    "server_race_count": 1
+  },
   "g1_payload_candidate": {
     "measured_live_ceiling_bytes": 1314,
     "candidate_safe_payload_bytes": 1200,
@@ -93,7 +103,13 @@
     "M6_G3_CHURN_OK",
     "M6_G3_RESOURCE_RECOVERY_OK",
     "M6_G3_STRESS_SMOKE_OK",
-    "M6_G3_STRESS_SOAK_OK"
+    "M6_G3_STRESS_SOAK_OK",
+    "M6_G4_CODEC_FUZZ_OK",
+    "M6_G4_RELEASE_CODEC_FUZZ_OK",
+    "M6_G4_SEEDED_LIFECYCLE_OK",
+    "M6_G4_ASAN_UBSAN_OK",
+    "M6_G4_GO_RACE_FUZZ_OK",
+    "M6_G4_SANITIZER_FUZZ_OK"
   ],
   "forbidden_artifact_suffixes": [
     ".key",

@@ -161,6 +161,13 @@ void RunUntilIdle() {
   run_loop.RunUntilIdle();
 }
 
+uint64_t NextLifecycleRandom(uint64_t* state) {
+  *state ^= *state << 13;
+  *state ^= *state >> 7;
+  *state ^= *state << 17;
+  return *state;
+}
+
 net::Socks5UdpBackendContext MakeContext(
     unsigned int association_id = 31,
     base::TimeDelta connect_timeout = base::Seconds(10),
@@ -961,6 +968,72 @@ void TestSynchronousReadPumpYield() {
          "posted read pump resumes and arms the next asynchronous read");
 }
 
+void TestSeededLifecycleSchedules() {
+  constexpr size_t kIterations = 2000;
+  uint64_t random = 0x4d3655494645ULL;
+  size_t destroyed_while_connecting = 0;
+  size_t destroyed_while_writing = 0;
+  size_t completed_reads = 0;
+
+  for (size_t iteration = 0; iteration < kIterations; ++iteration) {
+    auto state = std::make_shared<ScriptedTunnelState>();
+    state->start_result =
+        NextLifecycleRandom(&random) % 2 ? net::OK : net::ERR_IO_PENDING;
+    state->write_result =
+        NextLifecycleRandom(&random) % 2 ? 1 : net::ERR_IO_PENDING;
+    auto backend = std::make_unique<net::NaiveConnectUdpDatagramBackend>(
+        MakeContext(static_cast<unsigned int>(1000 + iteration)),
+        base::BindRepeating(
+            [](std::shared_ptr<ScriptedTunnelState> state,
+               const net::Socks5UdpBackendContext&,
+               const net::Socks5UdpEndpoint&)
+                -> std::unique_ptr<net::NaiveConnectUdpTargetTunnel> {
+              return std::make_unique<ScriptedTunnel>(state);
+            },
+            state),
+        base::TimeDelta());
+    backend->Start(base::BindRepeating([](net::Socks5UdpDatagram) {}));
+    backend->Send(Datagram({static_cast<uint8_t>(iteration)}),
+                  net::CompletionOnceCallback());
+
+    if (state->start_callback) {
+      const uint64_t action = NextLifecycleRandom(&random) % 3;
+      if (action == 0) {
+        backend.reset();
+        ++destroyed_while_connecting;
+      } else {
+        CompleteStart(state, action == 1 ? net::OK : net::ERR_FAILED);
+      }
+    }
+    if (backend && state->write_callback) {
+      const uint64_t action = NextLifecycleRandom(&random) % 3;
+      if (action == 0) {
+        backend.reset();
+        ++destroyed_while_writing;
+      } else {
+        CompleteWrite(state, action == 1 ? 1 : net::ERR_CONNECTION_CLOSED);
+      }
+    }
+    if (backend && state->read_callback &&
+        NextLifecycleRandom(&random) % 2) {
+      CompleteRead(state, NextLifecycleRandom(&random) % 2
+                              ? std::vector<uint8_t>{}
+                              : std::vector<uint8_t>{0x42});
+      ++completed_reads;
+    }
+
+    backend.reset();
+    RunUntilIdle();
+    Expect(state->destructions == 1 && !state->start_callback &&
+               !state->write_callback && !state->read_callback,
+           "seeded lifecycle schedule cancels every pending callback");
+  }
+
+  Expect(destroyed_while_connecting > 0 && destroyed_while_writing > 0 &&
+             completed_reads > 0,
+         "seeded lifecycle schedule exercises connect/write/read destruction");
+}
+
 }  // namespace
 
 int main() {
@@ -978,6 +1051,7 @@ int main() {
   TestTargetAndQueueLimits();
   TestTimeoutIdleCooldownAndNoReplay();
   TestSynchronousReadPumpYield();
+  TestSeededLifecycleSchedules();
   if (failures != 0) {
     std::cerr << "M3 G0 failures=" << failures << "\n";
     return 1;
@@ -988,5 +1062,6 @@ int main() {
   std::cout << "M3_G2_FAILURE_ISOLATION_OK\n";
   std::cout << "M3_G5_DETERMINISTIC_LIFECYCLE_OK\n";
   std::cout << "M6_G1_LIVE_CEILING_UNIT_OK\n";
+  std::cout << "M6_G4_SEEDED_LIFECYCLE_OK iterations=2000\n";
   return 0;
 }
