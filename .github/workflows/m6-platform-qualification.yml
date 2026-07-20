@@ -41,7 +41,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ssharkkky/forwardproxy
-          ref: baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285
+          ref: f14924cdedc93c28a2b92c8120538ea5beee28fb
           path: _m6/forwardproxy
           fetch-depth: 0
 
@@ -157,7 +157,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ssharkkky/forwardproxy
-          ref: baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285
+          ref: f14924cdedc93c28a2b92c8120538ea5beee28fb
           path: _m6/forwardproxy
           fetch-depth: 0
 

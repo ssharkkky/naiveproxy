@@ -22,10 +22,12 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   `80d37395a6`.
 - Active M6 gates: G5b-G5f platform qualification and G6 release closeout.
   G1-G4 are complete. G5b is being requalified after a forced-SOCKS TCP probe
-  exposed a forwardproxy padding-negotiation defect; owner fix `baa7f2dd` is
-  pinned for every new platform run. Caddy race fix `dd9a89c1` passed owner
-  regressions and the frozen G4 rerun. G4 implementation commit is
-  `5893f97f6e`. G5a's fail-closed
+  exposed a forwardproxy padding-negotiation defect; owner runtime fix
+  `baa7f2dd` and qualification fixture head `f14924cd` are pinned for every
+  new platform run. The fixture uses a hostless TLS listener because ordinary
+  CONNECT carries the target authority, not the proxy hostname. Caddy race
+  fix `dd9a89c1` passed owner regressions and the frozen G4 rerun. G4
+  implementation commit is `5893f97f6e`. G5a's fail-closed
   platform evidence schema is complete at `9869f1d6d1`; all corrected platform
   runtime rows remain fail-closed until rerun.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
