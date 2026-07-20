@@ -8,10 +8,10 @@ forwardproxy_dir=${M6_FORWARDPROXY_DIR:?set M6_FORWARDPROXY_DIR}
 caddy_dir=${M6_CADDY_DIR:?set M6_CADDY_DIR}
 caddy_bin=${M6_CADDY_BIN:?set M6_CADDY_BIN}
 go_bin=${GO_BIN:-go}
-tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m6-g5c.XXXXXX")
+tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m6-g5d.XXXXXX")
 
 cleanup() {
-  find "$tmp_dir" -type f -exec unlink {} \; >/dev/null 2>&1 || true
+  find "$tmp_dir" -type f -exec rm -f {} \; >/dev/null 2>&1 || true
   find "$tmp_dir" -depth -type d -exec rmdir {} \; >/dev/null 2>&1 || true
 }
 
@@ -29,17 +29,20 @@ run_logged() {
   shift
   output="$tmp_dir/$label.log"
   if ! "$@" >"$output" 2>&1; then
-    printf 'M6 G5c command failed: %s\n' "$label" >&2
+    printf 'M6 G5d command failed: %s\n' "$label" >&2
     tail -120 "$output" >&2 || true
     exit 1
   fi
   cat "$output"
 }
 
-test "$(uname -s)" = Linux
+case "$(uname -s)" in
+  MINGW*|MSYS*|CYGWIN*) ;;
+  *) echo "G5d requires a native Windows runner" >&2; exit 2 ;;
+esac
 case "$(uname -m)" in
   x86_64|amd64) ;;
-  *) echo "G5c requires a native Linux x64 runner" >&2; exit 2 ;;
+  *) echo "G5d requires Windows x64" >&2; exit 2 ;;
 esac
 
 naive_revision=$(git -C "$repo_dir" rev-parse HEAD)
@@ -57,7 +60,7 @@ test "$($go_bin env GOVERSION)" = go1.25.12
 
 ninja -C "$repo_dir/src/out/Release" naive naive_socks5_udp_test \
   naive_connect_udp_backend_test naive_socks5_udp_m3_runner
-echo M6_G5C_LINUX_BUILD_OK
+echo M6_G5D_WINDOWS_BUILD_OK
 
 M5_FORWARDPROXY_DIR="$forwardproxy_dir" \
 M5_CADDY_DIR="$caddy_dir" \
@@ -71,24 +74,16 @@ for marker in M5_G5_UNTRUSTED_CERT_REJECTED_OK \
   M5_G5_PRODUCTION_ECHO_OK M3_G4_DNS_OK \
   M5_G2_HTTP3_APPLICATION_OK M5_G5_PRODUCTION_TCP_OK \
   M5_G4_CONTROL_CLOSE_OK M5_G4_SERVER_IDLE_RECONNECT_OK \
-  M5_G5_DEFAULT_CERT_VERIFIER_OK \
-  M5_G5_PRODUCTION_BINARY_OK M5_G5_H3_DATAGRAM_EVIDENCE_OK \
-  M5_G5_NO_PADDING_BASELINE_OK M5_G5_TRUST_CLEANUP_OK; do
+  M5_G5_DEFAULT_CERT_VERIFIER_OK M5_G5_PRODUCTION_BINARY_OK \
+  M5_G5_H3_DATAGRAM_EVIDENCE_OK M5_G5_NO_PADDING_BASELINE_OK \
+  M5_G5_TRUST_CLEANUP_OK; do
   grep -q "^$marker" "$tmp_dir/product.log"
 done
-echo M6_G5C_LINUX_PRODUCT_OK
+echo M6_G5D_WINDOWS_PRODUCT_OK
 
-M6_FORWARDPROXY_DIR="$forwardproxy_dir" \
-M6_CADDY_DIR="$caddy_dir" M6_CADDY_BIN="$caddy_bin" \
-M6_G2_REPETITIONS=1 \
-  run_logged impairment "$script_dir/g2_network_matrix.sh"
-grep -q '^M6_G2_NETWORK_IMPAIRMENT_OK$' "$tmp_dir/impairment.log"
-
-M6_FORWARDPROXY_DIR="$forwardproxy_dir" \
-M6_CADDY_DIR="$caddy_dir" M6_CADDY_BIN="$caddy_bin" \
-M6_G3_TIER=smoke \
-  run_logged lifecycle "$script_dir/g3_stress_soak.sh"
-grep -q '^M6_G3_STRESS_SMOKE_MATRIX_OK$' "$tmp_dir/lifecycle.log"
+"$repo_dir/src/out/Release/naive_socks5_udp_test.exe"
+"$repo_dir/src/out/Release/naive_connect_udp_backend_test.exe"
+echo M6_G5D_WINDOWS_FOCUSED_OK
 
 (
   cd "$forwardproxy_dir"
@@ -97,9 +92,9 @@ grep -q '^M6_G3_STRESS_SMOKE_MATRIX_OK$' "$tmp_dir/lifecycle.log"
   tail -120 "$tmp_dir/server.log" >&2 || true
   exit 1
 }
-echo M6_G5C_LINUX_SERVER_OK
+echo M6_G5D_WINDOWS_SERVER_OK
 
 git -C "$repo_dir" diff --check
 git -C "$forwardproxy_dir" diff --check
 git -C "$caddy_dir" diff --check
-echo M6_G5C_LINUX_X64_OK
+echo M6_G5D_WINDOWS_X64_OK

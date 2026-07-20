@@ -32,19 +32,18 @@
   "platforms": [
     {
       "id": "macos-arm64",
-      "state": "verified",
+      "state": "failed",
       "os_version": "macOS 26.5.2 (25F84)",
       "architecture": "arm64",
-      "naive_revision": "350fc4e694c3dece134e5aa110ed24f307733e16",
-      "forwardproxy_revision": "e9663e4bd7222fd3ec3bd516c71e23fd5d482188",
+      "naive_revision": "3de3b340a926da5f1816435db6d3de553ceaf6a2",
+      "forwardproxy_revision": "444667f8f9f61c949ea66a37663f18ed2acae4f0",
       "caddy_revision": "dd9a89c11194dcb806d845233995ef040f096464",
       "build_commands": [
         "ninja -C src/out/Release naive naive_socks5_udp_test naive_connect_udp_backend_test naive_socks5_udp_m3_runner"
       ],
       "runtime_commands": [
-        "./tests/m6/g1_finalize.sh (authorized shipped/default-verifier phase)",
-        "M6_G1_SKIP_SHIPPED=1 ./tests/m6/g1_finalize.sh",
-        "M6_G5_TEMPORARY_TRUST_AUTHORIZED=1 ./tests/m6/g5_macos_qualification.sh"
+        "M6_G5_TEMPORARY_TRUST_AUTHORIZED=1 ./tests/m6/g5_macos_qualification.sh (superseded because loopback TCP honored NO_PROXY)",
+        "./tests/m5/g5_production_binary.sh with --noproxy empty (failed at TCP parity)"
       ],
       "markers": [
         "M6_G1_PAYLOAD_PMTU_OK",
@@ -52,21 +51,11 @@
         "M5_G5_UNTRUSTED_CERT_REJECTED_OK",
         "M5_G5_PRODUCTION_ECHO_OK",
         "M3_G4_DNS_OK",
-        "M5_G2_HTTP3_APPLICATION_OK",
-        "M5_G5_PRODUCTION_TCP_OK",
-        "M5_G4_SERVER_IDLE_RECONNECT_OK",
-        "M5_G5_DEFAULT_CERT_VERIFIER_OK",
-        "M5_G5_PRODUCTION_BINARY_OK",
-        "M5_G5_H3_DATAGRAM_EVIDENCE_OK",
-        "M5_G5_NO_PADDING_BASELINE_OK",
-        "M6_G5B_MACOS_PRODUCT_OK",
-        "M6_G2_NETWORK_IMPAIRMENT_OK",
-        "M6_G3_STRESS_SMOKE_MATRIX_OK",
-        "M6_G4_SANITIZER_FUZZ_OK",
-        "M6_G5B_MACOS_ARM64_OK"
+        "M5_G2_HTTP3_APPLICATION_OK"
       ],
       "limitations": [
-        "Qualification is attributable only to macOS arm64 and does not imply another platform.",
+        "Corrected forced-SOCKS TCP parity failed after successful CONNECT-UDP traffic.",
+        "Requalification must use forwardproxy baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285.",
         "UDP payload padding remains outside native UDP v1."
       ]
     },

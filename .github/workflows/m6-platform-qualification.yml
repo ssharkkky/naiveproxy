@@ -2,17 +2,15 @@ name: M6 platform qualification
 
 on:
   workflow_dispatch:
-  push:
-    branches: [codex/native-udp-foundation]
-    paths:
-      - .github/workflows/m6-platform-qualification.yml
-      - tests/m5/g5_production_binary.sh
-      - tests/m6/**
-      - src/net/**
-      - src/build.sh
-      - src/get-clang.sh
-      - src/get-sysroot.sh
-      - CHROMIUM_VERSION
+    inputs:
+      platform:
+        description: Native platform gate to run
+        required: true
+        type: choice
+        options:
+          - linux-x64
+          - windows-x64
+          - all-desktop
 
 permissions:
   contents: read
@@ -29,6 +27,7 @@ env:
 jobs:
   linux-x64:
     name: Linux x64 G5c
+    if: inputs.platform == 'linux-x64' || inputs.platform == 'all-desktop'
     runs-on: ubuntu-22.04
     timeout-minutes: 120
     steps:
@@ -41,7 +40,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ssharkkky/forwardproxy
-          ref: 444667f8f9f61c949ea66a37663f18ed2acae4f0
+          ref: baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285
           path: _m6/forwardproxy
           fetch-depth: 0
 
@@ -137,4 +136,122 @@ jobs:
         with:
           name: m6-linux-x64-${{ github.sha }}
           path: _m6/evidence/linux-x64.txt
+          if-no-files-found: error
+
+  windows-x64:
+    name: Windows x64 G5d
+    if: inputs.platform == 'windows-x64' || inputs.platform == 'all-desktop'
+    runs-on: windows-2022
+    timeout-minutes: 120
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out NaiveProxy
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Check out pinned forwardproxy
+        uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/forwardproxy
+          ref: baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285
+          path: _m6/forwardproxy
+          fetch-depth: 0
+
+      - name: Check out pinned Caddy
+        uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/caddy
+          ref: dd9a89c11194dcb806d845233995ef040f096464
+          path: _m6/caddy
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache: false
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Restore Windows toolchain
+        uses: actions/cache@v4
+        with:
+          path: |
+            src/third_party/llvm-build/Release+Asserts/
+            src/gn/
+            ~/bin/ninja.exe
+          key: toolchains-win-${{ hashFiles('CHROMIUM_VERSION') }}-v${{ env.CACHE_EPOCH }}
+
+      - name: Restore Windows x64 PGO profile
+        uses: actions/cache@v4
+        with:
+          path: src/chrome/build/pgo_profiles/chrome-win64-*
+          key: pgo-win64-${{ hashFiles('CHROMIUM_VERSION') }}-v${{ env.CACHE_EPOCH }}
+
+      - name: Install build dependencies
+        run: |
+          mkdir -p "$HOME/bin"
+          if [ ! -x "$HOME/bin/ninja.exe" ]; then
+            curl -fsSLO https://github.com/ninja-build/ninja/releases/download/v1.13.1/ninja-win.zip
+            unzip -q ninja-win.zip -d "$HOME/bin"
+          fi
+          echo "$HOME/bin" >>"$GITHUB_PATH"
+          go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.5
+
+      - name: Build NaiveProxy Release and native UDP targets
+        working-directory: src
+        env:
+          EXTRA_FLAGS: 'target_cpu="x64"'
+        run: |
+          ./get-clang.sh
+          ./build.sh
+          ninja -C out/Release naive_socks5_udp_test \
+            naive_connect_udp_backend_test naive_socks5_udp_m3_runner
+
+      - name: Build pinned Caddy and forwardproxy server
+        run: |
+          workspace=$(cygpath -u "$GITHUB_WORKSPACE")
+          mkdir -p "$workspace/_m6/forwardproxy/build"
+          GO_BIN="$(command -v go)" \
+          XCADDY_BIN="$(go env GOPATH)/bin/xcaddy" \
+          CADDY_SOURCE_DIR="$workspace/_m6/caddy" \
+            "$workspace/_m6/forwardproxy/scripts/build-naive-caddy.sh" \
+            "$workspace/_m6/forwardproxy/build/m4-caddy.exe"
+
+      - name: Run Windows x64 qualification
+        env:
+          GO_BIN: go
+          PYTHONDONTWRITEBYTECODE: "1"
+        run: |
+          workspace=$(cygpath -u "$GITHUB_WORKSPACE")
+          M6_FORWARDPROXY_DIR="$workspace/_m6/forwardproxy" \
+          M6_CADDY_DIR="$workspace/_m6/caddy" \
+          M6_CADDY_BIN="$workspace/_m6/forwardproxy/build/m4-caddy.exe" \
+            ./tests/m6/g5_windows_qualification.sh | tee _m6/windows-x64.log
+          grep -q '^M6_G5D_WINDOWS_X64_OK$' _m6/windows-x64.log
+
+      - name: Write redacted platform evidence
+        if: always()
+        run: |
+          mkdir -p _m6/evidence
+          {
+            echo 'platform=windows-x64'
+            echo "os=$(cmd.exe /c ver | tr -d '\r')"
+            echo "architecture=$(uname -m)"
+            echo "naive_revision=$(git rev-parse HEAD)"
+            echo "forwardproxy_revision=$(git -C _m6/forwardproxy rev-parse HEAD)"
+            echo "caddy_revision=$(git -C _m6/caddy rev-parse HEAD)"
+            grep '^M[356]_' _m6/windows-x64.log 2>/dev/null || true
+          } >_m6/evidence/windows-x64.txt
+
+      - name: Upload redacted evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: m6-windows-x64-${{ github.sha }}
+          path: _m6/evidence/windows-x64.txt
           if-no-files-found: error

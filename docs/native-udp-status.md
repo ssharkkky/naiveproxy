@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0/G2/G4 complete; G1/G3/G5/G6 open | G0 contract, G1b1/G1c measurements, three-run G2 impairment matrix, post-fix G4 frozen-budget gate, G5a record contract; G3 qualification is next | G3 qualification, then shipped-client G1b2/G1d |
+| M6 — hardening and release candidate | In progress; G0-G4 complete; G5/G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract | Requalify macOS, rerun Linux, then Windows/Android/G5f |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -1530,7 +1530,7 @@ it is not platform qualification evidence.
 # M6_G5_PLATFORM_CONTRACT_OK
 ```
 
-### M6-G5b — macOS arm64 qualification: complete
+### M6-G5b — macOS arm64 qualification: superseded pending requalification
 
 `tests/m6/g5_macos_qualification.sh` composes an exact-revision macOS arm64
 Release build, the shipped-client product smoke, and focused G2-G4 gates. Its
@@ -1566,21 +1566,34 @@ M6_G5_TEMPORARY_TRUST_AUTHORIZED=1 \
 # M6_G5B_MACOS_ARM64_OK
 ```
 
-The shipped binary passed untrusted/trusted default-verifier behavior, UDP
+The original run reported untrusted/trusted default-verifier behavior, UDP
 echo, DNS, an independent HTTP/3 application, ordinary TCP SOCKS, the real
 125-second server idle/reconnect boundary, H3 Datagram wire evidence, and the
 no-padding baseline. All five focused impairment profiles passed; the 60-second
 stress root completed 101 waves/1616 datagrams and reclaimed capacity; the
 full frozen G4 codec/ASan/UBSan/race/Go-fuzz budget passed again. The temporary
-CA was removed and later gates required no trust mutation.
+CA was removed and later gates required no trust mutation. The TCP claim is
+superseded by the corrected forced-SOCKS evidence below; the remaining markers
+retain their historical value but do not close the current platform row.
 
-The machine record now binds `verified` macOS arm64 evidence to macOS 26.5.2
+The first machine record bound `verified` macOS arm64 evidence to macOS 26.5.2
 build 25F84, NaiveProxy `350fc4e694c3dece134e5aa110ed24f307733e16`,
 forwardproxy `e9663e4bd7222fd3ec3bd516c71e23fd5d482188`, and Caddy
-`dd9a89c11194dcb806d845233995ef040f096464`. This does not qualify Linux,
-Windows, or Android.
+`dd9a89c11194dcb806d845233995ef040f096464`. This did not qualify Linux,
+Windows, or Android, and it no longer satisfies the corrected G5 contract.
 
-### M6-G5c — Linux x64 qualification: runner prepared, runtime not run
+The loopback TCP parity command used `curl --proxy` while `NO_PROXY` included
+loopback, so the successful macOS response could be direct. Adding
+`--noproxy ''` reproduced the real defect on macOS and Linux: a successful
+CONNECT-UDP response cached proxy padding as `None`; the later fast-open TCP
+CONNECT sent unpadded bytes while forwardproxy expected Variant1. The narrow
+owner fix `baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285` advertises the negotiated
+padding capability on CONNECT-UDP responses without padding UDP DATAGRAM
+payloads. A controlled M3 production-path runner then completed a real SOCKS
+TCP request and logged `negotiated padding type: Variant1`. macOS remains
+fail-closed until the shipped/default-verifier matrix is rerun on that commit.
+
+### M6-G5c — Linux x64 qualification: failed runs retained; corrected rerun pending
 
 The shipped-product fixture now selects the platform default verifier without
 a bypass: macOS uses its temporary user-domain root, native Linux reads a
@@ -1606,6 +1619,14 @@ runtime defect. Forwardproxy fixture commit `444667f` adds
 `auto_https disable_redirects`; the HTTPS/H3 listener and production module
 stack are unchanged. That failed run is build evidence only and is not counted
 as G5c runtime qualification.
+
+The second native-x64 run, GitHub Actions `29729141865`, built NaiveProxy and
+the pinned production server successfully, then passed shipped UDP echo, DNS,
+and the independent HTTP/3 application probe. Its forced TCP parity request
+timed out, exposing the cross-protocol padding-cache defect described above;
+it did not emit `M6_G5C_LINUX_X64_OK` and is not qualification evidence. The
+next runner pins forwardproxy `baa7f2dd` and forces SOCKS independently of
+`NO_PROXY`.
 
 ## Canonical M5 verification commands
 
