@@ -1,8 +1,8 @@
 # Native UDP M5 End-to-End MVP Execution Plan
 
-Last updated: 2026-07-19 (Asia/Shanghai)
+Last updated: 2026-07-20 (Asia/Shanghai)
 
-Status: M5-G0 through M5-G3 complete; M5-G4 is the next implementation gate.
+Status: M5-G0 through M5-G5 complete; M5-G6 closeout is next.
 
 Documentation entry point: [`README.md`](README.md). Verified project state:
 [`native-udp-status.md`](native-udp-status.md). Frozen v1 scope and M0–M6
@@ -351,7 +351,7 @@ Verified result:
 
 ### M5-G4 — lifecycle, restart, reconnect, idle expiry, and no replay
 
-Status: next.
+Status: complete.
 
 Work:
 
@@ -383,7 +383,29 @@ M5_G4_NO_REPLAY_OK
 
 Estimated effort: 1–2 person-days.
 
+Verified result:
+
+- `tests/m5/g4_lifecycle_matrix.sh` owns the non-privileged lifecycle matrix:
+  idle/open/pending control-channel teardown, two stop/restart cycles of the
+  pinned production server, forced outer-QUIC session close with two targets,
+  and the real 30-second production client target-idle boundary;
+- unique payload sequence counts prove every pre-failure datagram appears
+  exactly once, every deliberately ambiguous datagram appears zero times, and
+  only a later fresh datagram creates replacement state;
+- server restart and outer-QUIC recovery keep the SOCKS association alive and
+  isolate unrelated targets; every replacement tunnel is newly observed in
+  client/server evidence;
+- the privileged two-minute production server-idle case is intentionally
+  composed into G5's single shipped-binary trust window. G5 emitted
+  `M5_G4_SERVER_IDLE_RECONNECT_OK`, observed server `idle_expired`, and then
+  accepted a later fresh datagram;
+- markers: `M5_G4_CONTROL_CLOSE_OK`, `M5_G4_SERVER_RESTART_OK`,
+  `M5_G4_QUIC_RECONNECT_OK`, `M5_G4_CLIENT_IDLE_RECONNECT_OK`,
+  `M5_G4_IDLE_RECONNECT_OK`, and `M5_G4_NO_REPLAY_OK`.
+
 ### M5-G5 — production binary, wire evidence, and no-padding baseline
+
+Status: complete.
 
 Work:
 
@@ -414,7 +436,37 @@ M5_G5_NO_PADDING_BASELINE_OK
 
 Estimated effort: 1–2 person-days.
 
+Verified result:
+
+- the first production run exposed an existing initialization-order defect:
+  `naive_proxy_bin.cc` mutated `QuicContext` only after `builder.Build()`, but
+  `QuicSessionPool` had already copied the params. Commit `333b7cb253` moves
+  the existing RFCv1/forced-origin configuration before Build without adding
+  a verifier bypass or touching `NaiveConnection`, TCP padding, or the UDP
+  data plane;
+- before the fix, the macOS default verifier accepted the temporary user root
+  but QUIC closed it as an unknown root because the forced-origin allowlist was
+  absent. After the fix, the untrusted negative still failed and the trusted
+  positive succeeded through `CertVerifier::CreateDefault()`;
+- the temporary root was installed only in the current user's login keychain
+  after explicit user confirmation, then its trust and generated certificate
+  were removed and the same server certificate was verified untrusted again;
+- the shipped `out/Release/naive` passed authenticated IPv4 echo,
+  deterministic DNS, the independent SOCKS5-UDP HTTP/3 request, ordinary TCP
+  SOCKS, and the real 125-second production server-idle/reconnect case;
+- client NetLog and production server lifecycle evidence prove redacted
+  CONNECT-UDP plus H3 DATAGRAM. The encrypted UDP tap retained only size,
+  direction, relative time, and connection age for echo, DNS, and HTTP/3
+  windows; v1 deliberately adds no Naive-specific UDP padding;
+- the complete owner-specific M1, M2, M3, `M3_NATIVE_UDP_CLIENT_OK`, and
+  56-case TCP matrix passed after `333b7cb253`;
+- markers: `M5_G5_DEFAULT_CERT_VERIFIER_OK`,
+  `M5_G5_PRODUCTION_BINARY_OK`, `M5_G5_H3_DATAGRAM_EVIDENCE_OK`, and
+  `M5_G5_NO_PADDING_BASELINE_OK`.
+
 ### M5-G6 — complete regressions, artifact closeout, and independent review
+
+Status: next.
 
 Work:
 
@@ -475,6 +527,9 @@ Expected M5 changes in NaiveProxy:
 - an independent test-only SOCKS5-UDP PacketConn/HTTP3 application probe;
 - narrowly shared non-sensitive fixture helpers where duplication would make
   lifecycle cleanup less reliable;
+- the separately justified `naive_proxy_bin.cc` configuration-order fix in
+  `333b7cb253`, with the complete client owner matrix and G5 default-verifier
+  evidence inside the final audit boundary;
 - M5 status, evidence manifest, and documentation updates.
 
 Expected M5 changes in forwardproxy:

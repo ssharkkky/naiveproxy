@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-07-19 (Asia/Shanghai)
+Last updated: 2026-07-20 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -15,9 +15,9 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   `2bb83aec`.
 - M4 final server marker: `M4_NATIVE_UDP_SERVER_OK`; forwardproxy `8f044e2`,
   Caddy `cce894a8`.
-- Active milestone: M5 end-to-end MVP. M5-G0 through G3 are complete; M5-G4
-  is next.
-- Overall progress remains 5 of 7 milestones (71%), approximately 75-80% by
+- Active milestone: M5 end-to-end MVP. M5-G0 through G5 are complete; M5-G6
+  closeout and independent review are next.
+- Overall progress remains 5 of 7 milestones (71%), approximately 88-90% by
   weighted engineering scope.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   native UDP commits.
@@ -131,11 +131,14 @@ G1 proved the first authenticated production-server echo; G2 completed the
 addressing, DNS, payload, multiplexing, concurrency, and independent HTTP/3
 application matrix; G3 proved authentication/policy failures, admission,
 malformed/spoofed input isolation, exact non-QUIC rejection, and cross-layer
-privacy. M5-G4 now owns lifecycle, restart, reconnect, idle, and no-replay
-evidence. Shipped-binary trust evidence still belongs to G5.
+privacy. G4 proved control teardown, two server restarts, outer-QUIC recovery,
+real client idle, and no replay. G5 proved the shipped binary with the default
+certificate verifier, real production server idle, ordinary TCP SOCKS, H3
+DATAGRAM evidence, and the v1 no-padding baseline. M5-G6 now owns complete
+regressions, artifact closeout, the final marker, and independent review.
 
-The deterministic M3 runner is valid for the broad M5 matrix because it uses
-the real production backend/factory, but M5 completion also requires a
-separate smoke through the shipped `naive` binary and its default certificate
-verifier. See [`m5-execution-plan.md`](m5-execution-plan.md) for the exact gate
-distinction.
+The deterministic M3 runner remains the broad-matrix fixture because it uses
+the real production backend/factory. The separate shipped-`naive` smoke now
+passes with `CertVerifier::CreateDefault()` after the QUIC configuration-order
+fix in `333b7cb253`. See [`m5-execution-plan.md`](m5-execution-plan.md) for the
+exact gate distinction and G6 closeout boundary.

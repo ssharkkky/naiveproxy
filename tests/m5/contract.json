@@ -2,6 +2,7 @@
   "schema": 1,
   "inputs": {
     "naive_m3_closeout": "2bb83aec36",
+    "naive_m5_quic_context_fix": "333b7cb253",
     "forwardproxy": "8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7",
     "forwardproxy_m5_fixture": "d922441fda8594ce3250cc1be9e98a0fdefe4cc4",
     "forwardproxy_m5_security_fixture": "88ac298e9dcfc6d8ffe1619cfcdd90fb7e54397d",
@@ -20,9 +21,9 @@
   },
   "trust": {
     "platform": "macOS",
-    "strategy": "temporary user-domain trust entry backed by a temporary keychain",
+    "strategy": "temporary user-domain trust entry installed in the current user's login keychain for the production smoke",
     "negative_before_positive": true,
-    "cleanup": "remove trust entry, delete keychain, verify certificate is untrusted again",
+    "cleanup": "remove the trust entry and generated certificate by exact fingerprint, then verify the server certificate is untrusted again",
     "production_bypass_allowed": false
   },
   "http3_probe": {
@@ -71,8 +72,14 @@
     "M5_G4_CONTROL_CLOSE_OK",
     "M5_G4_SERVER_RESTART_OK",
     "M5_G4_QUIC_RECONNECT_OK",
+    "M5_G4_CLIENT_IDLE_RECONNECT_OK",
+    "M5_G4_SERVER_IDLE_RECONNECT_OK",
     "M5_G4_IDLE_RECONNECT_OK",
     "M5_G4_NO_REPLAY_OK",
+    "M5_G4_LIFECYCLE_MATRIX_OK",
+    "M5_G5_UNTRUSTED_CERT_REJECTED_OK",
+    "M5_G5_PRODUCTION_ECHO_OK",
+    "M5_G5_PRODUCTION_TCP_OK",
     "M5_G5_DEFAULT_CERT_VERIFIER_OK",
     "M5_G5_PRODUCTION_BINARY_OK",
     "M5_G5_H3_DATAGRAM_EVIDENCE_OK",
