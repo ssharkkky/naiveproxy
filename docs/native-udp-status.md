@@ -1598,6 +1598,15 @@ revision evidence. Local macOS checks validate its shell/static contract, but
 they are not Linux runtime evidence; the Linux platform row remains `not run`
 until the remote job emits `M6_G5C_LINUX_X64_OK`.
 
+The first native-x64 run, GitHub Actions `29727010346`, completed the full
+Naive Release/native-UDP build and pinned Caddy/forwardproxy build, then
+stopped before product traffic because Caddy's automatic HTTPS redirect tried
+to bind privileged Linux port 80. This is fixture portability rather than a
+runtime defect. Forwardproxy fixture commit `444667f` adds
+`auto_https disable_redirects`; the HTTPS/H3 listener and production module
+stack are unchanged. That failed run is build evidence only and is not counted
+as G5c runtime qualification.
+
 ## Canonical M5 verification commands
 
 ```bash
