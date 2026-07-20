@@ -17,7 +17,9 @@ G1_SHIPPED_CEILING = pathlib.Path(__file__).with_name("g1_shipped_ceiling.sh")
 G1_FINALIZE = pathlib.Path(__file__).with_name("g1_finalize.sh")
 G4_RUNNER = pathlib.Path(__file__).with_name("g4_sanitizer_fuzz.sh")
 G5_MACOS_RUNNER = pathlib.Path(__file__).with_name("g5_macos_qualification.sh")
+G5_LINUX_RUNNER = pathlib.Path(__file__).with_name("g5_linux_qualification.sh")
 M5_SHIPPED_PRODUCT = pathlib.Path(__file__).parents[1] / "m5" / "g5_production_binary.sh"
+G5_WORKFLOW = pathlib.Path(__file__).parents[2] / ".github" / "workflows" / "m6-platform-qualification.yml"
 CADDY_DIR = pathlib.Path(
     os.environ.get("M6_CADDY_DIR", "/path/to/caddy-naive-udp-m4")
 )
@@ -225,6 +227,26 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M5_EXPECTED_CLIENT", product)
         self.assertIn("8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7", product)
         self.assertIn("cce894a8a0e987eb1722cf99729499bdaba6c38d", product)
+
+    def test_g5_desktop_trust_and_linux_ci_are_pinned(self) -> None:
+        product = M5_SHIPPED_PRODUCT.read_text(encoding="utf-8")
+        self.assertIn("SSL_CERT_FILE", product)
+        self.assertIn("certutil -user -addstore Root", product)
+        self.assertIn("certutil -user -delstore Root", product)
+        self.assertIn("M5_G5_TRUST_CLEANUP_OK", product)
+
+        runner = G5_LINUX_RUNNER.read_text(encoding="utf-8")
+        self.assertIn('test "$(uname -s)" = Linux', runner)
+        self.assertIn("x86_64|amd64", runner)
+        self.assertIn("M6_G5C_LINUX_X64_OK", runner)
+        self.assertIn("M6_G2_REPETITIONS=1", runner)
+        self.assertIn("M6_G3_TIER=smoke", runner)
+
+        workflow = G5_WORKFLOW.read_text(encoding="utf-8")
+        self.assertIn("runs-on: ubuntu-22.04", workflow)
+        self.assertIn("e9663e4bd7222fd3ec3bd516c71e23fd5d482188", workflow)
+        self.assertIn("dd9a89c11194dcb806d845233995ef040f096464", workflow)
+        self.assertIn("g5_linux_qualification.sh", workflow)
 
 
 if __name__ == "__main__":

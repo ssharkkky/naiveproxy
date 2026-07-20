@@ -284,7 +284,9 @@ Sub-gates:
 - [x] G5b — qualify macOS arm64 through the complete row below. The
   authorized shipped-product and focused G2-G4 matrix passed on macOS 26.5.2
   arm64 and the exact evidence record is `verified`.
-- [ ] G5c — qualify Linux x64 through the complete row below.
+- [ ] G5c — qualify Linux x64 through the complete row below. A native-x64
+  fail-closed runner and pinned GitHub Actions job are prepared; runtime
+  evidence remains `not run` until the remote job succeeds.
 - [ ] G5d — qualify Windows x64 through the complete row below.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below.
