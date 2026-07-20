@@ -56,6 +56,7 @@
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_config_service_fixed.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "net/quic/quic_context.h"
 #include "net/socket/client_socket_pool.h"
 #include "net/socket/client_socket_pool_manager.h"
 #include "net/socket/ssl_client_socket.h"
@@ -272,15 +273,20 @@ std::unique_ptr<URLRequestContext> BuildURLRequestContext(
     builder.set_ssl_config_service(std::make_unique<NoPostQuantum>());
   }
 
-  auto context = builder.Build();
-
   if (!config.origins_to_force_quic_on.empty()) {
-    auto* quic = context->quic_context()->params();
+    // QuicSessionPool copies QuicParams while the URLRequestContext is built.
+    // Configure explicit QUIC proxy origins first so the proof verifier sees
+    // the same forced-origin set as the connection scheduler.
+    auto quic_context = std::make_unique<QuicContext>();
+    auto* quic = quic_context->params();
     quic->supported_versions = {quic::ParsedQuicVersion::RFCv1()};
     quic->origins_to_force_quic_on.insert(
         config.origins_to_force_quic_on.begin(),
         config.origins_to_force_quic_on.end());
+    builder.set_quic_context(std::move(quic_context));
   }
+
+  auto context = builder.Build();
 
   for (const auto& [k, v] : config.auth_store) {
     auto* session = context->http_transaction_factory()->GetSession();
