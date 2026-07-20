@@ -1580,6 +1580,24 @@ forwardproxy `e9663e4bd7222fd3ec3bd516c71e23fd5d482188`, and Caddy
 `dd9a89c11194dcb806d845233995ef040f096464`. This does not qualify Linux,
 Windows, or Android.
 
+### M6-G5c — Linux x64 qualification: runner prepared, runtime not run
+
+The shipped-product fixture now selects the platform default verifier without
+a bypass: macOS uses its temporary user-domain root, native Linux reads a
+temporary per-process `SSL_CERT_FILE`, and Windows uses the temporary user Root
+store. Every positive path removes its trust input and starts shipped `naive`
+again to require `M5_G5_TRUST_CLEANUP_OK` from an untrusted connection.
+
+`tests/m6/g5_linux_qualification.sh` requires native `Linux x86_64`, exact
+NaiveProxy/forwardproxy/Caddy revisions, Go 1.25.12, and a reproducibly built
+server. It composes shipped-client echo, DNS, independent H3, TCP, trust,
+server idle, focused impairment, lifecycle pressure, and server regressions.
+The pinned `.github/workflows/m6-platform-qualification.yml` job runs on an
+actual GitHub-hosted Ubuntu x64 runner and retains only aggregate marker and
+revision evidence. Local macOS checks validate its shell/static contract, but
+they are not Linux runtime evidence; the Linux platform row remains `not run`
+until the remote job emits `M6_G5C_LINUX_X64_OK`.
+
 ## Canonical M5 verification commands
 
 ```bash

@@ -7,8 +7,15 @@ repo_dir=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 forwardproxy_dir=${M5_FORWARDPROXY_DIR:-/Users/stoneshi/Documents/naive-forwardproxy-m4}
 caddy_dir=${M5_CADDY_DIR:-/Users/stoneshi/Documents/caddy-naive-udp-m4}
 caddy_bin=${M5_CADDY_BIN:-$forwardproxy_dir/build/m4-caddy}
-go_bin=${GO_BIN:-/Users/stoneshi/.local/naive-m4/go1.25.12/bin/go}
+default_go=go
+if [ -x /Users/stoneshi/.local/naive-m4/go1.25.12/bin/go ]; then
+  default_go=/Users/stoneshi/.local/naive-m4/go1.25.12/bin/go
+fi
+go_bin=${GO_BIN:-$default_go}
 naive_bin="$repo_dir/src/out/Release/naive"
+if [ -x "$repo_dir/src/out/Release/naive.exe" ]; then
+  naive_bin="$repo_dir/src/out/Release/naive.exe"
+fi
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m5-g5.XXXXXX")
 caddy_pid=
 naive_pid=
@@ -26,6 +33,9 @@ ca_certificate=
 server_certificate=
 server_private_key=
 socks_port=
+naive_ssl_cert_file=
+trust_installed=0
+platform=$(uname -s)
 
 cleanup() {
   for pid in "$trust_pid" "$naive_pid" "$tap_pid" "$caddy_pid" \
@@ -36,13 +46,7 @@ cleanup() {
       wait "$pid" 2>/dev/null || true
     fi
   done
-  if [ -n "$ca_certificate" ]; then
-    security remove-trusted-cert "$ca_certificate" >/dev/null 2>&1 || true
-  fi
-  if [ -n "$ca_fingerprint" ]; then
-    security delete-certificate -Z "$ca_fingerprint" "$trust_keychain" \
-      >/dev/null 2>&1 || true
-  fi
+  remove_temporary_trust >/dev/null 2>&1 || true
   if [ "${M5_KEEP_ARTIFACTS:-0}" = 1 ]; then
     printf '%s\n' "M5_G5_ARTIFACTS=$tmp_dir" >&2
   else
@@ -134,10 +138,19 @@ start_naive() {
   socks_port=$(reserve_tcp_port)
   naive_log="$tmp_dir/naive-$label.log"
   net_log="$tmp_dir/netlog-$label.json"
-  "$naive_bin" --listen="socks://127.0.0.1:$socks_port" \
-    --proxy="quic://m5-user:m5-pass@m5-proxy.localhost:$tap_port" \
-    --host-resolver-rules='MAP m5-proxy.localhost 127.0.0.1' --log \
-    --log-net-log="$net_log" >"$naive_log" 2>&1 &
+  if [ -n "$naive_ssl_cert_file" ]; then
+    env SSL_CERT_FILE="$naive_ssl_cert_file" \
+      "$naive_bin" --listen="socks://127.0.0.1:$socks_port" \
+      --proxy="quic://m5-user:m5-pass@m5-proxy.localhost:$tap_port" \
+      --host-resolver-rules='MAP m5-proxy.localhost 127.0.0.1' --log \
+      --log-net-log="$net_log" >"$naive_log" 2>&1 &
+  else
+    env -u SSL_CERT_FILE \
+      "$naive_bin" --listen="socks://127.0.0.1:$socks_port" \
+      --proxy="quic://m5-user:m5-pass@m5-proxy.localhost:$tap_port" \
+      --host-resolver-rules='MAP m5-proxy.localhost 127.0.0.1' --log \
+      --log-net-log="$net_log" >"$naive_log" 2>&1 &
+  fi
   naive_pid=$!
   wait_for_log 'Listening on socks://127.0.0.1:' "$naive_log" "$naive_pid" 240 || \
     fail_with_logs "production naive did not become ready: $label"
@@ -150,26 +163,74 @@ stop_naive() {
 }
 
 install_temporary_trust() {
-  security add-trusted-cert -r trustRoot -p ssl -k "$trust_keychain" \
-    "$ca_certificate" &
-  trust_pid=$!
-  printf '%s\n' M5_G5_TRUST_CONFIRMATION_PENDING >&2
-  timeout=${M5_TRUST_CONFIRM_TIMEOUT_SECONDS:-180}
-  elapsed=0
-  while kill -0 "$trust_pid" 2>/dev/null; do
-    if [ "$elapsed" -ge "$timeout" ]; then
-      kill "$trust_pid" 2>/dev/null || true
-      wait "$trust_pid" 2>/dev/null || true
+  case "$platform" in
+    Darwin)
+      security add-trusted-cert -r trustRoot -p ssl -k "$trust_keychain" \
+        "$ca_certificate" &
+      trust_pid=$!
+      printf '%s\n' M5_G5_TRUST_CONFIRMATION_PENDING >&2
+      timeout=${M5_TRUST_CONFIRM_TIMEOUT_SECONDS:-180}
+      elapsed=0
+      while kill -0 "$trust_pid" 2>/dev/null; do
+        if [ "$elapsed" -ge "$timeout" ]; then
+          kill "$trust_pid" 2>/dev/null || true
+          wait "$trust_pid" 2>/dev/null || true
+          trust_pid=
+          return 1
+        fi
+        sleep 1
+        elapsed=$((elapsed + 1))
+      done
+      wait "$trust_pid"
+      result=$?
       trust_pid=
-      return 1
-    fi
-    sleep 1
-    elapsed=$((elapsed + 1))
-  done
-  wait "$trust_pid"
-  result=$?
-  trust_pid=
-  return "$result"
+      [ "$result" -eq 0 ] || return "$result"
+      ;;
+    Linux)
+      naive_ssl_cert_file=$ca_certificate
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      certutil -user -addstore Root "$ca_certificate" >/dev/null
+      ;;
+    *)
+      return 2
+      ;;
+  esac
+  trust_installed=1
+}
+
+verify_temporary_trust() {
+  case "$platform" in
+    Darwin)
+      security verify-cert -c "$server_certificate" -p ssl \
+        -s m5-proxy.localhost >/dev/null
+      ;;
+    Linux)
+      openssl verify -CAfile "$ca_certificate" "$server_certificate" \
+        >/dev/null
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      certutil -user -verify "$server_certificate" >/dev/null
+      ;;
+  esac
+}
+
+remove_temporary_trust() {
+  [ "$trust_installed" -eq 1 ] || return 0
+  case "$platform" in
+    Darwin)
+      security remove-trusted-cert "$ca_certificate" >/dev/null 2>&1 || true
+      security delete-certificate -Z "$ca_fingerprint" "$trust_keychain" \
+        >/dev/null 2>&1 || true
+      ;;
+    Linux)
+      naive_ssl_cert_file=
+      ;;
+    MINGW*|MSYS*|CYGWIN*)
+      certutil -user -delstore Root "$ca_fingerprint" >/dev/null 2>&1 || true
+      ;;
+  esac
+  trust_installed=0
 }
 
 baseline_rows() {
@@ -318,9 +379,8 @@ if [ "${M5_G5_STOP_AFTER_NEGATIVE:-0}" = 1 ]; then
 fi
 
 install_temporary_trust || \
-  fail_with_logs "temporary macOS trust confirmation did not complete"
-security verify-cert -c "$server_certificate" -p ssl \
-  -s m5-proxy.localhost >/dev/null
+  fail_with_logs "temporary platform trust installation did not complete"
+verify_temporary_trust || fail_with_logs "temporary trust verification failed"
 
 baseline="$tmp_dir/no-padding-baseline.csv"
 start_tap positive "$baseline"
@@ -407,14 +467,15 @@ fi
 
 stop_naive
 stop_tap
-security remove-trusted-cert "$ca_certificate"
-security delete-certificate -Z "$ca_fingerprint" "$trust_keychain" \
-  >/dev/null 2>&1 || true
-ca_fingerprint=
-if security verify-cert -c "$server_certificate" -p ssl \
-  -s m5-proxy.localhost >/dev/null 2>&1; then
-  fail_with_logs "temporary production root remained trusted"
-fi
+remove_temporary_trust
+
+start_tap cleanup "$tmp_dir/cleanup-shape.csv"
+start_naive cleanup
+python3 "$script_dir/g3_matrix.py" --mode target-failure \
+  --socks-port "$socks_port" --target-port "$echo_port" \
+  --marker M5_G5_TRUST_CLEANUP_OK
+stop_naive
+stop_tap
 
 echo M5_G4_IDLE_RECONNECT_OK
 echo M5_G5_DEFAULT_CERT_VERIFIER_OK

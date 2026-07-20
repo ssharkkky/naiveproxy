@@ -121,7 +121,11 @@
     "M6_G5B_MACOS_BUILD_OK",
     "M6_G5B_MACOS_NEGATIVE_ONLY_OK",
     "M6_G5B_MACOS_PRODUCT_OK",
-    "M6_G5B_MACOS_ARM64_OK"
+    "M6_G5B_MACOS_ARM64_OK",
+    "M6_G5C_LINUX_BUILD_OK",
+    "M6_G5C_LINUX_PRODUCT_OK",
+    "M6_G5C_LINUX_SERVER_OK",
+    "M6_G5C_LINUX_X64_OK"
   ],
   "forbidden_artifact_suffixes": [
     ".key",
