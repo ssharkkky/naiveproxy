@@ -1,0 +1,22 @@
+{
+  "schema": 1,
+  "tiers": {
+    "smoke": 60,
+    "qualification": 3600,
+    "extended": 21600
+  },
+  "wave_size": 16,
+  "client_association_cap": 256,
+  "server_per_client_cap": 32,
+  "recovery_rss_absolute_kib": 65536,
+  "recovery_rss_ratio": 1.5,
+  "recovery_fd_delta": 32,
+  "committed_metrics": [
+    "tier",
+    "duration_seconds",
+    "waves",
+    "datagrams",
+    "rss_kib",
+    "fd_count"
+  ]
+}
