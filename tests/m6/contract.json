@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "inputs": {
+    "naive_m5_final": "e70ee79e056020b288e402b0a8fecfa67fb5aab4",
+    "naive_m5_audited": "eaf172d9713dafc6519d8c4a6b8ba3a290c222de",
+    "naive_quic_context_fix": "333b7cb253",
+    "forwardproxy_runtime": "8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7",
+    "forwardproxy_m5_fixture_head": "2b2a8ea",
+    "caddy": "cce894a8a0e987eb1722cf99729499bdaba6c38d",
+    "go": "1.25.12",
+    "xcaddy": "0.4.5",
+    "quic_go": "0.59.0",
+    "chromium": "150.0.7871.63"
+  },
+  "protocol": {
+    "native_udp": "RFC 9298 CONNECT-UDP over HTTP/3 DATAGRAM",
+    "context_id": 0,
+    "all_quic_proxy_chain_required": true,
+    "datagram_replay_allowed": false,
+    "udp_payload_padding_v1": false,
+    "forbidden_transports": [
+      "UoT",
+      "UDP-over-stream",
+      "Capsule data path",
+      "private framing",
+      "second QUIC stack"
+    ]
+  },
+  "gates": [
+    {"id": "G0", "name": "release contract and environment readiness", "marker": "M6_G0_CONTRACT_OK"},
+    {"id": "G1", "name": "inner payload ceiling and PMTU behavior", "marker": "M6_G1_PAYLOAD_PMTU_OK"},
+    {"id": "G2", "name": "deterministic network impairment", "marker": "M6_G2_NETWORK_IMPAIRMENT_OK"},
+    {"id": "G3", "name": "resource pressure and soak", "marker": "M6_G3_STRESS_SOAK_OK"},
+    {"id": "G4", "name": "fuzz sanitizer race and lifecycle hardening", "marker": "M6_G4_SANITIZER_FUZZ_OK"},
+    {"id": "G5", "name": "platform qualification", "marker": "M6_G5_PLATFORM_QUALIFICATION_OK"},
+    {"id": "G6", "name": "release candidate closeout and independent audit", "marker": "M6_NATIVE_UDP_RELEASE_CANDIDATE_OK"}
+  ],
+  "release_policy": {
+    "allowed_states": ["verified", "not run", "blocked", "failed"],
+    "close_requires": "all required gates and platforms verified",
+    "open_blocker_allowed": false,
+    "open_high_allowed": false,
+    "open_medium_allowed": false,
+    "low_requires_owner_and_mitigation": true
+  },
+  "platforms": [
+    {"id": "macos-arm64", "required": true, "g0_state": "verified", "runtime": "full shipped-client product and G1-G4 focused gates"},
+    {"id": "linux-x64", "required": true, "g0_state": "not run", "runtime": "echo DNS H3 application TCP trust impairment lifecycle"},
+    {"id": "windows-x64", "required": true, "g0_state": "not run", "runtime": "echo DNS H3 application TCP trust control-close reconnect"},
+    {"id": "android-arm64", "required": true, "g0_state": "not run", "runtime": "host-app echo DNS H3 application TCP trust app lifecycle"}
+  ],
+  "environment": {
+    "g0_host": "macos-arm64",
+    "impairment_default": "non-privileged seeded user-space UDP shaper",
+    "privileged_impairment_required": false,
+    "required_release_targets": [
+      "naive",
+      "naive_socks5_udp_test",
+      "naive_connect_udp_backend_test",
+      "naive_socks5_udp_m3_runner"
+    ]
+  },
+  "duration_tiers": {
+    "smoke": "minutes",
+    "qualification": "hours",
+    "extended": "maintainer-scheduled"
+  },
+  "forbidden_artifact_suffixes": [
+    ".key",
+    ".pem",
+    ".crt",
+    ".cer",
+    ".log",
+    ".pcap",
+    ".pcapng",
+    ".qlog",
+    ".dmp"
+  ],
+  "final_marker": "M6_NATIVE_UDP_RELEASE_CANDIDATE_OK"
+}

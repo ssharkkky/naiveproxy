@@ -11,8 +11,9 @@ Read these files in order before changing code:
 
 1. `docs/README.md` — documentation map, authority rules, and handoff checklist.
 2. `docs/native-udp-status.md` — verified current state and exact test commands.
-3. `docs/m5-execution-plan.md` — the active M5 G0–G6 product-composition plan.
-4. `docs/m5-agy-audit.md` — completed independent M5 product audit.
+3. `docs/m6-execution-plan.md` — the active M6 G0–G6 release-hardening plan.
+4. `docs/m5-agy-audit.md` and `docs/m5-execution-plan.md` — completed M5
+   product boundary and independent audit.
 5. `docs/native-udp-development-plan.md` — frozen v1 scope and M0–M6 roadmap.
 6. `docs/m4-execution-plan.md` and `docs/m4-agy-audit.md` — completed server
    implementation and audit history.
@@ -24,7 +25,7 @@ revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
 review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
 sole low CI-pinning observation was closed by `8f044e2`. M5's independent
 review also returned `AUDIT_PASS` with zero blocker/high/medium findings. The
-next milestone is M6 release hardening. G5 found and fixed the production
+active milestone is M6 release hardening. G5 found and fixed the production
 client's post-`Build()`
 QUIC-parameter ordering defect in `333b7cb253`; its full M1-M3 and 56-case TCP
 owner matrix is green. The controlled QUICHE endpoint remains a test fixture,
@@ -76,8 +77,8 @@ not the production server.
 
 1. Confirm all three recorded repositories and branches with `git status -sb`
    before editing.
-2. Read the completed M5 audit boundary and the M6 scope/exit criteria in
-   `docs/native-udp-development-plan.md`; create an M6 execution plan before
+2. Read the active gate, contracts, risks, and stop conditions in
+   `docs/m6-execution-plan.md`, plus the completed M5 audit boundary, before
    changing a runtime boundary.
 3. Make the narrowest client, server, or test-harness change needed for one
    gate; do not mix unrelated cross-repository changes into one commit.

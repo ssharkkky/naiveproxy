@@ -18,6 +18,7 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - M5 final marker: `M5_NATIVE_UDP_MVP_OK`; audited client revision
   `eaf172d971`.
 - Active milestone: M6 hardening and release-candidate qualification.
+- Active gate: M6-G0 release contract and environment readiness.
 - Overall progress is 6 of 7 milestones (86%), approximately 90-92% by
   weighted engineering scope.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
@@ -38,6 +39,7 @@ SOCKS5 UDP / HTTP3 application
 | Document | Role | Update policy |
 | --- | --- | --- |
 | [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
+| [`m6-execution-plan.md`](m6-execution-plan.md) | Active M6 G0-G6 release-hardening sequence, release blockers, platform matrix, risks, and stop conditions | Update while M6 sequencing or contracts change |
 | [`m5-execution-plan.md`](m5-execution-plan.md) | Completed M5 G0-G6 sequencing, contracts, test matrix, and verified results | Historical; factual clarifications only |
 | [`native-udp-development-plan.md`](native-udp-development-plan.md) | Stable v1 scope, architecture, M0-M6 roadmap, estimates, and release boundary | Update only when scope or milestone boundaries change |
 | [`m4-execution-plan.md`](m4-execution-plan.md) | Completed production-server plan and gate record | Historical; factual clarifications only |
@@ -52,14 +54,16 @@ were accepted.
 ## Read in this order
 
 1. [`native-udp-status.md`](native-udp-status.md) — current facts and commands.
-2. [`m5-agy-audit.md`](m5-agy-audit.md) and
+2. [`m6-execution-plan.md`](m6-execution-plan.md) — active release-hardening
+   gate and exit contracts.
+3. [`m5-agy-audit.md`](m5-agy-audit.md) and
    [`m5-execution-plan.md`](m5-execution-plan.md) — completed MVP boundary.
-3. [`native-udp-development-plan.md`](native-udp-development-plan.md) — frozen
+4. [`native-udp-development-plan.md`](native-udp-development-plan.md) — frozen
    v1 scope and remaining M6 boundary.
-4. [`m4-agy-audit.md`](m4-agy-audit.md) and
+5. [`m4-agy-audit.md`](m4-agy-audit.md) and
    [`m4-execution-plan.md`](m4-execution-plan.md) — server evidence inherited
    by M5.
-5. [`m3-agy-audit.md`](m3-agy-audit.md) and
+6. [`m3-agy-audit.md`](m3-agy-audit.md) and
    [`m3-execution-plan.md`](m3-execution-plan.md) — client evidence inherited
    by M5.
 
@@ -99,7 +103,7 @@ git diff --check
 
 Then:
 
-1. Read the status ledger and the complete current M5 gate.
+1. Read the status ledger, active M6 gate, and completed M5 audit boundary.
 2. Verify the pinned M5 inputs: Naive client closeout `2bb83aec`, forwardproxy
    `8f044e2`, and Caddy `cce894a8`.
 3. Inspect the client composition boundaries:

@@ -4,7 +4,9 @@ Last updated: 2026-07-20 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Current verified state:
 [`native-udp-status.md`](native-udp-status.md). Active milestone plan:
-[`m5-execution-plan.md`](m5-execution-plan.md). Completed M4 plan and audit:
+[`m6-execution-plan.md`](m6-execution-plan.md). Completed M5 plan and audit:
+[`m5-execution-plan.md`](m5-execution-plan.md) and
+[`m5-agy-audit.md`](m5-agy-audit.md). Completed M4 plan and audit:
 [`m4-execution-plan.md`](m4-execution-plan.md) and
 [`m4-agy-audit.md`](m4-agy-audit.md).
 
@@ -390,12 +392,23 @@ blocker/high/medium finding.
 
 ### M6 — Hardening and release candidate (10–20 person-days)
 
-- Establish a safe inner payload ceiling and validate PMTU behavior.
-- Run loss, reordering, latency, and constrained-bandwidth tests.
-- Stress association count, queue pressure, and long-running lifecycle.
-- Run sanitizers/fuzzers on SOCKS packet parsing and async lifecycle tests.
-- Validate macOS, Linux, Windows, and Android as separately tracked targets.
-- Document configuration, compatibility, observability, and rollback.
+The detailed sequential plan is in
+[`m6-execution-plan.md`](m6-execution-plan.md):
+
+- G0 freezes audited inputs, release-blocker rules, platform evidence states,
+  duration tiers, artifact privacy, and environment readiness.
+- G1 establishes a safe inner payload policy and validates live-ceiling/PMTU
+  changes, oversize recovery, target isolation, and no replay.
+- G2 runs deterministic loss, reordering, delay, jitter, and constrained-
+  bandwidth profiles through a non-privileged seeded UDP shaper.
+- G3 stresses association, queue, byte, churn, reclamation, and long-running
+  lifecycle behavior with bounded resource evidence.
+- G4 runs parser fuzzing, randomized async lifecycle tests, supported client
+  sanitizers, and server race tests.
+- G5 qualifies macOS arm64, Linux x64, Windows x64, and Android arm64 with
+  separately attributable build/runtime evidence.
+- G6 performs clean pinned builds, full regressions, documentation/rollback
+  closeout, maintainer API approval, and independent audit.
 
 Exit criterion: release checklist passes, no known high-severity lifecycle or
 memory-safety issue remains, and maintainers approve the Chromium API boundary.
@@ -553,3 +566,9 @@ Next:
 - [x] Execute M5-G6: complete cross-repository regressions, three fresh M5
   roots, artifact/privacy closeout, and independent `AUDIT_PASS` with zero
   blocker/high/medium findings; see `docs/m5-agy-audit.md`.
+- [x] Plan M6's G0-G6 release-contract, payload/PMTU, impairment, soak,
+  fuzz/sanitizer, platform, and final-audit sequence in
+  `docs/m6-execution-plan.md`.
+- [ ] Execute M6-G0: verify the machine-readable release contract, audited M5
+  inputs, current-host toolchain, platform evidence states, and focused build
+  readiness without changing production source.
