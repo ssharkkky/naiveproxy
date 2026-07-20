@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | Planned; G0 active | G0-G6 execution plan and machine-readable contract added; verification pending | Run M6-G0 contract and environment gate |
+| M6 — hardening and release candidate | In progress; G0 complete | Release/platform contract, audited-input checks, exact current-host toolchain, and focused build readiness pass; commit `80d37395a6` | M6-G1 payload ceiling and PMTU behavior |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -1176,6 +1176,73 @@ M5_G2_PRODUCT_MATRIX_OK
 Final marker: `M5_NATIVE_UDP_MVP_OK`. M5 is complete; M6 now owns network
 impairment, PMTU, soak, fuzz/sanitizer expansion, multi-platform qualification,
 and release readiness.
+
+## M6 execution baseline — hardening and release candidate
+
+Status: in progress. The active plan is
+[`m6-execution-plan.md`](m6-execution-plan.md).
+
+M6 inherits the independently audited M5 boundary and keeps production client,
+server, and Caddy source frozen unless a later hardening gate exposes a
+reproducible defect. Its sequence is:
+
+```text
+G0  release contract, audited inputs, environment and platform evidence states
+G1  safe inner payload ceiling and PMTU behavior
+G2  deterministic loss/reordering/delay/jitter/bandwidth profiles
+G3  resource pressure, reclamation and long-running soak
+G4  fuzz, sanitizer, race and randomized lifecycle hardening
+G5  macOS/Linux/Windows/Android qualification
+G6  full release checklist, clean builds and independent AUDIT_PASS
+```
+
+### M6-G0 — release contract and environment readiness: complete
+
+- Commit `80d37395a6` adds the G0-G6 plan, machine-readable contract, five
+  contract tests, and a read-only environment/baseline runner.
+- The contract freezes exact M5/client/server/Caddy/toolchain inputs, the
+  RFC 9298/H3 DATAGRAM-only protocol, no replay/no padding decisions,
+  fail-closed blocker policy, duration tiers, and forbidden artifacts.
+- Platform claims remain separate: macOS arm64 is verified as G0 environment-
+  ready; Linux x64, Windows x64, and Android arm64 are explicitly `not run`.
+  They remain required for G5 and are not implied by the current-host pass.
+- G2's default impairment mechanism is a future non-privileged seeded
+  user-space UDP shaper. Available `pf`/`dnctl` facilities are optional and no
+  administrator permission or trust mutation was used by G0.
+- The exact Chromium-matched Clang revision, Python 3, Ninja, Go 1.25.12,
+  xcaddy 0.4.5, four existing Release binaries, all three Git boundaries, M5
+  audit verdict, and source-drift constraints passed.
+- An incremental build of `naive`, `naive_socks5_udp_test`,
+  `naive_connect_udp_backend_test`, and `naive_socks5_udp_m3_runner` reported
+  `ninja: no work to do.`
+- No production source, sibling repository, certificate trust, or generated
+  private artifact changed. Only the pre-existing excluded `.DS_Store` and
+  `src/tmp/` entries remain untracked.
+
+Verified commands:
+
+```bash
+cd /path/to/naiveproxy
+python3 tests/m6/contract_test.py
+./tests/m6/g0_contract.sh
+ninja -C src/out/Release naive naive_socks5_udp_test \
+  naive_connect_udp_backend_test naive_socks5_udp_m3_runner
+git diff --check
+```
+
+Verified markers:
+
+```text
+M6_G0_RELEASE_CONTRACT_OK
+M6_G0_PLATFORM_CONTRACT_OK
+M6_G0_M5_BASELINE_OK
+M6_G0_TOOLCHAIN_OK
+M6_G0_CONTRACT_OK
+```
+
+Next: M6-G1 must measure the live payload ceiling and PMTU-change behavior
+before choosing the release policy. The existing 1200-byte success and
+4096-byte oversize probes are inherited evidence, not the final G1 ceiling.
 
 ## Canonical M5 verification commands
 
