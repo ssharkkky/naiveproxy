@@ -1341,6 +1341,12 @@ entry, and verifies the certificate is untrusted again. Contract/static checks
 pass; the runtime gate remains `not run` until a fresh trust authorization is
 given.
 
+The non-mutating negative-only path passed at `182267a1ca`: shipped `naive`
+used its default verifier, the untrusted temporary root could not establish a
+CONNECT-UDP association, and the run ended with
+`M6_G1B2_UNTRUSTED_CERT_REJECTED_OK` and `M6_G1B2_NEGATIVE_ONLY_OK`. This does
+not satisfy the positive ceiling or trust-cleanup half of G1b2.
+
 ### M6-G2 — deterministic network impairment: complete
 
 Commit `028d3984d4` extends the test-only UDP shaper with named, seeded loss,
