@@ -114,6 +114,7 @@ reconsideration.
 - `eaf172d971` — audited M5 local closeout revision.
 - `e70ee79e05` — complete M5 MVP audit/finalizer record.
 - `80d37395a6` — plan M6 and complete its release-contract/environment gate.
+- `1870779147` — begin M6-G1 with deterministic live-ceiling transition tests.
 
 If repository state has advanced beyond these commits, trust the current Git
 history and the newest status-ledger update rather than this snapshot.

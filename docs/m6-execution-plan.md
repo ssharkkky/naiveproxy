@@ -137,7 +137,7 @@ Sub-gates:
 
 - [x] G1a — deterministic production-backend unit proof for exact ceiling,
   ceiling-plus-one drop, live ceiling reduction, later restoration, exact
-  payload preservation, and accounting.
+  payload preservation, and accounting; commit `1870779147`.
 - [ ] G1b — live shipped-product ceiling measurement for IPv4, IPv6, and
   domain targets without hard-coding a release value.
 - [ ] G1c — lowered/restored PMTU behavior, recovery, isolation, no replay,
