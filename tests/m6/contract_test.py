@@ -19,6 +19,7 @@ G4_RUNNER = pathlib.Path(__file__).with_name("g4_sanitizer_fuzz.sh")
 G5_MACOS_RUNNER = pathlib.Path(__file__).with_name("g5_macos_qualification.sh")
 G5_LINUX_RUNNER = pathlib.Path(__file__).with_name("g5_linux_qualification.sh")
 G5_WINDOWS_RUNNER = pathlib.Path(__file__).with_name("g5_windows_qualification.sh")
+G5_ANDROID_BUILD = pathlib.Path(__file__).with_name("g5_android_build.sh")
 M5_SHIPPED_PRODUCT = pathlib.Path(__file__).parents[1] / "m5" / "g5_production_binary.sh"
 G5_WORKFLOW = pathlib.Path(__file__).parents[2] / ".github" / "workflows" / "m6-platform-qualification.yml"
 CADDY_DIR = pathlib.Path(
@@ -264,6 +265,12 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M5_G4_CONTROL_CLOSE_OK", windows)
         self.assertIn("runs-on: windows-2022", workflow)
         self.assertIn("g5_windows_qualification.sh", workflow)
+
+        android = G5_ANDROID_BUILD.read_text(encoding="utf-8")
+        self.assertIn("Machine:.*AArch64", android)
+        self.assertIn("M6_G5E_ANDROID_ARM64_BUILD_READY", android)
+        self.assertIn("android-arm64-build", workflow)
+        self.assertIn("g5_android_build.sh", workflow)
 
 
 if __name__ == "__main__":

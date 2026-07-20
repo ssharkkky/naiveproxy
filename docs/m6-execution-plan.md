@@ -294,7 +294,9 @@ Sub-gates:
   Windows x64 shipped-product runner and pinned GitHub Actions job are
   prepared; runtime evidence remains `not run` until that job succeeds.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
-  complete row below.
+  complete row below. A separate GitHub-hosted cross-build gate may establish
+  arm64 ELF/APK/provider build readiness, but it cannot change the Android
+  runtime record from fail-closed without a physical arm64 device run.
 - [ ] G5f — confirm cross-platform wire interoperability and close the final
   record without promoting emulation-only evidence to runtime evidence.
 
