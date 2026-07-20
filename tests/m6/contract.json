@@ -117,7 +117,11 @@
     "M6_G4_ASAN_UBSAN_OK",
     "M6_G4_GO_RACE_FUZZ_OK",
     "M6_G4_SANITIZER_FUZZ_OK",
-    "M6_G5_PLATFORM_CONTRACT_OK"
+    "M6_G5_PLATFORM_CONTRACT_OK",
+    "M6_G5B_MACOS_BUILD_OK",
+    "M6_G5B_MACOS_NEGATIVE_ONLY_OK",
+    "M6_G5B_MACOS_PRODUCT_OK",
+    "M6_G5B_MACOS_ARM64_OK"
   ],
   "forbidden_artifact_suffixes": [
     ".key",

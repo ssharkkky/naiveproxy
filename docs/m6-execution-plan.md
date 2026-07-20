@@ -281,7 +281,10 @@ Sub-gates:
   initial records remain `not run` and cannot become `verified` without every
   required command, revision, marker, OS version, and architecture field;
   contract commit `9869f1d6d1`, runner `09af3795c7`.
-- [ ] G5b — qualify macOS arm64 through the complete row below.
+- [ ] G5b — qualify macOS arm64 through the complete row below. The
+  fail-closed runner and its no-trust negative-only path are prepared and
+  verified; the positive product/focused matrix still requires one explicitly
+  authorized temporary trust window.
 - [ ] G5c — qualify Linux x64 through the complete row below.
 - [ ] G5d — qualify Windows x64 through the complete row below.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the

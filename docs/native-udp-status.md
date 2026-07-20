@@ -1530,6 +1530,31 @@ it is not platform qualification evidence.
 # M6_G5_PLATFORM_CONTRACT_OK
 ```
 
+### M6-G5b — macOS arm64 qualification: negative preflight complete
+
+`tests/m6/g5_macos_qualification.sh` composes an exact-revision macOS arm64
+Release build, the shipped-client product smoke, and focused G2-G4 gates. Its
+positive path is fail-closed unless
+`M6_G5_TEMPORARY_TRUST_AUTHORIZED=1` is set for that invocation. The M5
+shipped-product fixture retains its historical default revisions while
+accepting explicit M6 revisions from this wrapper.
+
+The non-mutating negative preflight passed against NaiveProxy `faf6da23fc`,
+forwardproxy `e9663e4`, and Caddy `dd9a89c1`:
+
+```bash
+M6_G5_NEGATIVE_ONLY=1 ./tests/m6/g5_macos_qualification.sh
+# M6_G5B_MACOS_BUILD_OK
+# M5_G5_UNTRUSTED_CERT_REJECTED_OK
+# M5_G5_NEGATIVE_ONLY_OK
+# M6_G5B_MACOS_NEGATIVE_ONLY_OK
+```
+
+This proves current build readiness and default-verifier rejection without
+modifying trust. The macOS platform row remains `not run` until the explicitly
+authorized positive product smoke and focused matrix emit
+`M6_G5B_MACOS_ARM64_OK`; no platform qualification claim is made yet.
+
 ## Canonical M5 verification commands
 
 ```bash

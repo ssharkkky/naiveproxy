@@ -16,6 +16,8 @@ PLATFORM_QUALIFICATION = pathlib.Path(__file__).with_name(
 G1_SHIPPED_CEILING = pathlib.Path(__file__).with_name("g1_shipped_ceiling.sh")
 G1_FINALIZE = pathlib.Path(__file__).with_name("g1_finalize.sh")
 G4_RUNNER = pathlib.Path(__file__).with_name("g4_sanitizer_fuzz.sh")
+G5_MACOS_RUNNER = pathlib.Path(__file__).with_name("g5_macos_qualification.sh")
+M5_SHIPPED_PRODUCT = pathlib.Path(__file__).parents[1] / "m5" / "g5_production_binary.sh"
 CADDY_DIR = pathlib.Path(
     os.environ.get("M6_CADDY_DIR", "/path/to/caddy-naive-udp-m4")
 )
@@ -207,6 +209,22 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn('"$go_bin" test -count=1 ./...', runner)
         self.assertIn("./modules/caddyhttp", runner)
         self.assertIn("M6_G1_PAYLOAD_PMTU_OK", runner)
+
+    def test_g5b_macos_runner_is_explicit_and_fail_closed(self) -> None:
+        runner = G5_MACOS_RUNNER.read_text(encoding="utf-8")
+        self.assertIn('test "$(uname -s)" = Darwin', runner)
+        self.assertIn('test "$(uname -m)" = arm64', runner)
+        self.assertIn("M6_G5_NEGATIVE_ONLY", runner)
+        self.assertIn('test "${M6_G5_TEMPORARY_TRUST_AUTHORIZED:-0}" = 1', runner)
+        self.assertIn("M5_G5_STOP_AFTER_NEGATIVE=1", runner)
+        self.assertIn("M6_G5B_MACOS_ARM64_OK", runner)
+
+        product = M5_SHIPPED_PRODUCT.read_text(encoding="utf-8")
+        self.assertIn("M5_EXPECTED_FORWARDPROXY", product)
+        self.assertIn("M5_EXPECTED_CADDY", product)
+        self.assertIn("M5_EXPECTED_CLIENT", product)
+        self.assertIn("8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7", product)
+        self.assertIn("cce894a8a0e987eb1722cf99729499bdaba6c38d", product)
 
 
 if __name__ == "__main__":
