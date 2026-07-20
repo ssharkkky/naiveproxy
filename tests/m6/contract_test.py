@@ -244,7 +244,7 @@ class M6ContractTest(unittest.TestCase):
 
         workflow = G5_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("runs-on: ubuntu-22.04", workflow)
-        self.assertIn("e9663e4bd7222fd3ec3bd516c71e23fd5d482188", workflow)
+        self.assertIn("444667f8f9f61c949ea66a37663f18ed2acae4f0", workflow)
         self.assertIn("dd9a89c11194dcb806d845233995ef040f096464", workflow)
         self.assertIn("g5_linux_qualification.sh", workflow)
 

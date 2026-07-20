@@ -40,7 +40,7 @@ platform that has not yet been qualified.
 | --- | --- | --- |
 | NaiveProxy M5 closeout | `e70ee79e05` | Must remain an ancestor |
 | Audited NaiveProxy runtime | audited through `eaf172d971`, including `333b7cb253` | Any later `src/net` change reopens the affected client audit boundary |
-| forwardproxy runtime | `8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7` plus build-lock commit `e9663e4` | Later fixture-only work may live under `tests/m6/`; runtime/build-pin changes require owner regressions and review |
+| forwardproxy runtime | `8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7` plus build-lock commit `e9663e4`; platform-fixture head `444667f` | Fixture-only changes do not replace the audited runtime; runtime/build-pin changes require owner regressions and review |
 | forwardproxy M5 fixture head | `2b2a8ea` | Must remain an ancestor of later fixture commits |
 | Caddy | `dd9a89c11194dcb806d845233995ef040f096464` | M6 race-fix pin; owner regression and independent audit required |
 | Server toolchain | Go `1.25.12`, xcaddy `0.4.5`, quic-go `0.59.0` | No floating tool or module versions |

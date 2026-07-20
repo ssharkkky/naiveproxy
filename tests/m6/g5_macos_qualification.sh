@@ -45,7 +45,7 @@ forwardproxy_revision=$(git -C "$forwardproxy_dir" rev-parse HEAD)
 caddy_revision=$(git -C "$caddy_dir" rev-parse HEAD)
 
 git -C "$repo_dir" merge-base --is-ancestor a35e487d8a HEAD
-test "$forwardproxy_revision" = e9663e4bd7222fd3ec3bd516c71e23fd5d482188
+test "$forwardproxy_revision" = 444667f8f9f61c949ea66a37663f18ed2acae4f0
 test "$caddy_revision" = dd9a89c11194dcb806d845233995ef040f096464
 git -C "$repo_dir" diff --quiet -- src/net
 git -C "$forwardproxy_dir" diff --quiet
