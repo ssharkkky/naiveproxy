@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-07-20 (Asia/Shanghai)
+Last updated: 2026-07-23 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
 [`m6-execution-plan.md`](m6-execution-plan.md).
@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0-G4, G5b, and G5f complete; G5c-G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes | Finish Linux/Windows/Android, then G6 |
+| M6 — hardening and release candidate | In progress; G0-G4, G5b, G5c, and G5f complete; G5d-G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64 and Linux x64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes | Finish Windows/Android, then G6 |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -1627,7 +1627,7 @@ The machine record retains `state: not run`. This build evidence does not
 prove host-app UDP/DNS/H3/TCP, trust behavior, or suspend/resume/restart on a
 physical Android arm64 device; those remain required before G5e can close.
 
-### M6-G5c — Linux x64 qualification: failed runs retained; corrected rerun pending
+### M6-G5c — Linux x64 qualification: complete
 
 The shipped-product fixture now selects the platform default verifier without
 a bypass: macOS uses its temporary user-domain root, native Linux reads a
@@ -1641,9 +1641,8 @@ server. It composes shipped-client echo, DNS, independent H3, TCP, trust,
 server idle, focused impairment, lifecycle pressure, and server regressions.
 The pinned `.github/workflows/m6-platform-qualification.yml` job runs on an
 actual GitHub-hosted Ubuntu x64 runner and retains only aggregate marker and
-revision evidence. Local macOS checks validate its shell/static contract, but
-they are not Linux runtime evidence; the Linux platform row remains `not run`
-until the remote job emits `M6_G5C_LINUX_X64_OK`.
+revision evidence. Local macOS checks validate its shell/static contract but
+are not counted as Linux runtime evidence.
 
 The first native-x64 run, GitHub Actions `29727010346`, completed the full
 Naive Release/native-UDP build and pinned Caddy/forwardproxy build, then
@@ -1689,6 +1688,27 @@ resource, and log-privacy markers. Platform qualification scripts and the
 M5 shipped-product default pin now require
 `f14924cdedc93c28a2b92c8120538ea5beee28fb`; the runtime padding fix remains
 separately identified as `baa7f2dd`.
+
+The corrected native run, GitHub Actions `29754432052`, job `88393013948`,
+completed on Ubuntu 22.04.5 LTS x86_64 at NaiveProxy
+`f7e206a308404d8324e609bc0463f3b7dc7734e6`, forwardproxy
+`f14924cdedc93c28a2b92c8120538ea5beee28fb`, and Caddy
+`dd9a89c11194dcb806d845233995ef040f096464`. It reproduced the Release client
+and pinned server, then passed shipped UDP echo, DNS, independent HTTP/3,
+forced-SOCKS TCP, default-verifier rejection/acceptance/cleanup, server idle,
+all five impairment profiles, the 60-second pressure matrix, and server
+regressions. The redacted artifact ended with:
+
+```text
+M6_G5C_LINUX_PRODUCT_OK
+M6_G2_NETWORK_IMPAIRMENT_OK
+M6_G3_STRESS_SMOKE_MATRIX_OK
+M6_G5C_LINUX_SERVER_OK
+M6_G5C_LINUX_X64_OK
+```
+
+The machine-readable platform record now marks `linux-x64` verified. Windows
+and Android remain `not run`.
 
 ### M6-G5f — cross-platform wire interoperability: complete
 

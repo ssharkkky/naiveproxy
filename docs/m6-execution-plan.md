@@ -290,11 +290,11 @@ Sub-gates:
   corrected qualification head is `f14924cd`; its hostless-listener gate,
   shipped/default-verifier product, impairment, stress, and frozen G4 budget
   all pass at NaiveProxy `d402f9261c`.
-- [ ] G5c — qualify Linux x64 through the complete row below. The first native
-  run reached UDP/DNS/H3 but exposed the same TCP parity defect; the corrected
-  runner is pinned to qualification head `f14924cd` (runtime fix `baa7f2dd`)
-  and remains `not run` until a clean remote job
-  emits the final marker.
+- [x] G5c — Linux x64 passed the complete native row in GitHub Actions run
+  `29754432052`, job `88393013948`, at NaiveProxy `f7e206a308`,
+  forwardproxy `f14924cd`, and Caddy `dd9a89c1`. The shipped/default-verifier
+  product, forced-SOCKS TCP, impairment, lifecycle-pressure, and server gates
+  emitted `M6_G5C_LINUX_X64_OK`.
 - [ ] G5d — qualify Windows x64 through the complete row below. A native
   Windows x64 shipped-product runner and pinned GitHub Actions job are
   prepared; runtime evidence remains `not run` until that job succeeds.

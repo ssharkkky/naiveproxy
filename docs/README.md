@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-07-20 (Asia/Shanghai)
+Last updated: 2026-07-23 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -20,7 +20,7 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - Active milestone: M6 hardening and release-candidate qualification.
 - M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
   `80d37395a6`.
-- Active M6 gates: G5c-G5e platform qualification and G6 release closeout.
+- Active M6 gates: G5d-G5e platform qualification and G6 release closeout.
   G1-G4, macOS G5b, and G5f cross-platform wire interoperability are
   complete. The forced-SOCKS TCP probe
   exposed a forwardproxy padding-negotiation defect; owner runtime fix
@@ -31,7 +31,9 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   implementation commit is `5893f97f6e`. G5a's fail-closed
   platform evidence schema is complete at `9869f1d6d1`; macOS arm64 is now
   verified at NaiveProxy `d402f9261c`, forwardproxy `f14924cd`, and Caddy
-  `dd9a89c1`. Linux, Windows, and Android remain fail-closed.
+  `dd9a89c1`. Linux x64 is verified by GitHub Actions run `29754432052` at
+  NaiveProxy `f7e206a308`, the same forwardproxy/Caddy pins, and final marker
+  `M6_G5C_LINUX_X64_OK`. Windows and Android remain fail-closed.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
   weighted engineering scope. This is not a production-release claim while
   G5 and G6 evidence remains open.
