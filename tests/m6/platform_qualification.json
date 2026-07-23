@@ -72,16 +72,42 @@
     },
     {
       "id": "linux-x64",
-      "state": "not run",
-      "os_version": "",
-      "architecture": "",
-      "naive_revision": "",
-      "forwardproxy_revision": "",
-      "caddy_revision": "",
-      "build_commands": [],
-      "runtime_commands": [],
-      "markers": [],
-      "limitations": []
+      "state": "verified",
+      "os_version": "Ubuntu 22.04.5 LTS",
+      "architecture": "x86_64",
+      "naive_revision": "f7e206a308404d8324e609bc0463f3b7dc7734e6",
+      "forwardproxy_revision": "f14924cdedc93c28a2b92c8120538ea5beee28fb",
+      "caddy_revision": "dd9a89c11194dcb806d845233995ef040f096464",
+      "build_commands": [
+        "GitHub Actions run 29754432052 job 88393013948: src/get-clang.sh; src/build.sh; ninja -C src/out/Release naive_socks5_udp_test naive_connect_udp_backend_test naive_socks5_udp_m3_runner",
+        "GitHub Actions run 29754432052 job 88393013948: _m6/forwardproxy/scripts/build-naive-caddy.sh _m6/forwardproxy/build/m4-caddy"
+      ],
+      "runtime_commands": [
+        "GitHub Actions run 29754432052 job 88393013948: ./tests/m6/g5_linux_qualification.sh"
+      ],
+      "markers": [
+        "M6_G5C_LINUX_BUILD_OK",
+        "M5_G5_UNTRUSTED_CERT_REJECTED_OK",
+        "M5_G5_PRODUCTION_ECHO_OK",
+        "M3_G4_DNS_OK",
+        "M5_G2_HTTP3_APPLICATION_OK",
+        "M5_G5_PRODUCTION_TCP_OK",
+        "M5_G4_CONTROL_CLOSE_OK",
+        "M5_G4_SERVER_IDLE_RECONNECT_OK",
+        "M5_G5_DEFAULT_CERT_VERIFIER_OK",
+        "M5_G5_PRODUCTION_BINARY_OK",
+        "M5_G5_H3_DATAGRAM_EVIDENCE_OK",
+        "M5_G5_NO_PADDING_BASELINE_OK",
+        "M5_G5_TRUST_CLEANUP_OK",
+        "M6_G2_NETWORK_IMPAIRMENT_OK",
+        "M6_G3_STRESS_SMOKE_MATRIX_OK",
+        "M6_G5C_LINUX_SERVER_OK",
+        "M6_G5C_LINUX_X64_OK"
+      ],
+      "limitations": [
+        "Qualification uses a GitHub-hosted Ubuntu x64 runner and the hostless TLS-listener fixture required for ordinary CONNECT target authority.",
+        "UDP payload padding remains outside native UDP v1."
+      ]
     },
     {
       "id": "windows-x64",
