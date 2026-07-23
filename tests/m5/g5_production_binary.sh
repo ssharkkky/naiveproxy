@@ -37,7 +37,18 @@ socks_port=
 naive_ssl_cert_file=
 trust_installed=0
 platform=$(uname -s)
-phase=preflight
+phase_file=${M5_G5_PHASE_FILE:-}
+
+set_phase() {
+  phase=$1
+  if [ -n "$phase_file" ]; then
+    phase_tmp="$phase_file.tmp.$$"
+    printf '%s\n' "$phase" >"$phase_tmp"
+    mv -f "$phase_tmp" "$phase_file"
+  fi
+}
+
+set_phase preflight
 case "$platform" in
   MINGW*|MSYS*|CYGWIN*)
     # Git Bash otherwise rewrites OpenSSL's /CN=... subject as a Windows
@@ -298,7 +309,7 @@ export GOMODCACHE="${M5_GO_CACHE_ROOT:-${TMPDIR:-/tmp}/naive-m5-go}/modcache"
 export GOCACHE="${M5_GO_CACHE_ROOT:-${TMPDIR:-/tmp}/naive-m5-go}/buildcache"
 export PYTHONDONTWRITEBYTECODE=1
 
-phase=topology
+set_phase topology
 topology=$(python3 "$script_dir/topology.py")
 topology_value() {
   printf '%s\n' "$topology" | python3 -c \
@@ -323,7 +334,7 @@ h3_request="$tmp_dir/m5-h3.csr"
 h3_certificate="$tmp_dir/m5-h3.pem"
 h3_extension="$tmp_dir/m5-h3.ext"
 
-phase=certificate-generation
+set_phase certificate-generation
 openssl req -x509 -newkey rsa:2048 -nodes -days 1 -sha256 \
   -subj '/CN=Naive M5 Test Root' \
   -addext 'basicConstraints=critical,CA:TRUE' \
@@ -352,14 +363,14 @@ openssl x509 -req -in "$h3_request" -CA "$ca_certificate" \
   -CAkey "$ca_private_key" -CAserial "$tmp_dir/m5-ca.srl" -days 1 -sha256 \
   -extfile "$h3_extension" -out "$h3_certificate" >/dev/null 2>&1
 
-phase=fixture-build
+set_phase fixture-build
 (
   cd "$script_dir"
   "$go_bin" build -trimpath -o "$tmp_dir/h3-origin" ./cmd/h3-origin
   "$go_bin" build -trimpath -o "$tmp_dir/socks-h3-probe" ./cmd/socks-h3-probe
 )
 
-phase=fixture-startup
+set_phase fixture-startup
 python3 -u "$repo_dir/tests/masque_udp_echo.py" --host=127.0.0.1 \
   --port="$echo_port" >"$tmp_dir/echo4.log" 2>&1 &
 echo4_pid=$!
@@ -421,7 +432,7 @@ case "$platform" in
     ;;
 esac
 
-phase=server-startup
+set_phase server-startup
 M5_PROXY_PORT="$proxy_port" M5_SERVER_CERT="$caddy_server_certificate" \
 M5_SERVER_KEY="$caddy_server_private_key" M5_ACCESS_LOG="$caddy_access_log" \
 XDG_DATA_HOME="$caddy_data_home" XDG_CONFIG_HOME="$caddy_config_home" \
@@ -431,7 +442,7 @@ caddy_pid=$!
 wait_for_log 'server running' "$tmp_dir/caddy.log" "$caddy_pid" 240 || \
   fail_with_logs "trusted production Caddy did not become ready"
 
-phase=negative-trust
+set_phase negative-trust
 start_tap negative "$tmp_dir/negative-shape.csv"
 start_naive negative
 python3 "$script_dir/g3_matrix.py" --mode target-failure \
@@ -448,13 +459,13 @@ if [ "${M5_G5_STOP_AFTER_NEGATIVE:-0}" = 1 ]; then
   exit 0
 fi
 
-phase=temporary-trust
+set_phase temporary-trust
 install_temporary_trust || \
   fail_with_logs "temporary platform trust installation did not complete"
 verify_temporary_trust || fail_with_logs "temporary trust verification failed"
 
 baseline="$tmp_dir/no-padding-baseline.csv"
-phase=positive-product
+set_phase positive-product
 start_tap positive "$baseline"
 start_naive positive
 
@@ -537,7 +548,7 @@ with open(windows, encoding="ascii") as source:
 assert entries == ["echo", "dns", "http3"], entries
 PY
 
-phase=privacy
+set_phase privacy
 if grep -E 'm5-g5-production-echo|m5-h3\.localhost|\.well-known/masque/udp|m5-pass|bTUtdXNlcjptNS1wYXNz' \
   "$tmp_dir/caddy.log" "$tmp_dir/access.log" "$naive_log" "$net_log" \
   >/dev/null 2>&1; then
@@ -546,7 +557,7 @@ fi
 
 stop_naive
 stop_tap
-phase=trust-cleanup
+set_phase trust-cleanup
 remove_temporary_trust
 
 start_tap cleanup "$tmp_dir/cleanup-shape.csv"
@@ -557,7 +568,7 @@ python3 "$script_dir/g3_matrix.py" --mode target-failure \
 stop_naive
 stop_tap
 
-phase=complete
+set_phase complete
 echo M5_G4_IDLE_RECONNECT_OK
 echo M5_G5_DEFAULT_CERT_VERIFIER_OK
 echo M5_G5_PRODUCTION_BINARY_OK
