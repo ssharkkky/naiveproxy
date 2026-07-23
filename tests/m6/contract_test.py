@@ -288,6 +288,9 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M6_G5D_WINDOWS_SHIPPED_CLIENT_OK", windows)
         self.assertNotIn("naive_socks5_udp_test.exe", windows)
         self.assertIn("M5_G4_CONTROL_CLOSE_OK", windows)
+        self.assertIn("M6_G5D_PRODUCT_PHASE", windows)
+        self.assertIn("M6_G5D_PRODUCT_TIMEOUT", windows)
+        self.assertIn("M5_G5_PHASE_FILE", M5_SHIPPED_PRODUCT.read_text(encoding="utf-8"))
         self.assertIn("runs-on: windows-2022", workflow)
         self.assertIn("g5_windows_qualification.sh", workflow)
         windows_job = workflow.split("  windows-x64:", 1)[1].split(

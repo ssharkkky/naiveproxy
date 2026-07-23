@@ -36,6 +36,44 @@ run_logged() {
   cat "$output"
 }
 
+run_product_logged() {
+  output="$tmp_dir/product.log"
+  phase_file="$tmp_dir/product.phase"
+  timeout_seconds=${M6_G5D_PRODUCT_TIMEOUT_SECONDS:-1200}
+  elapsed=0
+  previous_phase=
+
+  M5_G5_PHASE_FILE="$phase_file" "$@" >"$output" 2>&1 &
+  product_pid=$!
+  while kill -0 "$product_pid" 2>/dev/null; do
+    if [ -s "$phase_file" ]; then
+      current_phase=$(sed -n '1p' "$phase_file")
+      if [ "$current_phase" != "$previous_phase" ]; then
+        printf 'M6_G5D_PRODUCT_PHASE phase=%s\n' "$current_phase"
+        previous_phase=$current_phase
+      fi
+    fi
+    if [ "$elapsed" -ge "$timeout_seconds" ]; then
+      printf 'M6_G5D_PRODUCT_TIMEOUT phase=%s seconds=%s\n' \
+        "${previous_phase:-unknown}" "$timeout_seconds" >&2
+      kill "$product_pid" 2>/dev/null || true
+      wait "$product_pid" 2>/dev/null || true
+      tail -120 "$output" >&2 || true
+      exit 1
+    fi
+    sleep 2
+    elapsed=$((elapsed + 2))
+  done
+
+  if ! wait "$product_pid"; then
+    printf 'M6 G5d command failed: product phase=%s\n' \
+      "${previous_phase:-unknown}" >&2
+    tail -120 "$output" >&2 || true
+    exit 1
+  fi
+  cat "$output"
+}
+
 case "$(uname -s)" in
   MINGW*|MSYS*|CYGWIN*) ;;
   *) echo "G5d requires a native Windows runner" >&2; exit 2 ;;
@@ -68,7 +106,7 @@ M5_EXPECTED_CLIENT="$naive_revision" \
 M5_EXPECTED_FORWARDPROXY="$forwardproxy_revision" \
 M5_EXPECTED_CADDY="$caddy_revision" \
 GO_BIN="$go_bin" \
-  run_logged product "$repo_dir/tests/m5/g5_production_binary.sh"
+  run_product_logged "$repo_dir/tests/m5/g5_production_binary.sh"
 for marker in M5_G5_UNTRUSTED_CERT_REJECTED_OK \
   M5_G5_PRODUCTION_ECHO_OK M3_G4_DNS_OK \
   M5_G2_HTTP3_APPLICATION_OK M5_G5_PRODUCTION_TCP_OK \
