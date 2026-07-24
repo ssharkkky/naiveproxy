@@ -1800,6 +1800,42 @@ This is a candidate harness correction, not Windows runtime evidence. G5d
 remains fail-closed until a fresh native run emits every required marker and
 ends with `M6_G5D_WINDOWS_X64_OK`.
 
+Run `30097890690`, job `89496376267`, at NaiveProxy `35136124ed` proved the
+H3 resolver correction. In addition to the earlier trust, build, rejection,
+UDP echo, and DNS evidence, it emitted:
+
+```text
+M5_G2_HTTP3_CONNECTION_CLOSED
+M5_G2_HTTP3_APPLICATION_OK
+M5_G5_PRODUCTION_TCP_OK
+```
+
+The next control-close assertion received Python `ConnectionResetError` with
+Windows error `10054` (`WSAECONNRESET`) after sending to the already closed
+local UDP relay. The assertion already accepted POSIX timeout and an explicit
+`ConnectionRefusedError`; no application datagram was delivered. Candidate
+test-oracle commit `3c3db3885c` accepts only `winerror == 10054`, only when the
+caller has explicitly allowed a refused closed relay. Other reset errors and
+unexpected packets still fail. Five behavior tests cover timeout, allowed and
+disallowed 10054, another reset, and unexpected data. The test is also part of
+the three-minute Windows preflight so future regressions fail before the
+Chromium build.
+
+Local candidate verification passed:
+
+```text
+5 Windows UDP error-semantics tests
+19 M6 contract tests
+WORKFLOW_YAML_OK
+M2_SOCKS5_UDP_INGRESS_OK
+Shell syntax checks
+git diff --check
+```
+
+No production source changed. G5d remains fail-closed pending a fresh native
+Windows run through control close, idle/reconnect, trust cleanup, server tests,
+and `M6_G5D_WINDOWS_X64_OK`.
+
 ### M6-G5f — cross-platform wire interoperability: complete
 
 Commit `13df84bfd9` adds a pinned cross-platform gate. The macOS arm64

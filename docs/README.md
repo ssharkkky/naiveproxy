@@ -35,10 +35,12 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   NaiveProxy `f7e206a308`, the same forwardproxy/Caddy pins, and final marker
   `M6_G5C_LINUX_X64_OK`. Windows run `30084029306` passed the trusted-leaf
   preflight, reproducible builds, default-verifier rejection, trusted UDP
-  echo, and DNS, but its independent H3 application probe timed out before a
-  pass marker. Candidate fixture commit `a2e06cc21a` removes the Windows-only
-  wildcard-`.localhost` resolver dependency while retaining a SOCKS domain
-  target; Windows and Android remain fail-closed.
+  echo, and DNS, but its independent H3 application probe timed out. Fixture
+  commit `a2e06cc21a` removed the Windows-only wildcard-`.localhost` resolver
+  dependency; run `30097890690` then passed H3 and TCP before exposing a
+  Windows `WSAECONNRESET` portability gap in the control-close test oracle.
+  Candidate `3c3db3885c` handles only that exact allowed closed-relay result;
+  Windows and Android remain fail-closed.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
   weighted engineering scope. This is not a production-release claim while
   G5 and G6 evidence remains open.
