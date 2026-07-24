@@ -1710,6 +1710,40 @@ M6_G5C_LINUX_X64_OK
 The machine-readable platform record now marks `linux-x64` verified. Windows
 and Android remain `not run`.
 
+### M6-G5d — Windows x64 qualification: fixture repair pending native rerun
+
+GitHub Actions run `30013662603` at NaiveProxy `d958cc8017` reproduced the
+Windows Release client and pinned Caddy/forwardproxy server, then stalled in
+the temporary user-root installation phase. Its original watchdog terminated
+only the MSYS shell while a native child survived. Commit `4b2d50833d` split
+the trust phases, added process-tree termination, and raised the outer job
+budget; the next run proved that process-tree cleanup exits promptly.
+
+Run `30060226705` at `4b2d50833d` again reproduced both binaries and passed the
+real shipped-client untrusted-certificate rejection. It then stopped at
+`temporary-trust-store-check`. Retained redacted evidence showed
+`certutil -user -addstore` reporting success, followed by an exact SHA-1 store
+query returning `NTE_NOT_FOUND`; MSYS process-state polling then remained
+blocked until the 20-minute product watchdog. No positive product marker or
+G5d pass marker was emitted, so neither run is Windows runtime evidence.
+
+Commit `a620d7da7d` removes `certutil` and its MSYS PID polling from the Windows
+fixture. Installation, exact-thumbprint presence, and removal now use
+synchronous .NET `X509Store("Root", CurrentUser)` operations. The real shipped
+`naive.exe` still owns the meaningful trust proof: untrusted failure, positive
+traffic after temporary trust, and failure again after exact cleanup. Local
+non-mutating verification passed:
+
+```text
+M5_G5_UNTRUSTED_CERT_REJECTED_OK
+M5_G5_NEGATIVE_ONLY_OK
+M6_G5_PLATFORM_CONTRACT_OK
+```
+
+Shell syntax and `git diff --check` also pass. The `windows-x64` machine record
+remains `not run`; `a620d7da7d` is a candidate fixture repair until a native
+Windows job emits `M6_G5D_WINDOWS_X64_OK`.
+
 ### M6-G5f — cross-platform wire interoperability: complete
 
 Commit `13df84bfd9` adds a pinned cross-platform gate. The macOS arm64
