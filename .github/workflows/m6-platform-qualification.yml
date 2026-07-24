@@ -193,6 +193,11 @@ jobs:
           path: src/chrome/build/pgo_profiles/chrome-win64-*
           key: pgo-win64-${{ hashFiles('CHROMIUM_VERSION') }}-v${{ env.CACHE_EPOCH }}
 
+      - name: Preflight Windows trusted-leaf store
+        timeout-minutes: 3
+        run: |
+          ./tests/m6/g5_windows_trust_preflight.sh
+
       - name: Install build dependencies
         run: |
           mkdir -p "$HOME/bin"
