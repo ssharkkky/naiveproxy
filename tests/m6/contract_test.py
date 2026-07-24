@@ -26,6 +26,12 @@ G5_CROSS_PLATFORM = pathlib.Path(__file__).with_name(
 )
 G5_LIMA = pathlib.Path(__file__).with_name("lima-g5f.yaml")
 M5_SHIPPED_PRODUCT = pathlib.Path(__file__).parents[1] / "m5" / "g5_production_binary.sh"
+M5_WINDOWS_TRUSTED_LEAF = (
+    pathlib.Path(__file__).parents[1] / "m5" / "windows_trusted_leaf.ps1"
+)
+G5_WINDOWS_TRUST_PREFLIGHT = pathlib.Path(__file__).with_name(
+    "g5_windows_trust_preflight.sh"
+)
 G5_WORKFLOW = pathlib.Path(__file__).parents[2] / ".github" / "workflows" / "m6-platform-qualification.yml"
 CADDY_DIR = pathlib.Path(
     os.environ.get("M6_CADDY_DIR", "/path/to/caddy-naive-udp-m4")
@@ -260,10 +266,13 @@ class M6ContractTest(unittest.TestCase):
 
     def test_g5_desktop_trust_and_linux_ci_are_pinned(self) -> None:
         product = M5_SHIPPED_PRODUCT.read_text(encoding="utf-8")
+        windows_trust = M5_WINDOWS_TRUSTED_LEAF.read_text(encoding="utf-8")
         self.assertIn("SSL_CERT_FILE", product)
-        self.assertIn("X509Store", product)
-        self.assertIn("StoreLocation]::CurrentUser", product)
-        self.assertIn('"Root"', product)
+        self.assertIn("X509Store", windows_trust)
+        self.assertIn("StoreLocation]::LocalMachine", windows_trust)
+        self.assertIn('"TrustedPeople"', windows_trust)
+        self.assertNotIn('"Root"', windows_trust)
+        self.assertIn("must be self-signed", windows_trust)
         self.assertIn("run_windows_trust_store Install", product)
         self.assertIn("run_windows_trust_store Check", product)
         self.assertIn("run_windows_trust_store Remove", product)
@@ -306,6 +315,11 @@ class M6ContractTest(unittest.TestCase):
         windows_job = workflow.split("  windows-x64:", 1)[1].split(
             "  android-arm64-build:", 1
         )[0]
+        preflight = G5_WINDOWS_TRUST_PREFLIGHT.read_text(encoding="utf-8")
+        self.assertIn("M6_G5D_WINDOWS_TRUST_PREFLIGHT_OK", preflight)
+        self.assertIn("windows_trusted_leaf.ps1", preflight)
+        self.assertIn("Preflight Windows trusted-leaf store", windows_job)
+        self.assertIn("timeout-minutes: 3", windows_job)
         self.assertIn("test -x out/Release/naive.exe", windows_job)
         self.assertNotIn("naive_socks5_udp_test", windows_job)
 

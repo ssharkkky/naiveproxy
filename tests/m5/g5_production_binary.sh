@@ -30,6 +30,7 @@ http_pid=
 trust_keychain=${M5_TRUST_KEYCHAIN:-$HOME/Library/Keychains/login.keychain-db}
 ca_fingerprint=
 ca_fingerprint_sha256=
+server_fingerprint=
 ca_certificate=
 server_certificate=
 server_private_key=
@@ -102,70 +103,13 @@ cleanup() {
 run_windows_trust_store() {
   operation=$1
   output="$tmp_dir/windows-trust-$operation.log"
-  powershell_script="$tmp_dir/windows-trust-store.ps1"
+  powershell_script="$script_dir/windows_trusted_leaf.ps1"
 
-  if [ ! -f "$powershell_script" ]; then
-    cat >"$powershell_script" <<'POWERSHELL'
-param(
-  [Parameter(Mandatory = $true)][ValidateSet("Install", "Check", "Remove")]
-  [string]$Operation,
-  [Parameter(Mandatory = $true)][string]$CertificatePath,
-  [Parameter(Mandatory = $true)][string]$ExpectedThumbprint
-)
-
-$ErrorActionPreference = "Stop"
-$expected = ($ExpectedThumbprint -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
-$certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
-  $CertificatePath
-)
-if ($certificate.Thumbprint.ToUpperInvariant() -ne $expected) {
-  throw "temporary certificate thumbprint does not match"
-}
-
-$store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
-  "Root",
-  [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
-)
-try {
-  $openFlags = if ($Operation -eq "Check") {
-    [System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly
-  } else {
-    [System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite
-  }
-  $store.Open($openFlags)
-
-  if ($Operation -eq "Install") {
-    $store.Add($certificate)
-  } elseif ($Operation -eq "Remove") {
-    @($store.Certificates) |
-      Where-Object { $_.Thumbprint.ToUpperInvariant() -eq $expected } |
-      ForEach-Object { $store.Remove($_) }
-  }
-
-  $matches = @(
-    $store.Certificates |
-      Where-Object { $_.Thumbprint.ToUpperInvariant() -eq $expected }
-  ).Count
-  if ($Operation -eq "Remove") {
-    if ($matches -ne 0) {
-      throw "temporary certificate remained in CurrentUser Root"
-    }
-  } elseif ($matches -ne 1) {
-    throw "temporary certificate is not uniquely present in CurrentUser Root"
-  }
-} finally {
-  $store.Close()
-  $store.Dispose()
-  $certificate.Dispose()
-}
-POWERSHELL
-  fi
-
-  powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass \
-    -File "$(cygpath -w "$powershell_script")" \
+  MSYS2_ARG_CONV_EXCL='*' powershell.exe -NoProfile -NonInteractive \
+    -ExecutionPolicy Bypass -File "$(cygpath -w "$powershell_script")" \
     -Operation "$operation" \
-    -CertificatePath "$(cygpath -w "$ca_certificate")" \
-    -ExpectedThumbprint "$ca_fingerprint" >"$output" 2>&1
+    -CertificatePath "$(cygpath -w "$server_certificate")" \
+    -ExpectedThumbprint "$server_fingerprint" >"$output" 2>&1
 }
 
 on_signal() {
@@ -329,8 +273,9 @@ verify_temporary_trust() {
         >/dev/null
       ;;
     MINGW*|MSYS*|CYGWIN*)
-      # Presence in CurrentUser\Root plus the shipped-client positive request
-      # proves the intended trust path without online chain/revocation work.
+      # Chromium's Windows trust store accepts self-signed server leaves from
+      # LocalMachine\TrustedPeople. The shipped-client request remains the
+      # actual default-verifier proof.
       set_phase temporary-trust-store-check
       run_windows_trust_store Check
       ;;
@@ -437,18 +382,42 @@ printf '%s\n' 'subjectAltName=DNS:m5-proxy.localhost' \
   'basicConstraints=critical,CA:FALSE' \
   'keyUsage=critical,digitalSignature,keyEncipherment' \
   'extendedKeyUsage=serverAuth' >"$server_extension"
-openssl x509 -req -in "$server_request" -CA "$ca_certificate" \
-  -CAkey "$ca_private_key" -CAcreateserial -days 1 -sha256 \
-  -extfile "$server_extension" -out "$server_certificate" >/dev/null 2>&1
+case "$platform" in
+  MINGW*|MSYS*|CYGWIN*)
+    openssl req -x509 -new -key "$server_private_key" -days 1 -sha256 \
+      -subj '/CN=m5-proxy.localhost' \
+      -addext 'subjectAltName=DNS:m5-proxy.localhost' \
+      -addext 'basicConstraints=critical,CA:FALSE' \
+      -addext 'keyUsage=critical,digitalSignature,keyEncipherment' \
+      -addext 'extendedKeyUsage=serverAuth' \
+      -out "$server_certificate" >/dev/null 2>&1
+    ;;
+  *)
+    openssl x509 -req -in "$server_request" -CA "$ca_certificate" \
+      -CAkey "$ca_private_key" -CAcreateserial -days 1 -sha256 \
+      -extfile "$server_extension" -out "$server_certificate" >/dev/null 2>&1
+    ;;
+esac
+server_fingerprint=$(openssl x509 -in "$server_certificate" -noout \
+  -fingerprint -sha1 | sed 's/^.*=//; s/://g')
 openssl req -newkey rsa:2048 -nodes -sha256 -subj '/CN=m5-h3.localhost' \
   -keyout "$h3_private_key" -out "$h3_request" >/dev/null 2>&1
 printf '%s\n' 'subjectAltName=DNS:m5-h3.localhost' \
   'basicConstraints=critical,CA:FALSE' \
   'keyUsage=critical,digitalSignature,keyEncipherment' \
   'extendedKeyUsage=serverAuth' >"$h3_extension"
-openssl x509 -req -in "$h3_request" -CA "$ca_certificate" \
-  -CAkey "$ca_private_key" -CAserial "$tmp_dir/m5-ca.srl" -days 1 -sha256 \
-  -extfile "$h3_extension" -out "$h3_certificate" >/dev/null 2>&1
+case "$platform" in
+  MINGW*|MSYS*|CYGWIN*)
+    openssl x509 -req -in "$h3_request" -CA "$ca_certificate" \
+      -CAkey "$ca_private_key" -CAcreateserial -days 1 -sha256 \
+      -extfile "$h3_extension" -out "$h3_certificate" >/dev/null 2>&1
+    ;;
+  *)
+    openssl x509 -req -in "$h3_request" -CA "$ca_certificate" \
+      -CAkey "$ca_private_key" -CAserial "$tmp_dir/m5-ca.srl" -days 1 -sha256 \
+      -extfile "$h3_extension" -out "$h3_certificate" >/dev/null 2>&1
+    ;;
+esac
 
 set_phase fixture-build
 (
