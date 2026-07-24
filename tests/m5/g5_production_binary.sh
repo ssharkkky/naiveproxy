@@ -39,6 +39,7 @@ naive_ssl_cert_file=
 trust_installed=0
 platform=$(uname -s)
 phase_file=${M5_G5_PHASE_FILE:-}
+h3_target_host=m5-h3.localhost
 
 set_phase() {
   phase=$1
@@ -60,6 +61,11 @@ case "$platform" in
       MSYS2_ARG_CONV_EXCL=/CN=
     fi
     export MSYS2_ARG_CONV_EXCL
+    # Windows resolves the exact localhost name reliably, but does not
+    # guarantee wildcard resolution for arbitrary *.localhost names. Keep the
+    # SOCKS target encoded as a domain while the inner TLS name remains the
+    # controlled m5-h3.localhost fixture identity.
+    h3_target_host=localhost
     ;;
 esac
 
@@ -539,9 +545,13 @@ end=$(baseline_rows)
 record_window dns "$start" "$end"
 
 start=$(baseline_rows)
-"$tmp_dir/socks-h3-probe" --socks="127.0.0.1:$socks_port" \
-  --target-host=m5-h3.localhost --target-port="$h3_port" --force-domain \
-  --server-name=m5-h3.localhost --ca-cert="$ca_certificate" --timeout=12s
+if ! "$tmp_dir/socks-h3-probe" --socks="127.0.0.1:$socks_port" \
+    --target-host="$h3_target_host" --target-port="$h3_port" --force-domain \
+    --server-name=m5-h3.localhost --ca-cert="$ca_certificate" --timeout=12s \
+    >"$tmp_dir/h3-probe.out" 2>&1; then
+  fail_with_logs "independent HTTP/3 application probe failed"
+fi
+cat "$tmp_dir/h3-probe.out"
 end=$(baseline_rows)
 record_window http3 "$start" "$end"
 
