@@ -21,7 +21,6 @@ caddy_pid=
 naive_pid=
 tap_pid=
 trust_pid=
-windows_command_pid=
 echo4_pid=
 echo6_pid=
 dns_pid=
@@ -82,7 +81,7 @@ cleanup() {
   if [ "$cleanup_status" -ne 0 ]; then
     printf '%s\n' "M5_G5_PHASE_FAILED phase=$phase" >&2
   fi
-  for pid in "$trust_pid" "$windows_command_pid" "$naive_pid" "$tap_pid" "$caddy_pid" \
+  for pid in "$trust_pid" "$naive_pid" "$tap_pid" "$caddy_pid" \
     "$echo4_pid" "$echo6_pid" "$dns_pid" "$h3v4_pid" "$h3v6_pid" \
     "$http_pid"; do
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
@@ -100,32 +99,73 @@ cleanup() {
   return "$cleanup_status"
 }
 
-run_windows_certutil() {
-  label=$1
-  shift
-  output="$tmp_dir/certutil-$label.log"
-  timeout=${M5_WINDOWS_CERTUTIL_TIMEOUT_SECONDS:-30}
-  elapsed=0
+run_windows_trust_store() {
+  operation=$1
+  output="$tmp_dir/windows-trust-$operation.log"
+  powershell_script="$tmp_dir/windows-trust-store.ps1"
 
-  "$@" >"$output" 2>&1 &
-  windows_command_pid=$!
-  while kill -0 "$windows_command_pid" 2>/dev/null; do
-    if [ "$elapsed" -ge "$timeout" ]; then
-      terminate_process_tree "$windows_command_pid"
-      wait "$windows_command_pid" 2>/dev/null || true
-      windows_command_pid=
-      return 124
-    fi
-    sleep 1
-    elapsed=$((elapsed + 1))
-  done
-  if wait "$windows_command_pid"; then
-    result=0
-  else
-    result=$?
+  if [ ! -f "$powershell_script" ]; then
+    cat >"$powershell_script" <<'POWERSHELL'
+param(
+  [Parameter(Mandatory = $true)][ValidateSet("Install", "Check", "Remove")]
+  [string]$Operation,
+  [Parameter(Mandatory = $true)][string]$CertificatePath,
+  [Parameter(Mandatory = $true)][string]$ExpectedThumbprint
+)
+
+$ErrorActionPreference = "Stop"
+$expected = ($ExpectedThumbprint -replace '[^0-9A-Fa-f]', '').ToUpperInvariant()
+$certificate = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new(
+  $CertificatePath
+)
+if ($certificate.Thumbprint.ToUpperInvariant() -ne $expected) {
+  throw "temporary certificate thumbprint does not match"
+}
+
+$store = [System.Security.Cryptography.X509Certificates.X509Store]::new(
+  "Root",
+  [System.Security.Cryptography.X509Certificates.StoreLocation]::CurrentUser
+)
+try {
+  $openFlags = if ($Operation -eq "Check") {
+    [System.Security.Cryptography.X509Certificates.OpenFlags]::ReadOnly
+  } else {
+    [System.Security.Cryptography.X509Certificates.OpenFlags]::ReadWrite
+  }
+  $store.Open($openFlags)
+
+  if ($Operation -eq "Install") {
+    $store.Add($certificate)
+  } elseif ($Operation -eq "Remove") {
+    @($store.Certificates) |
+      Where-Object { $_.Thumbprint.ToUpperInvariant() -eq $expected } |
+      ForEach-Object { $store.Remove($_) }
+  }
+
+  $matches = @(
+    $store.Certificates |
+      Where-Object { $_.Thumbprint.ToUpperInvariant() -eq $expected }
+  ).Count
+  if ($Operation -eq "Remove") {
+    if ($matches -ne 0) {
+      throw "temporary certificate remained in CurrentUser Root"
+    }
+  } elseif ($matches -ne 1) {
+    throw "temporary certificate is not uniquely present in CurrentUser Root"
+  }
+} finally {
+  $store.Close()
+  $store.Dispose()
+  $certificate.Dispose()
+}
+POWERSHELL
   fi
-  windows_command_pid=
-  return "$result"
+
+  powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass \
+    -File "$(cygpath -w "$powershell_script")" \
+    -Operation "$operation" \
+    -CertificatePath "$(cygpath -w "$ca_certificate")" \
+    -ExpectedThumbprint "$ca_fingerprint" >"$output" 2>&1
 }
 
 on_signal() {
@@ -269,8 +309,7 @@ install_temporary_trust() {
     MINGW*|MSYS*|CYGWIN*)
       set_phase temporary-trust-install
       trust_installed=1
-      run_windows_certutil install certutil -user -addstore -f Root \
-        "$ca_certificate"
+      run_windows_trust_store Install
       ;;
     *)
       return 2
@@ -291,11 +330,9 @@ verify_temporary_trust() {
       ;;
     MINGW*|MSYS*|CYGWIN*)
       # Presence in CurrentUser\Root plus the shipped-client positive request
-      # proves the intended trust path without certutil's potentially online
-      # chain/revocation verification.
+      # proves the intended trust path without online chain/revocation work.
       set_phase temporary-trust-store-check
-      run_windows_certutil store-check certutil -user -store Root \
-        "$ca_fingerprint"
+      run_windows_trust_store Check
       ;;
   esac
 }
@@ -319,8 +356,7 @@ remove_temporary_trust() {
       ;;
     MINGW*|MSYS*|CYGWIN*)
       [ "$trust_installed" -eq 1 ] || return 0
-      run_windows_certutil remove certutil -user -delstore Root \
-        "$ca_fingerprint" || true
+      run_windows_trust_store Remove || true
       ;;
   esac
   trust_installed=0
