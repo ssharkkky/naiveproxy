@@ -143,7 +143,7 @@ jobs:
     name: Windows x64 G5d
     if: inputs.platform == 'windows-x64' || inputs.platform == 'all-desktop'
     runs-on: windows-2022
-    timeout-minutes: 120
+    timeout-minutes: 180
     defaults:
       run:
         shell: bash

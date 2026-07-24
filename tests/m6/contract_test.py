@@ -261,7 +261,7 @@ class M6ContractTest(unittest.TestCase):
     def test_g5_desktop_trust_and_linux_ci_are_pinned(self) -> None:
         product = M5_SHIPPED_PRODUCT.read_text(encoding="utf-8")
         self.assertIn("SSL_CERT_FILE", product)
-        self.assertIn("certutil -user -addstore Root", product)
+        self.assertIn("certutil -user -addstore -f Root", product)
         self.assertIn("certutil -user -delstore Root", product)
         self.assertIn("M5_G5_TRUST_CLEANUP_OK", product)
 
@@ -290,7 +290,13 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M5_G4_CONTROL_CLOSE_OK", windows)
         self.assertIn("M6_G5D_PRODUCT_PHASE", windows)
         self.assertIn("M6_G5D_PRODUCT_TIMEOUT", windows)
-        self.assertIn("M5_G5_PHASE_FILE", M5_SHIPPED_PRODUCT.read_text(encoding="utf-8"))
+        product = M5_SHIPPED_PRODUCT.read_text(encoding="utf-8")
+        self.assertIn("M5_G5_PHASE_FILE", product)
+        self.assertIn("M5_WINDOWS_CERTUTIL_TIMEOUT_SECONDS", product)
+        self.assertIn("temporary-trust-install", product)
+        self.assertIn("temporary-trust-store-check", product)
+        self.assertNotIn('certutil -user -verify "$server_certificate"', product)
+        self.assertIn("taskkill.exe /PID", windows)
         self.assertIn("runs-on: windows-2022", workflow)
         self.assertIn("g5_windows_qualification.sh", workflow)
         windows_job = workflow.split("  windows-x64:", 1)[1].split(
