@@ -307,11 +307,16 @@ Sub-gates:
   expensive build. Run `30084029306` passed that preflight, both builds,
   default-verifier rejection, trusted UDP echo, and DNS, then timed out only
   in the independent H3 application probe while using the custom
-  `m5-h3.localhost` SOCKS domain. Candidate `a2e06cc21a` uses the exact
+  `m5-h3.localhost` SOCKS domain. Commit `a2e06cc21a` uses the exact
   cross-platform `localhost` resolver name on Windows while preserving SOCKS
-  domain encoding and the independent inner TLS identity. Runtime evidence
-  remains `not run` until a fresh native job emits
-  `M6_G5D_WINDOWS_X64_OK`.
+  domain encoding and the independent inner TLS identity. Run `30097890690`
+  proved that correction with independent H3 and TCP success, then reached
+  the control-close probe. Winsock reported a closed local UDP relay as
+  `WSAECONNRESET (10054)`, where the POSIX fixture expected only timeout or
+  refused. Candidate `3c3db3885c` accepts only that exact reset when the
+  lifecycle assertion already allows a refused relay and adds it to the
+  pre-build Windows gate. Runtime evidence remains `not run` until a fresh
+  native job emits `M6_G5D_WINDOWS_X64_OK`.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android
