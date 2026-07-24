@@ -300,9 +300,12 @@ Sub-gates:
   prepared. Runs `30013662603` and `30060226705` reproduced the Release
   client/server but stopped in the Windows temporary-root fixture; the latter
   isolated `certutil` CurrentUser-store query/process handling as the cause.
-  Commit `a620d7da7d` replaces that fixture with synchronous .NET `X509Store`
-  operations. Runtime evidence remains `not run` until a fresh native job
-  emits `M6_G5D_WINDOWS_X64_OK`.
+  Run `30064158390` proved synchronous .NET writes to the protected user Root
+  store can hang as well. Commit `d5875a05d3` instead uses the exact Chromium
+  Windows boundary: an ephemeral self-signed server leaf in
+  `LocalMachine\TrustedPeople`, with a three-minute store preflight before the
+  expensive build. Runtime evidence remains `not run` until a fresh native
+  job emits `M6_G5D_WINDOWS_X64_OK`.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android
