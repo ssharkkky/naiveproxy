@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-07-23 (Asia/Shanghai)
+Last updated: 2026-07-24 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
 [`m6-execution-plan.md`](m6-execution-plan.md).
@@ -1767,6 +1767,38 @@ preflight before the approximately 50-minute Chromium build. Local Shell,
 workflow-YAML, 19-test contract, `git diff --check`, and non-mutating shipped-
 client negative checks pass. `windows-x64` remains `not run` until the new
 native workflow passes through `M6_G5D_WINDOWS_X64_OK`.
+
+Run `30084029306`, job `89451910893`, at NaiveProxy `f32990a75a`,
+forwardproxy `f14924cd`, and Caddy `dd9a89c1` validated the new trust boundary:
+the three-second TrustedPeople preflight passed, the Windows Release client
+and pinned server rebuilt, the shipped default verifier rejected the
+untrusted leaf, and trusted UDP echo plus DNS emitted
+`M5_G5_PRODUCTION_ECHO_OK` and `M3_G4_DNS_OK`. The independent HTTP/3
+application probe then reported `timeout: no recent network activity` while
+its SOCKS target was the custom domain `m5-h3.localhost`; no H3, TCP,
+lifecycle, cleanup-negative, product, or G5d final marker was emitted.
+
+Candidate test-fixture commit `a2e06cc21a` removes that Windows-specific
+resolver dependency. Windows now sends the exact `localhost` name as an RFC
+1928 domain target while retaining `m5-h3.localhost` as the inner HTTP/3 TLS
+identity and explicit fixture CA. Other platforms keep the audited target
+unchanged. The H3 probe output is captured separately so failures emit only
+the existing redacted client/server lifecycle logs rather than a raw target
+URL. Local verification passed:
+
+```text
+19 M6 contract tests
+M5 Go tests
+Shell syntax checks
+WORKFLOW_YAML_OK
+M5_G5_UNTRUSTED_CERT_REJECTED_OK
+M5_G5_NEGATIVE_ONLY_OK
+git diff --check
+```
+
+This is a candidate harness correction, not Windows runtime evidence. G5d
+remains fail-closed until a fresh native run emits every required marker and
+ends with `M6_G5D_WINDOWS_X64_OK`.
 
 ### M6-G5f — cross-platform wire interoperability: complete
 

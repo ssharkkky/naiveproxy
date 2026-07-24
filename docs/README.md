@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-07-23 (Asia/Shanghai)
+Last updated: 2026-07-24 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -33,7 +33,12 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   verified at NaiveProxy `d402f9261c`, forwardproxy `f14924cd`, and Caddy
   `dd9a89c1`. Linux x64 is verified by GitHub Actions run `29754432052` at
   NaiveProxy `f7e206a308`, the same forwardproxy/Caddy pins, and final marker
-  `M6_G5C_LINUX_X64_OK`. Windows and Android remain fail-closed.
+  `M6_G5C_LINUX_X64_OK`. Windows run `30084029306` passed the trusted-leaf
+  preflight, reproducible builds, default-verifier rejection, trusted UDP
+  echo, and DNS, but its independent H3 application probe timed out before a
+  pass marker. Candidate fixture commit `a2e06cc21a` removes the Windows-only
+  wildcard-`.localhost` resolver dependency while retaining a SOCKS domain
+  target; Windows and Android remain fail-closed.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
   weighted engineering scope. This is not a production-release claim while
   G5 and G6 evidence remains open.
