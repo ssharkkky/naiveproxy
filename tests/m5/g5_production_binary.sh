@@ -21,6 +21,7 @@ caddy_pid=
 naive_pid=
 tap_pid=
 trust_pid=
+windows_command_pid=
 echo4_pid=
 echo6_pid=
 dns_pid=
@@ -62,16 +63,30 @@ case "$platform" in
     ;;
 esac
 
+terminate_process_tree() {
+  pid=$1
+  [ -n "$pid" ] || return 0
+  case "$platform" in
+    MINGW*|MSYS*|CYGWIN*)
+      MSYS2_ARG_CONV_EXCL='*' taskkill.exe /PID "$pid" /T /F \
+        >/dev/null 2>&1 || kill "$pid" 2>/dev/null || true
+      ;;
+    *)
+      kill "$pid" 2>/dev/null || true
+      ;;
+  esac
+}
+
 cleanup() {
   cleanup_status=$?
   if [ "$cleanup_status" -ne 0 ]; then
     printf '%s\n' "M5_G5_PHASE_FAILED phase=$phase" >&2
   fi
-  for pid in "$trust_pid" "$naive_pid" "$tap_pid" "$caddy_pid" \
+  for pid in "$trust_pid" "$windows_command_pid" "$naive_pid" "$tap_pid" "$caddy_pid" \
     "$echo4_pid" "$echo6_pid" "$dns_pid" "$h3v4_pid" "$h3v6_pid" \
     "$http_pid"; do
     if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-      kill "$pid" 2>/dev/null || true
+      terminate_process_tree "$pid"
       wait "$pid" 2>/dev/null || true
     fi
   done
@@ -83,6 +98,34 @@ cleanup() {
     find "$tmp_dir" -depth -type d -exec rmdir {} \; >/dev/null 2>&1 || true
   fi
   return "$cleanup_status"
+}
+
+run_windows_certutil() {
+  label=$1
+  shift
+  output="$tmp_dir/certutil-$label.log"
+  timeout=${M5_WINDOWS_CERTUTIL_TIMEOUT_SECONDS:-30}
+  elapsed=0
+
+  "$@" >"$output" 2>&1 &
+  windows_command_pid=$!
+  while kill -0 "$windows_command_pid" 2>/dev/null; do
+    if [ "$elapsed" -ge "$timeout" ]; then
+      terminate_process_tree "$windows_command_pid"
+      wait "$windows_command_pid" 2>/dev/null || true
+      windows_command_pid=
+      return 124
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+  if wait "$windows_command_pid"; then
+    result=0
+  else
+    result=$?
+  fi
+  windows_command_pid=
+  return "$result"
 }
 
 on_signal() {
@@ -224,8 +267,10 @@ install_temporary_trust() {
       naive_ssl_cert_file=$ca_certificate
       ;;
     MINGW*|MSYS*|CYGWIN*)
+      set_phase temporary-trust-install
       trust_installed=1
-      certutil -user -addstore Root "$ca_certificate" >/dev/null
+      run_windows_certutil install certutil -user -addstore -f Root \
+        "$ca_certificate"
       ;;
     *)
       return 2
@@ -245,7 +290,12 @@ verify_temporary_trust() {
         >/dev/null
       ;;
     MINGW*|MSYS*|CYGWIN*)
-      certutil -user -verify "$server_certificate" >/dev/null
+      # Presence in CurrentUser\Root plus the shipped-client positive request
+      # proves the intended trust path without certutil's potentially online
+      # chain/revocation verification.
+      set_phase temporary-trust-store-check
+      run_windows_certutil store-check certutil -user -store Root \
+        "$ca_fingerprint"
       ;;
   esac
 }
@@ -269,7 +319,8 @@ remove_temporary_trust() {
       ;;
     MINGW*|MSYS*|CYGWIN*)
       [ "$trust_installed" -eq 1 ] || return 0
-      certutil -user -delstore Root "$ca_fingerprint" >/dev/null 2>&1 || true
+      run_windows_certutil remove certutil -user -delstore Root \
+        "$ca_fingerprint" || true
       ;;
   esac
   trust_installed=0

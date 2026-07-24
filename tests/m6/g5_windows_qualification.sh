@@ -9,8 +9,18 @@ caddy_dir=${M6_CADDY_DIR:?set M6_CADDY_DIR}
 caddy_bin=${M6_CADDY_BIN:?set M6_CADDY_BIN}
 go_bin=${GO_BIN:-go}
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m6-g5d.XXXXXX")
+product_pid=
+
+terminate_product_tree() {
+  [ -n "$product_pid" ] || return 0
+  MSYS2_ARG_CONV_EXCL='*' taskkill.exe /PID "$product_pid" /T /F \
+    >/dev/null 2>&1 || kill "$product_pid" 2>/dev/null || true
+  wait "$product_pid" 2>/dev/null || true
+  product_pid=
+}
 
 cleanup() {
+  terminate_product_tree
   find "$tmp_dir" -type f -exec rm -f {} \; >/dev/null 2>&1 || true
   find "$tmp_dir" -depth -type d -exec rmdir {} \; >/dev/null 2>&1 || true
 }
@@ -56,8 +66,7 @@ run_product_logged() {
     if [ "$elapsed" -ge "$timeout_seconds" ]; then
       printf 'M6_G5D_PRODUCT_TIMEOUT phase=%s seconds=%s\n' \
         "${previous_phase:-unknown}" "$timeout_seconds" >&2
-      kill "$product_pid" 2>/dev/null || true
-      wait "$product_pid" 2>/dev/null || true
+      terminate_product_tree
       tail -120 "$output" >&2 || true
       exit 1
     fi
@@ -71,6 +80,7 @@ run_product_logged() {
     tail -120 "$output" >&2 || true
     exit 1
   fi
+  product_pid=
   cat "$output"
 }
 
