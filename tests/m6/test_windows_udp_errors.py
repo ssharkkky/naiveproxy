@@ -25,39 +25,61 @@ class FakeSocket:
         return self.result
 
 
-class WindowsConnectionReset(ConnectionResetError):
-    winerror = 10054
-
-
-class OtherConnectionReset(ConnectionResetError):
-    winerror = 10053
-
-
 class ExpectNoUdpTest(unittest.TestCase):
     def test_timeout_is_no_packet(self):
         sock = FakeSocket(socket.timeout())
         expect_no_udp(sock, "timeout")
         self.assertEqual(sock.timeout, 0.25)
 
-    def test_windows_port_unreachable_is_allowed_for_closed_relay(self):
-        sock = FakeSocket(WindowsConnectionReset())
+    def test_connection_reset_is_allowed_for_closed_relay(self):
+        sock = FakeSocket(ConnectionResetError())
         expect_no_udp(sock, "closed relay", allow_connection_refused=True)
 
-    def test_windows_port_unreachable_requires_explicit_allowance(self):
-        with self.assertRaises(WindowsConnectionReset):
-            expect_no_udp(FakeSocket(WindowsConnectionReset()), "unexpected reset")
+    def test_connection_reset_requires_explicit_allowance(self):
+        with self.assertRaises(ConnectionResetError):
+            expect_no_udp(FakeSocket(ConnectionResetError()), "unexpected reset")
 
-    def test_other_reset_is_not_hidden(self):
-        with self.assertRaises(OtherConnectionReset):
+    def test_other_connection_error_is_not_hidden(self):
+        with self.assertRaises(ConnectionAbortedError):
             expect_no_udp(
-                FakeSocket(OtherConnectionReset()),
-                "other reset",
+                FakeSocket(ConnectionAbortedError()),
+                "other connection error",
                 allow_connection_refused=True,
             )
 
     def test_packet_still_fails(self):
         with self.assertRaisesRegex(AssertionError, "unexpected UDP packet"):
             expect_no_udp(FakeSocket((b"payload", ("127.0.0.1", 9))), "packet")
+
+    @unittest.skipUnless(sys.platform == "win32", "requires native Windows")
+    def test_native_windows_closed_udp_port(self):
+        reset = None
+        for _ in range(5):
+            closed = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            closed.bind(("127.0.0.1", 0))
+            address = closed.getsockname()
+            closed.close()
+
+            probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            try:
+                probe.bind(("127.0.0.1", 0))
+                probe.settimeout(1)
+                probe.sendto(b"closed-relay-probe", address)
+                probe.recvfrom(65535)
+            except ConnectionResetError as error:
+                reset = error
+                break
+            except socket.timeout:
+                pass
+            finally:
+                probe.close()
+
+        self.assertIsNotNone(reset, "closed Windows UDP port produced no reset")
+        expect_no_udp(
+            FakeSocket(reset),
+            "native Windows closed relay",
+            allow_connection_refused=True,
+        )
 
 
 if __name__ == "__main__":
