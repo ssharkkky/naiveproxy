@@ -102,6 +102,13 @@ def expect_no_udp(sock, description, allow_connection_refused=False):
         if allow_connection_refused:
             return
         raise
+    except ConnectionResetError as error:
+        # Winsock reports an ICMP port-unreachable response from a closed UDP
+        # relay as WSAECONNRESET. Accept only that exact Windows condition and
+        # only for lifecycle checks that already allow a refused relay.
+        if allow_connection_refused and getattr(error, "winerror", None) == 10054:
+            return
+        raise
     raise AssertionError(f"{description}: unexpected UDP packet {packet!r}")
 
 
