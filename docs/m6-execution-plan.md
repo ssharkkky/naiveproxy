@@ -304,8 +304,14 @@ Sub-gates:
   store can hang as well. Commit `d5875a05d3` instead uses the exact Chromium
   Windows boundary: an ephemeral self-signed server leaf in
   `LocalMachine\TrustedPeople`, with a three-minute store preflight before the
-  expensive build. Runtime evidence remains `not run` until a fresh native
-  job emits `M6_G5D_WINDOWS_X64_OK`.
+  expensive build. Run `30084029306` passed that preflight, both builds,
+  default-verifier rejection, trusted UDP echo, and DNS, then timed out only
+  in the independent H3 application probe while using the custom
+  `m5-h3.localhost` SOCKS domain. Candidate `a2e06cc21a` uses the exact
+  cross-platform `localhost` resolver name on Windows while preserving SOCKS
+  domain encoding and the independent inner TLS identity. Runtime evidence
+  remains `not run` until a fresh native job emits
+  `M6_G5D_WINDOWS_X64_OK`.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android
