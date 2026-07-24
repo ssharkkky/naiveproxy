@@ -33,6 +33,9 @@ case "$(uname -s)" in
   *) echo "Windows trust preflight requires a native Windows runner" >&2; exit 2 ;;
 esac
 
+python3 "$repo_dir/tests/m6/test_windows_udp_errors.py"
+echo M6_G5D_WINDOWS_UDP_ERROR_SEMANTICS_OK
+
 MSYS2_ARG_CONV_EXCL=/CN= openssl req -x509 -newkey rsa:2048 -nodes \
   -days 1 -sha256 -subj '/CN=Naive M6 Windows Trust Preflight' \
   -addext 'basicConstraints=critical,CA:FALSE' \

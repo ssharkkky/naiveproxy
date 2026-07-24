@@ -320,6 +320,8 @@ class M6ContractTest(unittest.TestCase):
         )[0]
         preflight = G5_WINDOWS_TRUST_PREFLIGHT.read_text(encoding="utf-8")
         self.assertIn("M6_G5D_WINDOWS_TRUST_PREFLIGHT_OK", preflight)
+        self.assertIn("test_windows_udp_errors.py", preflight)
+        self.assertIn("M6_G5D_WINDOWS_UDP_ERROR_SEMANTICS_OK", preflight)
         self.assertIn("windows_trusted_leaf.ps1", preflight)
         self.assertIn("Preflight Windows trusted-leaf store", windows_job)
         self.assertIn("timeout-minutes: 3", windows_job)
