@@ -315,6 +315,9 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("taskkill.exe /PID", windows)
         self.assertIn("runs-on: windows-2022", workflow)
         self.assertIn("g5_windows_qualification.sh", workflow)
+        self.assertIn("windows-x64-preflight", workflow)
+        self.assertIn("Windows x64 G5d preflight", workflow)
+        self.assertIn("M6_G5D_WINDOWS_PREFLIGHT_ONLY_OK", workflow)
         windows_job = workflow.split("  windows-x64:", 1)[1].split(
             "  android-arm64-build:", 1
         )[0]
@@ -323,7 +326,7 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("test_windows_udp_errors.py", preflight)
         self.assertIn("M6_G5D_WINDOWS_UDP_ERROR_SEMANTICS_OK", preflight)
         self.assertIn("windows_trusted_leaf.ps1", preflight)
-        self.assertIn("Preflight Windows trusted-leaf store", windows_job)
+        self.assertIn("Preflight Windows runtime semantics", windows_job)
         self.assertIn("timeout-minutes: 3", windows_job)
         self.assertIn("test -x out/Release/naive.exe", windows_job)
         self.assertNotIn("naive_socks5_udp_test", windows_job)

@@ -9,6 +9,7 @@ on:
         type: choice
         options:
           - linux-x64
+          - windows-x64-preflight
           - windows-x64
           - android-arm64-build
           - all-desktop
@@ -26,6 +27,28 @@ env:
   CCACHE_MAXFILES: 0
 
 jobs:
+  windows-x64-preflight:
+    name: Windows x64 G5d preflight
+    if: inputs.platform == 'windows-x64-preflight'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Check out NaiveProxy
+        uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+
+      - name: Preflight Windows runtime semantics
+        timeout-minutes: 3
+        run: |
+          ./tests/m6/g5_windows_trust_preflight.sh
+          echo M6_G5D_WINDOWS_PREFLIGHT_ONLY_OK
+
   linux-x64:
     name: Linux x64 G5c
     if: inputs.platform == 'linux-x64' || inputs.platform == 'all-desktop'
@@ -193,7 +216,7 @@ jobs:
           path: src/chrome/build/pgo_profiles/chrome-win64-*
           key: pgo-win64-${{ hashFiles('CHROMIUM_VERSION') }}-v${{ env.CACHE_EPOCH }}
 
-      - name: Preflight Windows trusted-leaf store
+      - name: Preflight Windows runtime semantics
         timeout-minutes: 3
         run: |
           ./tests/m6/g5_windows_trust_preflight.sh
