@@ -313,10 +313,14 @@ Sub-gates:
   proved that correction with independent H3 and TCP success, then reached
   the control-close probe. Winsock reported a closed local UDP relay as
   `WSAECONNRESET (10054)`, where the POSIX fixture expected only timeout or
-  refused. Candidate `3c3db3885c` accepts only that exact reset when the
-  lifecycle assertion already allows a refused relay and adds it to the
-  pre-build Windows gate. Runtime evidence remains `not run` until a fresh
-  native job emits `M6_G5D_WINDOWS_X64_OK`.
+  refused. The first `3c3db3885c` correction used a synthetic exception and
+  overfit its `winerror` attribute, so it did not validate the real Winsock
+  object. Commit `5bcdd97107` instead accepts the `ConnectionResetError` type
+  only in the already opt-in closed-relay assertions, exercises a real closed
+  Windows UDP port, and provides a preflight-only workflow path. Native run
+  `30107431553` passed all six error-semantics tests and the complete
+  TrustedPeople install/check/remove cycle in 29 seconds. Runtime evidence
+  remains `not run` until a fresh full job emits `M6_G5D_WINDOWS_X64_OK`.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android

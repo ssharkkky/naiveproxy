@@ -39,8 +39,10 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   commit `a2e06cc21a` removed the Windows-only wildcard-`.localhost` resolver
   dependency; run `30097890690` then passed H3 and TCP before exposing a
   Windows `WSAECONNRESET` portability gap in the control-close test oracle.
-  Candidate `3c3db3885c` handles only that exact allowed closed-relay result;
-  Windows and Android remain fail-closed.
+  The first synthetic-error fix was insufficient. Commit `5bcdd97107` now
+  validates a real closed UDP port in a fast native Windows preflight; run
+  `30107431553` passed that probe and the full TrustedPeople lifecycle.
+  Windows and Android remain fail-closed pending their full runtime rows.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
   weighted engineering scope. This is not a production-release claim while
   G5 and G6 evidence remains open.

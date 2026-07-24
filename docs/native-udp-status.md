@@ -1836,6 +1836,42 @@ No production source changed. G5d remains fail-closed pending a fresh native
 Windows run through control close, idle/reconnect, trust cleanup, server tests,
 and `M6_G5D_WINDOWS_X64_OK`.
 
+The `3c3db3885c` preflight test was later found insufficient: it injected a
+synthetic `ConnectionResetError` subclass with a hand-written `winerror`
+attribute, so the exact numeric guard could pass without exercising a real
+Winsock exception. Run `30102201100` at `9951aedfae` entered the full product
+gate but did not produce a G5d marker; it was cancelled after the failed
+product path remained in cleanup. It is not qualification evidence.
+
+Commit `5bcdd97107` replaces that synthetic boundary. An explicitly opted-in
+closed-relay assertion now accepts the `ConnectionResetError` type without
+depending on runtime-specific numeric attributes; all other connection errors
+and unexpected packets still fail. The Windows-only sixth test sends a real
+UDP packet to an actual closed loopback port, captures the native exception,
+and passes that object through the production test oracle. A new
+`windows-x64-preflight` workflow input runs this probe and the TrustedPeople
+lifecycle without building Chromium or Caddy.
+
+GitHub Actions run `30107431553`, job `89528169413`, passed on native Windows
+Server 2022 at `5bcdd97107` in 29 seconds:
+
+```text
+Ran 6 tests in 0.018s
+OK
+M6_G5D_WINDOWS_UDP_ERROR_SEMANTICS_OK
+M5_WINDOWS_TRUSTED_LEAF_INSTALL_OK
+M5_WINDOWS_TRUSTED_LEAF_CHECK_OK
+M5_WINDOWS_TRUSTED_LEAF_REMOVE_OK
+M6_G5D_WINDOWS_TRUST_PREFLIGHT_OK
+M6_G5D_WINDOWS_PREFLIGHT_ONLY_OK
+```
+
+Local verification also passed the 19 M6 contract tests, workflow YAML and
+Shell checks, Python compilation, `git diff --check`, and the complete
+`M2_SOCKS5_UDP_INGRESS_OK` regression. No production source changed. This
+preflight closes the specific synthetic-test gap but does not qualify G5d;
+the full Windows product marker remains required.
+
 ### M6-G5f — cross-platform wire interoperability: complete
 
 Commit `13df84bfd9` adds a pinned cross-platform gate. The macOS arm64
