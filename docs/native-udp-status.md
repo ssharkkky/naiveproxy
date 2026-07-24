@@ -1740,9 +1740,33 @@ M5_G5_NEGATIVE_ONLY_OK
 M6_G5_PLATFORM_CONTRACT_OK
 ```
 
-Shell syntax and `git diff --check` also pass. The `windows-x64` machine record
-remains `not run`; `a620d7da7d` is a candidate fixture repair until a native
-Windows job emits `M6_G5D_WINDOWS_X64_OK`.
+Shell syntax and `git diff --check` also passed. At that point the
+`windows-x64` machine record remained `not run`, and `a620d7da7d` was only a
+candidate pending a native rerun.
+
+The native rerun `30064158390` at NaiveProxy `2bc4e1e7b8` superseded that
+candidate. It again reproduced the Windows Release client and pinned server,
+and the shipped-client negative phase passed. The .NET operation then hung in
+`temporary-trust-install`; the product watchdog fired after 20 minutes, and
+the protected Root-store operation prevented prompt process-tree teardown
+until the 180-minute job limit cancelled the run. This proves the unstable
+boundary is unattended mutation of `CurrentUser\Root`, not the choice between
+`certutil` and .NET APIs. The run emitted no positive product or G5d marker.
+
+Chromium's Windows `TrustStoreWin` source provides a narrower supported local
+trust path: it reads `LocalMachine\TrustedPeople` and treats self-signed
+server certificates there as trusted leaves, while intentionally excluding
+`CurrentUser\TrustedPeople`. Commit `d5875a05d3` follows that boundary. The
+Windows proxy fixture now uses a one-day self-signed server leaf, installs and
+removes only its exact thumbprint in machine `TrustedPeople`, and retains the
+real shipped `naive.exe` negative/positive/cleanup-negative proof. It never
+modifies a Root store and does not change `CertVerifier::CreateDefault()`.
+
+The workflow now runs a three-minute native TrustedPeople install/check/remove
+preflight before the approximately 50-minute Chromium build. Local Shell,
+workflow-YAML, 19-test contract, `git diff --check`, and non-mutating shipped-
+client negative checks pass. `windows-x64` remains `not run` until the new
+native workflow passes through `M6_G5D_WINDOWS_X64_OK`.
 
 ### M6-G5f — cross-platform wire interoperability: complete
 
