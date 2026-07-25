@@ -328,7 +328,7 @@ record_window() {
     >>"$tmp_dir/baseline-windows.log"
 }
 
-expected_forwardproxy=${M5_EXPECTED_FORWARDPROXY:-f14924cdedc93c28a2b92c8120538ea5beee28fb}
+expected_forwardproxy=${M5_EXPECTED_FORWARDPROXY:-964281a9797efd9a4c953f6273c73e397e777864}
 expected_caddy=${M5_EXPECTED_CADDY:-cce894a8a0e987eb1722cf99729499bdaba6c38d}
 expected_client=${M5_EXPECTED_CLIENT:-333b7cb253}
 test "$(git -C "$forwardproxy_dir" rev-parse "$expected_forwardproxy")" = \

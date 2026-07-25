@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-07-24 (Asia/Shanghai)
+Last updated: 2026-07-26 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -24,8 +24,10 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   G1-G4, macOS G5b, and G5f cross-platform wire interoperability are
   complete. The forced-SOCKS TCP probe
   exposed a forwardproxy padding-negotiation defect; owner runtime fix
-  `baa7f2dd` and qualification fixture head `f14924cd` are pinned for every
-  new platform run. The fixture uses a hostless TLS listener because ordinary
+  `baa7f2dd` and hostless-listener fixture head `f14924cd` remain the runtime
+  boundary; current qualification head `964281a` adds only portable owner-test
+  fixtures and is pinned for every new platform run. The fixture uses a
+  hostless TLS listener because ordinary
   CONNECT carries the target authority, not the proxy hostname. Caddy race
   fix `dd9a89c1` passed owner regressions and the frozen G4 rerun. G4
   implementation commit is `5893f97f6e`. G5a's fail-closed
@@ -42,6 +44,13 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   The first synthetic-error fix was insufficient. Commit `5bcdd97107` now
   validates a real closed UDP port in a fast native Windows preflight; run
   `30107431553` passed that probe and the full TrustedPeople lifecycle.
+  Full run `30107604684` then passed product traffic before exposing legacy
+  owner tests that depended on wildcard `.localhost` resolution and a fixed
+  TLS startup sleep. Forwardproxy test-only commits `9b40eeb` and `964281a`
+  separate socket addresses from Host/SNI identity, use resolvable loopback
+  targets, and wait for actual TLS readiness. Native Windows fast run
+  `30167351024` passed the complete owner `go test ./...` suite with marker
+  `M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`.
   Windows and Android remain fail-closed pending their full runtime rows.
 - Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
   weighted engineering scope. This is not a production-release claim while

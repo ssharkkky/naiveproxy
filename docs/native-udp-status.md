@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-07-24 (Asia/Shanghai)
+Last updated: 2026-07-26 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
 [`m6-execution-plan.md`](m6-execution-plan.md).
@@ -1684,10 +1684,11 @@ M6_HOSTLESS_TCP_UDP_INTEROP_OK
 The same qualification head passed owner `go test ./...`, `go test -race ./...`,
 the complete `scripts/test-m4.sh`, and the complete
 `scripts/test-m4-g5-server.sh` matrix, including idle expiry, restart,
-resource, and log-privacy markers. Platform qualification scripts and the
-M5 shipped-product default pin now require
-`f14924cdedc93c28a2b92c8120538ea5beee28fb`; the runtime padding fix remains
-separately identified as `baa7f2dd`.
+resource, and log-privacy markers. The original platform qualification scripts
+and M5 shipped-product default pin used
+`f14924cdedc93c28a2b92c8120538ea5beee28fb`. Current/future runs advance to
+test-only qualification head `964281a9797efd9a4c953f6273c73e397e777864`;
+the runtime padding fix remains separately identified as `baa7f2dd`.
 
 The corrected native run, GitHub Actions `29754432052`, job `88393013948`,
 completed on Ubuntu 22.04.5 LTS x86_64 at NaiveProxy
@@ -1871,6 +1872,37 @@ Shell checks, Python compilation, `git diff --check`, and the complete
 `M2_SOCKS5_UDP_INGRESS_OK` regression. No production source changed. This
 preflight closes the specific synthetic-test gap but does not qualify G5d;
 the full Windows product marker remains required.
+
+Full Windows run `30107604684`, job `89528773330`, then passed the build,
+trusted-leaf preflight, shipped product echo/DNS/H3/TCP path, control-close
+oracle, and trust cleanup. It reached the final forwardproxy owner suite and
+failed because legacy test fixtures assumed arbitrary `*.localhost` names
+resolve on Windows; probe-resistance error handling also dereferenced a nil
+response after the setup failure. This was a later, independent test-fixture
+boundary, not a recurrence of the Winsock fix or a product-path failure.
+
+Forwardproxy test-only commits `9b40eeb5cede209143bba47fce3b05060d7e1bce`
+and `964281a9797efd9a4c953f6273c73e397e777864` now:
+
+- dial local proxy sockets through `127.0.0.1` while preserving logical
+  Host/SNI identities;
+- use explicit loopback target identities that do not require wildcard DNS;
+- wait for successful TLS handshakes instead of sleeping a fixed 500 ms; and
+- fail probe-resistance setup errors directly rather than dereferencing nil.
+
+Local `go test -count=1 ./...` and `go test -race -count=1 ./...` pass at the
+new head. Native Windows fast run `30167351024`, job `89702525017`, passed the
+complete owner suite in 2m17s and emitted:
+
+```text
+ok github.com/caddyserver/forwardproxy 3.740s
+M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK
+```
+
+No production source changed. Current/future qualification scripts pin
+`964281a9797efd9a4c953f6273c73e397e777864`; historical macOS/Linux records
+retain the exact `f14924cd` revision they actually verified. G5d remains
+fail-closed until a new full run emits `M6_G5D_WINDOWS_X64_OK`.
 
 ### M6-G5f — cross-platform wire interoperability: complete
 

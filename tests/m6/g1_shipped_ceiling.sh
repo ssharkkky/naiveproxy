@@ -141,7 +141,7 @@ command -v security >/dev/null
 command -v openssl >/dev/null
 
 expected_client=17c717793c7e5634bf0d5dfa823c9839eb45e832
-expected_forwardproxy=f14924cdedc93c28a2b92c8120538ea5beee28fb
+expected_forwardproxy=964281a9797efd9a4c953f6273c73e397e777864
 expected_caddy=dd9a89c11194dcb806d845233995ef040f096464
 unexpected_client_changes=$(git -C "$repo_dir" diff --name-only \
   "$expected_client"..HEAD -- src/net | \

@@ -1,13 +1,14 @@
 # M6 Hardening and Release-Candidate Execution Plan
 
-Last updated: 2026-07-24 (Asia/Shanghai)
+Last updated: 2026-07-26 (Asia/Shanghai)
 
 Status: M5 is complete and independently audited. M6-G0 through G4 are
 complete, but G5 remains open. A cross-platform TCP-parity probe exposed a
 post-M4 forwardproxy/Naive padding-negotiation defect; forwardproxy commit
-`baa7f2dd` is the narrow runtime fix and qualification head `f14924cd` adds
-the hostless TLS-listener fixture and regression gate required by every
-platform qualification.
+`baa7f2dd` is the narrow runtime fix and `f14924cd` adds the hostless
+TLS-listener fixture. Current qualification head `964281a` adds only portable
+owner-test dialing, target, TLS-readiness, and error-reporting fixtures after
+native Windows exposed wildcard-`.localhost` assumptions.
 
 Operational evidence belongs in [`native-udp-status.md`](native-udp-status.md).
 This document defines pending work, ordering, exit criteria, risks, and stop
@@ -43,7 +44,7 @@ platform that has not yet been qualified.
 | --- | --- | --- |
 | NaiveProxy M5 closeout | `e70ee79e05` | Must remain an ancestor |
 | Audited NaiveProxy runtime | audited through `eaf172d971`, including `333b7cb253` | Any later `src/net` change reopens the affected client audit boundary |
-| forwardproxy runtime | M4 audited base `8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7`; M6 TCP-padding fix `baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285`; qualification head `f14924cdedc93c28a2b92c8120538ea5beee28fb`; build-lock `e9663e4` | The M6 owner delta negotiates Naive padding on CONNECT-UDP responses while UDP DATAGRAM payloads remain unpadded. The qualification fixture must not apply a Caddy Host matcher to ordinary CONNECT; owner normal/race tests, hostless TCP/UDP interop, product qualification, and scoped G6 review are required |
+| forwardproxy runtime | M4 audited base `8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7`; M6 TCP-padding fix `baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285`; hostless fixture `f14924cdedc93c28a2b92c8120538ea5beee28fb`; current qualification head `964281a9797efd9a4c953f6273c73e397e777864`; build-lock `e9663e4` | The M6 owner runtime delta negotiates Naive padding on CONNECT-UDP responses while UDP DATAGRAM payloads remain unpadded. Later `9b40eeb`/`964281a` changes are test-only Windows portability fixes. Owner normal/race tests, hostless TCP/UDP interop, product qualification, and scoped G6 review are required |
 | forwardproxy M5 fixture head | `2b2a8ea` | Must remain an ancestor of later fixture commits |
 | Caddy | `dd9a89c11194dcb806d845233995ef040f096464` | M6 race-fix pin; owner regression and independent audit required |
 | Server toolchain | Go `1.25.12`, xcaddy `0.4.5`, quic-go `0.59.0` | No floating tool or module versions |
@@ -321,6 +322,15 @@ Sub-gates:
   `30107431553` passed all six error-semantics tests and the complete
   TrustedPeople install/check/remove cycle in 29 seconds. Runtime evidence
   remains `not run` until a fresh full job emits `M6_G5D_WINDOWS_X64_OK`.
+  Full run `30107604684` advanced through product traffic and then failed only
+  in legacy forwardproxy owner tests whose local names depended on wildcard
+  `.localhost` resolution and whose TLS readiness used a fixed sleep.
+  Test-only forwardproxy commits `9b40eeb` and `964281a` preserve Host/SNI
+  identity while dialing loopback, use resolvable target addresses, wait for
+  actual TLS readiness, and fail cleanly on setup errors. Fast native Windows
+  run `30167351024` passed `go test -count=1 ./...` and emitted
+  `M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`; the next action is a full G5d run at
+  the new qualification pin.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android

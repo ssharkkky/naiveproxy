@@ -83,10 +83,10 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("baa7f2dd0845aa4cb55e39b4cc67c9b6a59b6285", g0)
         self.assertEqual(
             self.contract["inputs"]["forwardproxy_m6_qualification"],
-            "f14924cdedc93c28a2b92c8120538ea5beee28fb",
+            "964281a9797efd9a4c953f6273c73e397e777864",
         )
         self.assertIn("expected_forwardproxy_m6_qualification", g0)
-        self.assertIn("f14924cdedc93c28a2b92c8120538ea5beee28fb", g0)
+        self.assertIn("964281a9797efd9a4c953f6273c73e397e777864", g0)
 
     def test_release_policy_is_fail_closed(self) -> None:
         policy = self.contract["release_policy"]
@@ -254,7 +254,7 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("M5_EXPECTED_FORWARDPROXY", product)
         self.assertIn("M5_EXPECTED_CADDY", product)
         self.assertIn("M5_EXPECTED_CLIENT", product)
-        self.assertIn("f14924cdedc93c28a2b92c8120538ea5beee28fb", product)
+        self.assertIn("964281a9797efd9a4c953f6273c73e397e777864", product)
         self.assertIn("cce894a8a0e987eb1722cf99729499bdaba6c38d", product)
         self.assertIn("ca_fingerprint_sha256", product)
         self.assertIn("-fingerprint -sha256", product)
@@ -292,7 +292,7 @@ class M6ContractTest(unittest.TestCase):
 
         workflow = G5_WORKFLOW.read_text(encoding="utf-8")
         self.assertIn("runs-on: ubuntu-22.04", workflow)
-        self.assertIn("f14924cdedc93c28a2b92c8120538ea5beee28fb", workflow)
+        self.assertIn("964281a9797efd9a4c953f6273c73e397e777864", workflow)
         self.assertIn("dd9a89c11194dcb806d845233995ef040f096464", workflow)
         self.assertIn("g5_linux_qualification.sh", workflow)
 

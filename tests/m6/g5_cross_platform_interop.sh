@@ -91,7 +91,7 @@ assert any(
 test "$(limactl shell "$lima_instance" -- uname -m)" = aarch64
 test "$(limactl shell "$lima_instance" -- cat /etc/alpine-release)" = 3.23.3
 test "$(git -C "$forwardproxy_dir" rev-parse HEAD)" = \
-  f14924cdedc93c28a2b92c8120538ea5beee28fb
+  964281a9797efd9a4c953f6273c73e397e777864
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = \
   dd9a89c11194dcb806d845233995ef040f096464
 git -C "$repo_dir" merge-base --is-ancestor \
