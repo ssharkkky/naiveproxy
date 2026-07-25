@@ -316,8 +316,11 @@ class M6ContractTest(unittest.TestCase):
         self.assertIn("runs-on: windows-2022", workflow)
         self.assertIn("g5_windows_qualification.sh", workflow)
         self.assertIn("windows-x64-preflight", workflow)
+        self.assertIn("windows-x64-forwardproxy-tests", workflow)
         self.assertIn("Windows x64 G5d preflight", workflow)
         self.assertIn("M6_G5D_WINDOWS_PREFLIGHT_ONLY_OK", workflow)
+        self.assertIn("9b40eeb5cede209143bba47fce3b05060d7e1bce", workflow)
+        self.assertIn("M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK", workflow)
         windows_job = workflow.split("  windows-x64:", 1)[1].split(
             "  android-arm64-build:", 1
         )[0]
