@@ -41,6 +41,12 @@ release-candidate work; the immutable M4 audit remains evidence for its named
 `cce894a8` range. Post-fix G3/G4 and owner regressions are green; a scoped
 independent audit is still required during G6.
 
+The current forwardproxy qualification head is test-only commit `964281a`
+(`9b40eeb` plus TLS-readiness/target follow-up). Native Windows run
+`30167351024` passed its complete `go test ./...` suite and marker
+`M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`; full Windows G5d qualification remains
+open until `M6_G5D_WINDOWS_X64_OK` is emitted.
+
 ## Frozen engineering boundaries
 
 - Do not change the existing `NaiveConnection` TCP data path or TCP padding.
