@@ -60,7 +60,7 @@ jobs:
         uses: actions/checkout@v4
         with:
           repository: ssharkkky/forwardproxy
-          ref: 9b40eeb5cede209143bba47fce3b05060d7e1bce
+          ref: 964281a9797efd9a4c953f6273c73e397e777864
 
       - uses: actions/setup-go@v5
         with:
