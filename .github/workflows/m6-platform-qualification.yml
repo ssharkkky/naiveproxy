@@ -10,6 +10,7 @@ on:
         options:
           - linux-x64
           - windows-x64-preflight
+          - windows-x64-forwardproxy-tests
           - windows-x64
           - android-arm64-build
           - all-desktop
@@ -48,6 +49,29 @@ jobs:
         run: |
           ./tests/m6/g5_windows_trust_preflight.sh
           echo M6_G5D_WINDOWS_PREFLIGHT_ONLY_OK
+
+  windows-x64-forwardproxy-tests:
+    name: Windows x64 forwardproxy tests
+    if: inputs.platform == 'windows-x64-forwardproxy-tests'
+    runs-on: windows-2022
+    timeout-minutes: 10
+    steps:
+      - name: Check out candidate forwardproxy
+        uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/forwardproxy
+          ref: 9b40eeb5cede209143bba47fce3b05060d7e1bce
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache: false
+
+      - name: Run native Windows forwardproxy tests
+        shell: bash
+        run: |
+          go test -count=1 ./...
+          echo M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK
 
   linux-x64:
     name: Linux x64 G5c
