@@ -42,10 +42,10 @@ release-candidate work; the immutable M4 audit remains evidence for its named
 independent audit is still required during G6.
 
 The current forwardproxy qualification head is test-only commit `964281a`
-(`9b40eeb` plus TLS-readiness/target follow-up). Native Windows run
-`30167351024` passed its complete `go test ./...` suite and marker
-`M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`; full Windows G5d qualification remains
-open until `M6_G5D_WINDOWS_X64_OK` is emitted.
+(`9b40eeb` plus TLS-readiness/target follow-up). Native Windows fast run
+`30167351024` passed its complete `go test ./...` suite; full run
+`30167583501` passed the complete Windows Server 2022 x64 row and emitted
+`M6_G5D_WINDOWS_X64_OK`. Android real-device G5e and G6 remain open.
 
 ## Frozen engineering boundaries
 
