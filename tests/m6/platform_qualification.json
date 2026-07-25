@@ -111,16 +111,46 @@
     },
     {
       "id": "windows-x64",
-      "state": "not run",
-      "os_version": "",
-      "architecture": "",
-      "naive_revision": "",
-      "forwardproxy_revision": "",
-      "caddy_revision": "",
-      "build_commands": [],
-      "runtime_commands": [],
-      "markers": [],
-      "limitations": []
+      "state": "verified",
+      "os_version": "Microsoft Windows Server 2022 10.0.20348.5386",
+      "architecture": "x86_64",
+      "naive_revision": "3ed7cbc3defa48010d82cfab57ae1870873eaef5",
+      "forwardproxy_revision": "964281a9797efd9a4c953f6273c73e397e777864",
+      "caddy_revision": "dd9a89c11194dcb806d845233995ef040f096464",
+      "build_commands": [
+        "GitHub Actions run 30167583501 job 89703137849: src/get-clang.sh; src/build.sh",
+        "GitHub Actions run 30167583501 job 89703137849: _m6/forwardproxy/scripts/build-naive-caddy.sh _m6/forwardproxy/build/m4-caddy.exe"
+      ],
+      "runtime_commands": [
+        "GitHub Actions run 30167583501 job 89703137849: ./tests/m6/g5_windows_trust_preflight.sh",
+        "GitHub Actions run 30167583501 job 89703137849: ./tests/m6/g5_windows_qualification.sh"
+      ],
+      "markers": [
+        "M6_G5D_WINDOWS_UDP_ERROR_SEMANTICS_OK",
+        "M6_G5D_WINDOWS_TRUST_PREFLIGHT_OK",
+        "M6_G5D_WINDOWS_BUILD_OK",
+        "M5_G5_UNTRUSTED_CERT_REJECTED_OK",
+        "M5_G5_PRODUCTION_ECHO_OK",
+        "M3_G4_DNS_OK",
+        "M5_G2_HTTP3_APPLICATION_OK",
+        "M5_G5_PRODUCTION_TCP_OK",
+        "M5_G4_CONTROL_CLOSE_OK",
+        "M5_G4_SERVER_IDLE_RECONNECT_OK",
+        "M5_G4_IDLE_RECONNECT_OK",
+        "M5_G5_DEFAULT_CERT_VERIFIER_OK",
+        "M5_G5_PRODUCTION_BINARY_OK",
+        "M5_G5_H3_DATAGRAM_EVIDENCE_OK",
+        "M5_G5_NO_PADDING_BASELINE_OK",
+        "M5_G5_TRUST_CLEANUP_OK",
+        "M6_G5D_WINDOWS_PRODUCT_OK",
+        "M6_G5D_WINDOWS_SHIPPED_CLIENT_OK",
+        "M6_G5D_WINDOWS_SERVER_OK",
+        "M6_G5D_WINDOWS_X64_OK"
+      ],
+      "limitations": [
+        "Qualification uses a GitHub-hosted Windows Server 2022 x64 runner and the hostless TLS-listener fixture required for ordinary CONNECT target authority.",
+        "UDP payload padding remains outside native UDP v1."
+      ]
     },
     {
       "id": "android-arm64",

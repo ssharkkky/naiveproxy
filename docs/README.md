@@ -20,7 +20,7 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - Active milestone: M6 hardening and release-candidate qualification.
 - M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
   `80d37395a6`.
-- Active M6 gates: G5d-G5e platform qualification and G6 release closeout.
+- Active M6 gates: G5e Android runtime qualification and G6 release closeout.
   G1-G4, macOS G5b, and G5f cross-platform wire interoperability are
   complete. The forced-SOCKS TCP probe
   exposed a forwardproxy padding-negotiation defect; owner runtime fix
@@ -51,8 +51,11 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   targets, and wait for actual TLS readiness. Native Windows fast run
   `30167351024` passed the complete owner `go test ./...` suite with marker
   `M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`.
-  Windows and Android remain fail-closed pending their full runtime rows.
-- Overall progress remains 6 of 7 milestones (86%), approximately 93-95% by
+  Full native run `30167583501` then passed at NaiveProxy `3ed7cbc3de`,
+  forwardproxy `964281a`, and Caddy `dd9a89c1`, emitting
+  `M6_G5D_WINDOWS_X64_OK`. Windows x64 is verified; Android remains
+  fail-closed pending its real-device runtime row.
+- Overall progress remains 6 of 7 milestones (86%), approximately 95-97% by
   weighted engineering scope. This is not a production-release claim while
   G5 and G6 evidence remains open.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside

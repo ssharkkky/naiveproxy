@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0-G4, G5b, G5c, and G5f complete; G5d-G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64 and Linux x64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes | Finish Windows/Android, then G6 |
+| M6 — hardening and release candidate | In progress; G0-G4, G5b-G5d, and G5f complete; G5e/G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64, Linux x64, and Windows x64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes | Finish Android, then G6 |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -31,7 +31,7 @@ M6 work is sequenced in `docs/m6-execution-plan.md` and summarized in
 ### Overall progress estimate
 
 - Milestone count: M0–M5 are complete, 6 of 7 milestones, or 86%.
-- Weighted engineering estimate: approximately 93–95% complete. This weights
+- Weighted engineering estimate: approximately 95–97% complete. This weights
   the remaining shipped-client policy, qualification, platform, and release
   evidence more heavily than a simple milestone count; it is not a release
   claim.
@@ -47,13 +47,13 @@ Current remaining planning range:
 
 | Remaining milestone | Estimated effort |
 | --- | ---: |
-| M6 — hardening and release candidate | 10–20 person-days |
-| **Total remaining** | **10–20 person-days** |
+| M6 — hardening and release candidate | 6–15 person-days |
+| **Total remaining** | **6–15 person-days** |
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
 is not production-ready: shipped-client G1b2 and the three-run G1d closeout
-pass, but cross-platform G5 qualification and the G6 release/audit closeout
-remain open.
+pass, but Android G5e real-device qualification and the G6 release/audit
+closeout remain open.
 
 ## M1 detailed status
 
@@ -1901,8 +1901,28 @@ M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK
 
 No production source changed. Current/future qualification scripts pin
 `964281a9797efd9a4c953f6273c73e397e777864`; historical macOS/Linux records
-retain the exact `f14924cd` revision they actually verified. G5d remains
-fail-closed until a new full run emits `M6_G5D_WINDOWS_X64_OK`.
+retain the exact `f14924cd` revision they actually verified.
+
+Full native Windows run `30167583501`, job `89703137849`, completed in 59m43s
+on Microsoft Windows Server 2022 `10.0.20348.5386` x86_64 at NaiveProxy
+`3ed7cbc3defa48010d82cfab57ae1870873eaef5`, forwardproxy
+`964281a9797efd9a4c953f6273c73e397e777864`, and Caddy
+`dd9a89c11194dcb806d845233995ef040f096464`. The Release client build took
+52m35s, the pinned server build 1m42s, and the complete runtime gate 3m46s.
+The redacted evidence includes default-verifier rejection, temporary
+TrustedPeople acceptance and removal, UDP echo, DNS, independent HTTP/3,
+forced-SOCKS TCP, control close, server/client idle reconnect, H3 DATAGRAM,
+no-padding baseline, and the final forwardproxy server suite. Final markers:
+
+```text
+M6_G5D_WINDOWS_PRODUCT_OK
+M6_G5D_WINDOWS_SHIPPED_CLIENT_OK
+M6_G5D_WINDOWS_SERVER_OK
+M6_G5D_WINDOWS_X64_OK
+```
+
+The machine-readable `windows-x64` row is now `verified`. Android arm64
+real-device runtime remains the only open G5 platform row.
 
 ### M6-G5f — cross-platform wire interoperability: complete
 
@@ -1930,7 +1950,7 @@ The gate uses only the test runner's local certificate verifier; default
 certificate-verifier evidence remains owned by each native G5 platform row.
 Temporary keys, logs, cross-built binaries, and guest processes are removed by
 the runner. The final `M6_G5_PLATFORM_QUALIFICATION_OK` marker remains withheld
-until Linux x64, Windows x64, and Android arm64 records are verified.
+until the Android arm64 record is verified.
 
 ## Canonical M5 verification commands
 

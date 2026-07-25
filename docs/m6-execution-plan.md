@@ -296,7 +296,14 @@ Sub-gates:
   forwardproxy `f14924cd`, and Caddy `dd9a89c1`. The shipped/default-verifier
   product, forced-SOCKS TCP, impairment, lifecycle-pressure, and server gates
   emitted `M6_G5C_LINUX_X64_OK`.
-- [ ] G5d — qualify Windows x64 through the complete row below. A native
+- [x] G5d — Windows x64 passed the complete row in GitHub Actions run
+  `30167583501`, job `89703137849`, at NaiveProxy `3ed7cbc3de`, forwardproxy
+  `964281a`, and Caddy `dd9a89c1`. The native Windows Server 2022 x86_64 job
+  reproduced the Release client/server, verified default trust rejection,
+  temporary TrustedPeople acceptance and cleanup, UDP echo, DNS, independent
+  H3, forced-SOCKS TCP, control close, idle/reconnect, H3 DATAGRAM evidence,
+  and the final owner server suite. It emitted `M6_G5D_WINDOWS_X64_OK`.
+  Historical diagnosis and correction details follow. A native
   Windows x64 shipped-product runner and pinned GitHub Actions job are
   prepared. Runs `30013662603` and `30060226705` reproduced the Release
   client/server but stopped in the Windows temporary-root fixture; the latter
@@ -320,8 +327,8 @@ Sub-gates:
   only in the already opt-in closed-relay assertions, exercises a real closed
   Windows UDP port, and provides a preflight-only workflow path. Native run
   `30107431553` passed all six error-semantics tests and the complete
-  TrustedPeople install/check/remove cycle in 29 seconds. Runtime evidence
-  remains `not run` until a fresh full job emits `M6_G5D_WINDOWS_X64_OK`.
+  TrustedPeople install/check/remove cycle in 29 seconds. At that point,
+  runtime evidence remained `not run` pending a fresh full job.
   Full run `30107604684` advanced through product traffic and then failed only
   in legacy forwardproxy owner tests whose local names depended on wildcard
   `.localhost` resolution and whose TLS readiness used a fixed sleep.
@@ -329,8 +336,8 @@ Sub-gates:
   identity while dialing loopback, use resolvable target addresses, wait for
   actual TLS readiness, and fail cleanly on setup errors. Fast native Windows
   run `30167351024` passed `go test -count=1 ./...` and emitted
-  `M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`; the next action is a full G5d run at
-  the new qualification pin.
+  `M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`; the later full run supplied the
+  required qualification evidence.
 - [ ] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android
