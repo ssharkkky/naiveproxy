@@ -42,6 +42,7 @@ class Socks5UdpAssociation {
 
   unsigned int id() const { return id_; }
   base::TimeTicks last_activity() const { return last_activity_; }
+  base::TimeTicks creation_time() const { return created_at_; }
 
   // Returns ERR_IO_PENDING while the association is active. The callback is
   // invoked once when the TCP control connection or UDP relay terminates.
@@ -101,6 +102,7 @@ class Socks5UdpAssociation {
 
   CompletionOnceCallback completion_callback_;
   bool finished_ = false;
+  const base::TimeTicks created_at_ = base::TimeTicks::Now();
   base::TimeTicks last_activity_ = base::TimeTicks::Now();
 
   base::WeakPtrFactory<Socks5UdpAssociation> weak_ptr_factory_{this};
