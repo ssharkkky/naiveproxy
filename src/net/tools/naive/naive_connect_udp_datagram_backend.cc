@@ -90,7 +90,8 @@ int NaiveConnectUdpDatagramBackend::Send(
   }
   const Socks5UdpTargetKey key(datagram.destination);
   auto it = targets_.find(key);
-  if (it == targets_.end()) {
+  const bool created_target = it == targets_.end();
+  if (created_target) {
     if (targets_.size() >= Socks5UdpBackendLimits::kMaxTargets) {
       ++stats_.capacity_drops;
       RecordCounterEvent("target_capacity_drop", stats_.capacity_drops);
@@ -129,6 +130,15 @@ int NaiveConnectUdpDatagramBackend::Send(
               queued_payload_bytes_) {
     ++stats_.capacity_drops;
     RecordCounterEvent("queue_capacity_drop", stats_.capacity_drops);
+    // A target created for this datagram is still kConnecting with an empty
+    // queue, so the cooldown/retiring checks above cannot fire for it and only
+    // this association-level admission can reject its first datagram. Erase the
+    // freshly created entry instead of leaving a zombie kConnecting target that
+    // no timer reaps, which would otherwise leak a target slot for the whole
+    // association lifetime.
+    if (created_target) {
+      targets_.erase(it);
+    }
     return OK;
   }
 
