@@ -852,6 +852,22 @@ void TestTargetAndQueueLimits() {
                  128 &&
              association_cap_backend.stats_for_testing().capacity_drops == 1,
          "association packet queue admits 128 and drops the 129th");
+  const size_t targets_before_new_drop =
+      association_cap_backend.target_count_for_testing();
+  const size_t factory_calls_before_new_drop = association_states.size();
+  association_cap_backend.Send(
+      DatagramFor(net::Socks5UdpEndpoint{
+                      .type = net::Socks5UdpAddressType::kDomain,
+                      .host = "new-target-at-capacity.test",
+                      .port = 443,
+                  },
+                  {0x03}),
+      net::CompletionOnceCallback());
+  Expect(association_cap_backend.target_count_for_testing() ==
+                 targets_before_new_drop &&
+             association_states.size() == factory_calls_before_new_drop &&
+             association_cap_backend.stats_for_testing().capacity_drops == 2,
+         "first datagram admission drop does not construct or leak a target");
 
   auto byte_state = std::make_shared<ScriptedTunnelState>();
   net::NaiveConnectUdpDatagramBackend byte_cap_backend(

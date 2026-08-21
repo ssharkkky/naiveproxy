@@ -401,10 +401,7 @@ void QuicProxyDatagramClientSocket::OnStreamClosed(int result) {
   // They may otherwise re-enter OnIOComplete after this close notification.
   weak_factory_.InvalidateWeakPtrs();
   next_state_ = STATE_DISCONNECTED;
-  // Unregister symmetrically with Close(). The stream is already closed here so
-  // the call is effectively a no-op, but leaving the visitor registered while
-  // clearing the flag desynchronizes the two paths and is fragile if the
-  // stream handle outlives this notification in a future refactor.
+  // Match Close(): do not clear the flag while leaving the visitor registered.
   if (datagram_visitor_registered_) {
     stream_handle_->UnregisterHttp3DatagramVisitor();
     datagram_visitor_registered_ = false;

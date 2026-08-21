@@ -90,11 +90,23 @@ int NaiveConnectUdpDatagramBackend::Send(
   }
   const Socks5UdpTargetKey key(datagram.destination);
   auto it = targets_.find(key);
-  const bool created_target = it == targets_.end();
-  if (created_target) {
+  const bool association_queue_full =
+      queued_datagram_count_ >=
+          Socks5UdpBackendLimits::kMaxQueuedDatagramsPerAssociation ||
+      datagram.payload.size() >
+          Socks5UdpBackendLimits::kMaxQueuedPayloadBytesPerAssociation -
+              queued_payload_bytes_;
+  if (it == targets_.end()) {
     if (targets_.size() >= Socks5UdpBackendLimits::kMaxTargets) {
       ++stats_.capacity_drops;
       RecordCounterEvent("target_capacity_drop", stats_.capacity_drops);
+      return OK;
+    }
+    // Reject before factory/emplace so a full association queue cannot churn
+    // unique destinations into throwaway tunnels.
+    if (association_queue_full) {
+      ++stats_.capacity_drops;
+      RecordCounterEvent("queue_capacity_drop", stats_.capacity_drops);
       return OK;
     }
     std::unique_ptr<NaiveConnectUdpTargetTunnel> tunnel =
@@ -123,22 +135,9 @@ int NaiveConnectUdpDatagramBackend::Send(
   }
   if (entry->outbound_queue.size() >=
           Socks5UdpBackendLimits::kMaxQueuedDatagramsPerTarget ||
-      queued_datagram_count_ >=
-          Socks5UdpBackendLimits::kMaxQueuedDatagramsPerAssociation ||
-      datagram.payload.size() >
-          Socks5UdpBackendLimits::kMaxQueuedPayloadBytesPerAssociation -
-              queued_payload_bytes_) {
+      association_queue_full) {
     ++stats_.capacity_drops;
     RecordCounterEvent("queue_capacity_drop", stats_.capacity_drops);
-    // A target created for this datagram is still kConnecting with an empty
-    // queue, so the cooldown/retiring checks above cannot fire for it and only
-    // this association-level admission can reject its first datagram. Erase the
-    // freshly created entry instead of leaving a zombie kConnecting target that
-    // no timer reaps, which would otherwise leak a target slot for the whole
-    // association lifetime.
-    if (created_target) {
-      targets_.erase(it);
-    }
     return OK;
   }
 

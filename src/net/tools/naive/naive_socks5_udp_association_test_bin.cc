@@ -20,6 +20,7 @@
 #include "base/run_loop.h"
 #include "base/task/single_thread_task_executor.h"
 #include "base/task/single_thread_task_runner.h"
+#include "base/time/time.h"
 #include "net/base/io_buffer.h"
 #include "net/base/ip_address.h"
 #include "net/base/ip_endpoint.h"
@@ -224,6 +225,9 @@ struct RelayState {
   bool recv_pending = false;
   bool send_pending = false;
   bool closed = false;
+  scoped_refptr<net::IOBuffer> pending_recv_buffer;
+  net::IPEndPoint* pending_recv_address = nullptr;
+  net::CompletionOnceCallback pending_recv_callback;
   scoped_refptr<net::IOBuffer> pending_send_buffer;
   net::CompletionOnceCallback pending_send_callback;
 };
@@ -234,6 +238,12 @@ void QueueRelayData(const std::shared_ptr<RelayState>& state,
   CHECK(!data.empty());
   state->reads.push_back(RelayReadEvent{
       .data = std::move(data), .source = source, .result = net::OK});
+}
+
+void QueueRelayResult(const std::shared_ptr<RelayState>& state, int result) {
+  CHECK_LT(result, 0);
+  state->reads.push_back(
+      RelayReadEvent{.data = {}, .source = {}, .result = result});
 }
 
 class ScriptedDatagramSocket final : public net::DatagramServerSocket {
@@ -258,9 +268,9 @@ class ScriptedDatagramSocket final : public net::DatagramServerSocket {
     CHECK(!state_->recv_pending);
     if (state_->reads.empty()) {
       state_->recv_pending = true;
-      pending_recv_buffer_ = base::WrapRefCounted(buffer);
-      pending_recv_address_ = address;
-      pending_recv_callback_ = std::move(callback);
+      state_->pending_recv_buffer = base::WrapRefCounted(buffer);
+      state_->pending_recv_address = address;
+      state_->pending_recv_callback = std::move(callback);
       return net::ERR_IO_PENDING;
     }
 
@@ -308,11 +318,11 @@ class ScriptedDatagramSocket final : public net::DatagramServerSocket {
     }
     state_->closed = true;
     ++state_->close_calls;
-    if (pending_recv_callback_) {
+    if (state_->pending_recv_callback) {
       ++state_->pending_recv_cancellations;
-      pending_recv_callback_.Reset();
-      pending_recv_buffer_.reset();
-      pending_recv_address_ = nullptr;
+      state_->pending_recv_callback.Reset();
+      state_->pending_recv_buffer.reset();
+      state_->pending_recv_address = nullptr;
       state_->recv_pending = false;
     }
     if (state_->pending_send_callback) {
@@ -367,11 +377,34 @@ class ScriptedDatagramSocket final : public net::DatagramServerSocket {
  private:
   const std::shared_ptr<RelayState> state_;
   const net::IPEndPoint local_endpoint_;
-  scoped_refptr<net::IOBuffer> pending_recv_buffer_;
-  net::IPEndPoint* pending_recv_address_ = nullptr;
-  net::CompletionOnceCallback pending_recv_callback_;
   net::NetLogWithSource net_log_;
 };
+
+void CompleteRelayRead(const std::shared_ptr<RelayState>& state,
+                       std::vector<uint8_t> data,
+                       const net::IPEndPoint& source) {
+  CHECK(state->recv_pending);
+  CHECK(state->pending_recv_callback);
+  CHECK_LE(data.size(),
+           static_cast<size_t>(state->pending_recv_buffer->size()));
+  state->pending_recv_buffer->first(data.size()).copy_from(data);
+  *state->pending_recv_address = source;
+  state->recv_pending = false;
+  state->pending_recv_buffer.reset();
+  state->pending_recv_address = nullptr;
+  std::move(state->pending_recv_callback).Run(static_cast<int>(data.size()));
+}
+
+void CompleteRelayReadError(const std::shared_ptr<RelayState>& state,
+                            int result) {
+  CHECK_LT(result, 0);
+  CHECK(state->recv_pending);
+  CHECK(state->pending_recv_callback);
+  state->recv_pending = false;
+  state->pending_recv_buffer.reset();
+  state->pending_recv_address = nullptr;
+  std::move(state->pending_recv_callback).Run(result);
+}
 
 void CompleteRelaySend(const std::shared_ptr<RelayState>& state, int result) {
   CHECK(state->send_pending);
@@ -643,6 +676,93 @@ void TestSynchronousBackendEchoAndSendErrorStopsReads() {
          "synchronous SendTo error never reads closed relay");
 }
 
+void TestRecoverableRelayReadErrorsContinue() {
+  AssociationHarness harness;
+  BuildAssociation(harness);
+  for (int result : {net::ERR_CONNECTION_RESET, net::ERR_MSG_TOO_BIG,
+                     net::ERR_ADDRESS_UNREACHABLE}) {
+    QueueRelayResult(harness.relay, result);
+  }
+  QueueRelayData(harness.relay, ValidPacket(), harness.control_peer);
+
+  Expect(StartAssociation(harness) == net::ERR_IO_PENDING,
+         "recoverable synchronous read association starts");
+  RunUntilIdle();
+
+  Expect(harness.completion.calls == 0,
+         "recoverable synchronous read errors keep association active");
+  Expect(harness.backend->send_calls == 1,
+         "valid datagram after synchronous read errors reaches backend");
+  Expect(harness.relay->recv_pending,
+         "relay read rearms after synchronous recoverable errors");
+
+  if (harness.relay->recv_pending) {
+    CompleteRelayReadError(harness.relay, net::ERR_CONNECTION_RESET);
+    Expect(harness.completion.calls == 0 && harness.relay->recv_pending,
+           "asynchronous recoverable read error rearms receive");
+  }
+  if (harness.relay->recv_pending) {
+    CompleteRelayRead(harness.relay, ValidPacket(), harness.control_peer);
+    Expect(harness.backend->send_calls == 2 && harness.relay->recv_pending,
+           "valid datagram after asynchronous read error reaches backend");
+  }
+}
+
+void TestRecoverableRelayWriteErrorsContinue() {
+  AssociationHarness synchronous;
+  BuildAssociation(synchronous);
+  synchronous.backend->mode = BackendMode::kEchoSynchronously;
+  for (int result : {net::ERR_CONNECTION_RESET, net::ERR_MSG_TOO_BIG,
+                     net::ERR_ADDRESS_UNREACHABLE}) {
+    synchronous.relay->send_results.push_back(result);
+    QueueRelayData(synchronous.relay, ValidPacket(), synchronous.control_peer);
+  }
+  QueueRelayData(synchronous.relay, ValidPacket(), synchronous.control_peer);
+
+  Expect(StartAssociation(synchronous) == net::ERR_IO_PENDING,
+         "recoverable synchronous write association starts");
+  RunUntilIdle();
+  Expect(synchronous.completion.calls == 0,
+         "recoverable synchronous write errors keep association active");
+  Expect(synchronous.relay->send_calls == 4 &&
+             synchronous.relay->recv_pending,
+         "relay sends the datagram after synchronous write errors");
+
+  AssociationHarness asynchronous;
+  BuildAssociation(asynchronous);
+  asynchronous.backend->mode = BackendMode::kEchoSynchronously;
+  asynchronous.relay->send_results.push_back(net::ERR_IO_PENDING);
+  asynchronous.relay->send_results.push_back(net::ERR_IO_PENDING);
+  QueueRelayData(asynchronous.relay, ValidPacket(), asynchronous.control_peer);
+  QueueRelayData(asynchronous.relay, ValidPacket(), asynchronous.control_peer);
+  Expect(StartAssociation(asynchronous) == net::ERR_IO_PENDING,
+         "recoverable asynchronous write association starts");
+  RunUntilIdle();
+  Expect(asynchronous.relay->send_pending &&
+             asynchronous.relay->send_calls == 1,
+         "first asynchronous relay write is pending");
+  const base::TimeTicks activity_before =
+      asynchronous.association->last_activity();
+  CompleteRelaySend(asynchronous.relay, net::ERR_CONNECTION_RESET);
+  Expect(asynchronous.completion.calls == 0 &&
+             asynchronous.relay->send_calls == 2 &&
+             asynchronous.relay->send_pending &&
+             asynchronous.association->last_activity() == activity_before,
+         "asynchronous write error drops one response without idle refresh");
+}
+
+void TestFatalRelayReadErrorFinishesAssociation() {
+  AssociationHarness harness;
+  BuildAssociation(harness);
+  QueueRelayResult(harness.relay, net::ERR_FAILED);
+  Expect(StartAssociation(harness) == net::ERR_IO_PENDING,
+         "fatal read association starts");
+  RunUntilIdle();
+  Expect(harness.completion.calls == 1 &&
+             harness.completion.result == net::ERR_FAILED,
+         "non-recoverable relay read still finishes the association");
+}
+
 void TestSynchronousControlDataYieldsThenEof() {
   AssociationHarness harness;
   BuildAssociation(harness);
@@ -759,6 +879,33 @@ void TestResponseQueuePressure() {
          "response pressure does not terminate the SOCKS association");
 }
 
+void TestExpirationPolicy() {
+  AssociationHarness harness;
+  BuildAssociation(harness);
+  const base::TimeTicks created = harness.association->creation_time();
+  const base::TimeTicks last_activity = harness.association->last_activity();
+  const base::TimeDelta idle_timeout = base::Seconds(5);
+  const base::TimeDelta tunnel_timeout = base::Seconds(2);
+
+  Expect(!harness.association->ShouldExpire(
+             created + tunnel_timeout, base::Seconds(30), tunnel_timeout),
+         "association remains active at the exact maximum-age boundary");
+  Expect(harness.association->ShouldExpire(
+             created + tunnel_timeout + base::Milliseconds(1),
+             base::Seconds(30), tunnel_timeout),
+         "active association expires after its maximum lifetime");
+  Expect(!harness.association->ShouldExpire(
+             last_activity + idle_timeout, idle_timeout, base::Hours(1)),
+         "association remains active at the exact idle boundary");
+  Expect(harness.association->ShouldExpire(
+             last_activity + idle_timeout + base::Milliseconds(1), idle_timeout,
+             base::Hours(1)),
+         "idle association expires after the idle timeout");
+  Expect(!harness.association->ShouldExpire(
+             created + base::Seconds(1), idle_timeout, tunnel_timeout),
+         "fresh association does not expire");
+}
+
 }  // namespace
 
 int main() {
@@ -768,10 +915,14 @@ int main() {
   TestFirstRecvFromCompletesSynchronously();
   TestSynchronousInvalidBurstYieldsAndRecovers();
   TestSynchronousBackendEchoAndSendErrorStopsReads();
+  TestRecoverableRelayReadErrorsContinue();
+  TestRecoverableRelayWriteErrorsContinue();
+  TestFatalRelayReadErrorFinishesAssociation();
   TestSynchronousControlDataYieldsThenEof();
   TestPendingReadDestructionCancelsCallbacks();
   TestPendingBackendSendDestructionCancelsCallback();
   TestResponseQueuePressure();
+  TestExpirationPolicy();
 
   if (failures != 0) {
     std::cerr << "M2 G4/G5 deterministic association failures=" << failures
