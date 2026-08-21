@@ -605,9 +605,7 @@ void NaiveProxy::CleanUpIdleConnections() {
     ClosePendingSocks(id, ERR_TIMED_OUT);
   }
   for (const auto& [id, association] : udp_association_by_id_) {
-    base::TimeDelta idle = now - association->last_activity();
-    base::TimeDelta age = now - association->creation_time();
-    if (idle > idle_timeout_ || age > tunnel_timeout_) {
+    if (association->ShouldExpire(now, idle_timeout_, tunnel_timeout_)) {
       idle_udp_associations.push_back(id);
     }
   }

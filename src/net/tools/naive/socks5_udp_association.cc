@@ -35,13 +35,8 @@ uint16_t RequestedClientPort(
   return control_socket->request_endpoint().port();
 }
 
-// A local UDP relay error that concerns a single datagram rather than the
-// association as a whole. On some platforms a prior ICMP "port unreachable"
-// surfaces as ERR_CONNECTION_RESET on the next recv/send, and an oversize
-// payload surfaces as ERR_MSG_TOO_BIG. Tearing down the control TCP connection
-// and every active tunnel for such a per-packet condition is a denial of
-// service against unrelated destinations sharing the association, so these are
-// dropped and the pumps continue.
+// Per-datagram relay failures (ICMP port-unreachable, oversize). Do not
+// Finish() the whole association.
 bool IsRecoverableRelayError(int result) {
   switch (result) {
     case ERR_CONNECTION_RESET:
@@ -83,6 +78,13 @@ Socks5UdpAssociation::Socks5UdpAssociation(
 }
 
 Socks5UdpAssociation::~Socks5UdpAssociation() = default;
+
+bool Socks5UdpAssociation::ShouldExpire(base::TimeTicks now,
+                                        base::TimeDelta idle_timeout,
+                                        base::TimeDelta tunnel_timeout) const {
+  return now - last_activity_ > idle_timeout ||
+         now - created_at_ > tunnel_timeout;
+}
 
 int Socks5UdpAssociation::Start(CompletionOnceCallback callback) {
   CHECK(!completion_callback_);
@@ -208,8 +210,6 @@ void Socks5UdpAssociation::OnRelayReadComplete(int result) {
 bool Socks5UdpAssociation::HandleRelayRead(int result) {
   if (result < 0) {
     if (IsRecoverableRelayError(result)) {
-      // Drop the failed read but keep the association and its tunnels alive;
-      // the caller continues pumping subsequent reads.
       return true;
     }
     Finish(result);
@@ -338,11 +338,8 @@ void Socks5UdpAssociation::OnRelayWriteComplete(int result) {
   relay_write_pending_ = false;
   if (result < 0) {
     if (IsRecoverableRelayError(result)) {
-      // Drop the datagram that failed to send and continue with the queue
-      // rather than terminating the whole association.
       CHECK(!response_queue_.empty());
       response_queue_.pop_front();
-      last_activity_ = base::TimeTicks::Now();
       PumpRelayWrites();
       return;
     }

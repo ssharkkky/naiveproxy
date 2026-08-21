@@ -43,6 +43,9 @@ class Socks5UdpAssociation {
   unsigned int id() const { return id_; }
   base::TimeTicks last_activity() const { return last_activity_; }
   base::TimeTicks creation_time() const { return created_at_; }
+  bool ShouldExpire(base::TimeTicks now,
+                    base::TimeDelta idle_timeout,
+                    base::TimeDelta tunnel_timeout) const;
 
   // Returns ERR_IO_PENDING while the association is active. The callback is
   // invoked once when the TCP control connection or UDP relay terminates.
