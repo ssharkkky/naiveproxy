@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-07-26 (Asia/Shanghai)
+Last updated: 2026-08-26 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
 [`m6-execution-plan.md`](m6-execution-plan.md).
@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0-G4, G5b-G5d, and G5f complete; G5e/G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64, Linux x64, and Windows x64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes | Finish Android, then G6 |
+| M6 — hardening and release candidate | In progress; G0-G5 complete; G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64, Linux x64, Windows x64, and Android arm64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes; `M6_G5_PLATFORM_QUALIFICATION_OK` | G6 release closeout and independent audit |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -52,8 +52,8 @@ Current remaining planning range:
 
 These are engineering estimates, not elapsed-calendar guarantees. The product
 is not production-ready: shipped-client G1b2 and the three-run G1d closeout
-pass, but Android G5e real-device qualification and the G6 release/audit
-closeout remain open.
+pass, and all four G5 platform records are verified, but the G6 release/audit
+closeout remains open.
 
 ## M1 detailed status
 
@@ -1610,7 +1610,7 @@ M6_G5B_MACOS_ARM64_OK
 The machine-readable platform record now marks `macos-arm64` verified; Linux,
 Windows, and Android remain `not run`.
 
-### M6-G5e — Android arm64 build readiness: complete; runtime pending
+### M6-G5e — Android arm64 qualification: complete
 
 GitHub Actions run `29743425559` built the Android arm64 Naive binary and
 plugin APK at NaiveProxy `58a7ac9821d9b01d5ab95f154e0eeff33fb4ea84` on
@@ -1623,9 +1623,51 @@ M6_G5E_ANDROID_PLUGIN_PACKAGE_OK
 M6_G5E_ANDROID_ARM64_BUILD_READY
 ```
 
-The machine record retains `state: not run`. This build evidence does not
-prove host-app UDP/DNS/H3/TCP, trust behavior, or suspend/resume/restart on a
-physical Android arm64 device; those remain required before G5e can close.
+Runtime qualification then ran on a physical Android arm64 device (Android 16,
+`Android-build-redacted`, arm64-v8a, ADB) against the LAN M5
+Caddy/forwardproxy server (Caddy `dd9a89c1`, forwardproxy `964281a9`) with
+the shipped NDK Release `naive` built at NaiveProxy
+`474a1e4b0aeb9c64e6d0083eaddd205c887bf608` (31 commits ahead of the GitHub
+build; UDP-hardening and Windows G5d work). A temporary per-process CA
+(`SSL_CERT_FILE`) authorized the direct-`naive` runs, and a temporary
+system-trust-store installation of the same test CA authorized the host-app
+runs; both trust inputs were removed before closeout.
+
+Verified on-device: shipped UDP echo, the 1314-byte live-ceiling and
+1200-byte safe payloads, DNS, zero/oversize limits, control close, the
+125-second server-idle reconnect (server `idle_expired` plus a fresh
+association in the Caddy log), an independent quic-go HTTP/3 application
+probe through CONNECT-UDP, forced-SOCKS TCP parity expecting
+`m5-production-tcp-ok`, and QUIC proxy-datagram NetLog evidence. The
+untrusted A/B (test CA removed from the system trust store, no
+`SSL_CERT_FILE`) rejected the self-signed proxy certificate with a QUIC
+handshake failure, no CONNECT-UDP success reached the server, and the echo
+probe timed out. The NekoBox (`moe.nb4a`) host app ran the SagerNet naive
+plugin node with `tun0` up, a real-web CONNECT returning HTTP 200 through
+the plugin, and traffic continuing across `am freeze`/`am unfreeze`.
+
+```text
+M5_G5_UNTRUSTED_CERT_REJECTED_OK
+M5_G5_DEFAULT_CERT_VERIFIER_OK
+M5_G5_PRODUCTION_ECHO_OK
+G5E_PAYLOAD_1314_OK
+G5E_PAYLOAD_1200_OK
+M3_G5_ZERO_OVERSIZE_OK
+M3_G4_DNS_OK
+M5_G2_HTTP3_APPLICATION_OK
+M5_G5_PRODUCTION_TCP_OK
+M5_G4_CONTROL_CLOSE_OK
+M5_G4_SERVER_IDLE_RECONNECT_OK
+M5_G5_H3_DATAGRAM_EVIDENCE_OK
+M6_G5E_HOST_APP_NEKOBBOX_OK
+M6_G5E_LIFECYCLE_FREEZE_OK
+M6_G5E_ANDROID_ARM64_OK
+```
+
+The machine-readable `android-arm64` record is now `verified`, closing the
+final open G5 platform row. With macOS, Linux, Windows, and Android all
+verified and the G5f wire gate passing, the G5 exit is satisfied and
+`M6_G5_PLATFORM_QUALIFICATION_OK` is recorded.
 
 ### M6-G5c — Linux x64 qualification: complete
 
@@ -1949,8 +1991,9 @@ M6_G5F_MACOS_CLIENT_LINUX_SERVER_OK
 The gate uses only the test runner's local certificate verifier; default
 certificate-verifier evidence remains owned by each native G5 platform row.
 Temporary keys, logs, cross-built binaries, and guest processes are removed by
-the runner. The final `M6_G5_PLATFORM_QUALIFICATION_OK` marker remains withheld
-until the Android arm64 record is verified.
+the runner. The final `M6_G5_PLATFORM_QUALIFICATION_OK` marker was withheld
+until the Android arm64 record was verified; G5e closed that row, so the
+marker is now recorded in the G5e section.
 
 ## Canonical M5 verification commands
 

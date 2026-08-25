@@ -338,12 +338,18 @@ Sub-gates:
   run `30167351024` passed `go test -count=1 ./...` and emitted
   `M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`; the later full run supplied the
   required qualification evidence.
-- [ ] G5e — qualify Android arm64 host-app/package behavior through the
+- [x] G5e — qualify Android arm64 host-app/package behavior through the
   complete row below. A separate GitHub-hosted cross-build gate may establish
   arm64 ELF/APK/provider build readiness, but it cannot change the Android
   runtime record from fail-closed without a physical arm64 device run. Build
   readiness passed in GitHub Actions run `29743425559` at NaiveProxy
-  `58a7ac9821`; the runtime row remains `not run`.
+  `58a7ac9821`. The physical-device runtime row (physical Android arm64 device, Android 16
+  arm64-v8a, NDK Release `naive` at `474a1e4b0a`, Caddy `dd9a89c1`,
+  forwardproxy `964281a9`) passed echo, 1314/1200-byte payloads, DNS,
+  zero/oversize, control close, 125-second server idle, independent HTTP/3,
+  TCP parity, untrusted/trusted A/B, and the NekoBox host-app and lifecycle
+  rows; the record is `verified` and `M6_G5_PLATFORM_QUALIFICATION_OK` is
+  recorded.
 - [x] G5f — pinned macOS arm64 Chromium/Naive production backend to Linux
   arm64 Caddy/forwardproxy interoperability passed UDP, TCP, independent H3,
   and privacy gates at commit `13df84bfd9`. The Linux side is a pinned

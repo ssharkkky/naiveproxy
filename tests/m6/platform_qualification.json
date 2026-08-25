@@ -154,24 +154,48 @@
     },
     {
       "id": "android-arm64",
-      "state": "not run",
-      "os_version": "",
+      "state": "verified",
+      "os_version": "Android 16 (Android-build-redacted)",
       "architecture": "arm64-v8a",
-      "naive_revision": "58a7ac9821d9b01d5ab95f154e0eeff33fb4ea84",
-      "forwardproxy_revision": "",
-      "caddy_revision": "",
+      "naive_revision": "474a1e4b0aeb9c64e6d0083eaddd205c887bf608",
+      "forwardproxy_revision": "964281a9797efd9a4c953f6273c73e397e777864",
+      "caddy_revision": "dd9a89c11194dcb806d845233995ef040f096464",
       "build_commands": [
-        "GitHub Actions run 29743425559: android-arm64-build"
+        "GitHub Actions run 29743425559 job android-arm64-build: Android NDK Release build of naive and the SagerNet naive plugin package at NaiveProxy 58a7ac9821d9b01d5ab95f154e0eeff33fb4ea84"
       ],
-      "runtime_commands": [],
+      "runtime_commands": [
+        "adb shell: launch the shipped NDK Release naive (474a1e4b0a) with a temporary per-process CA (SSL_CERT_FILE) and a quic:// SOCKS5 config mapped to the LAN M5 Caddy/forwardproxy server",
+        "adb shell su 0: tests/socks5_udp_m3.py echo, 1314/1200-byte payload, DNS, and zero-oversize probes via naive through the trusted forwardproxy to the M5 UDP fixtures",
+        "adb shell su 0: tests/g4_matrix.py control-close and 125-second server-idle reconnect probes via naive",
+        "adb shell su 0: cmd/socks-h3-probe (Android build) independent HTTP/3 application probe to the M5 h3-origin fixture through naive",
+        "adb forward tcp:12080 tcp:12080: forced-SOCKS TCP parity request to the M5 HTTP fixture expecting m5-production-tcp-ok",
+        "untrusted A/B: remove the test CA from the Android system trust store, relaunch naive without SSL_CERT_FILE; the echo probe times out, the server logs no CONNECT-UDP success, and naive reports a QUIC handshake failure",
+        "NekoBox (moe.nb4a) host app with the SagerNet naive plugin node: tun0 up, real-web CONNECT 200 through the plugin, am freeze/unfreeze lifecycle with traffic continuing"
+      ],
       "markers": [
         "M6_G5E_ANDROID_ARM64_ELF_OK",
         "M6_G5E_ANDROID_PLUGIN_PACKAGE_OK",
-        "M6_G5E_ANDROID_ARM64_BUILD_READY"
+        "M6_G5E_ANDROID_ARM64_BUILD_READY",
+        "M5_G5_UNTRUSTED_CERT_REJECTED_OK",
+        "M5_G5_DEFAULT_CERT_VERIFIER_OK",
+        "M5_G5_PRODUCTION_ECHO_OK",
+        "G5E_PAYLOAD_1314_OK",
+        "G5E_PAYLOAD_1200_OK",
+        "M3_G5_ZERO_OVERSIZE_OK",
+        "M3_G4_DNS_OK",
+        "M5_G2_HTTP3_APPLICATION_OK",
+        "M5_G5_PRODUCTION_TCP_OK",
+        "M5_G4_CONTROL_CLOSE_OK",
+        "M5_G4_SERVER_IDLE_RECONNECT_OK",
+        "M5_G5_H3_DATAGRAM_EVIDENCE_OK",
+        "M6_G5E_HOST_APP_NEKOBBOX_OK",
+        "M6_G5E_LIFECYCLE_FREEZE_OK",
+        "M6_G5E_ANDROID_ARM64_OK"
       ],
       "limitations": [
-        "Build readiness ran on Ubuntu 22.04.5 and does not qualify Android runtime behavior.",
-        "Physical Android arm64 host-app/package runtime evidence is still required."
+        "Runtime qualification ran on a physical Android arm64 device (Android 16 arm64, ADB) against a LAN M5 Caddy/forwardproxy server; the direct-naive binary (474a1e4b0a) is 31 commits ahead of the GitHub plugin-package build (58a7ac9821) used by the host-app evidence.",
+        "Host-app trust used a test CA temporarily installed in the Android system trust store during qualification and removed before the untrusted A/B run; direct-naive trust used a temporary per-process CA file.",
+        "UDP payload padding remains outside native UDP v1."
       ]
     }
   ]
