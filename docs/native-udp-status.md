@@ -2311,3 +2311,6 @@ runner is `4a395a7f4e` with module-cwd correction `d1aee3663f`; the independent
 audit covers the local closeout `eaf172d971` and returns `AUDIT_PASS`.
 Generated `.DS_Store` and `src/tmp/` entries remain unrelated and must not be
 included in future feature commits.
+M6-G6 closes the branch with harness commit `2430df7acc` (release matrix
+plus harness pin fixes) and closeout record `e96cfbd0cc` (status ledger,
+release guide, payload policy), both pushed to origin.
