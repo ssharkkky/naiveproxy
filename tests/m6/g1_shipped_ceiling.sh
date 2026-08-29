@@ -140,7 +140,7 @@ test "$(uname -s)" = Darwin
 command -v security >/dev/null
 command -v openssl >/dev/null
 
-expected_client=17c717793c7e5634bf0d5dfa823c9839eb45e832
+expected_client=474a1e4b0aeb9c64e6d0083eaddd205c887bf608
 expected_forwardproxy=964281a9797efd9a4c953f6273c73e397e777864
 expected_caddy=dd9a89c11194dcb806d845233995ef040f096464
 unexpected_client_changes=$(git -C "$repo_dir" diff --name-only \

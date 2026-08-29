@@ -65,15 +65,15 @@ wait_for_log() {
   return 1
 }
 
-expected_forwardproxy=8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7
-expected_caddy=cce894a8a0e987eb1722cf99729499bdaba6c38d
+expected_forwardproxy=${M5_EXPECTED_FORWARDPROXY:-8f044e278c70d7479c644eb0ebfffc6bb4b7b3c7}
+expected_caddy=${M5_EXPECTED_CADDY:-cce894a8a0e987eb1722cf99729499bdaba6c38d}
 test "$(git -C "$forwardproxy_dir" rev-parse "$expected_forwardproxy")" = \
   "$expected_forwardproxy"
 unexpected_server_changes=$(git -C "$forwardproxy_dir" diff --name-only \
   "$expected_forwardproxy"..HEAD | sed '/^tests\/m5\//d')
 test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
-git -C "$repo_dir" diff --quiet 333b7cb253..HEAD -- src/net
+git -C "$repo_dir" diff --quiet ${M5_EXPECTED_CLIENT:-333b7cb253}..HEAD -- src/net
 git -C "$repo_dir" diff --quiet -- src/net
 ninja -C "$repo_dir/src/out/Release" naive_socks5_udp_m3_runner \
   naive_socks5_udp_runner >/dev/null
