@@ -1,11 +1,12 @@
 # Native UDP v1 Release Guide
 
-Last updated: 2026-07-20 (Asia/Shanghai)
+Last updated: 2026-08-29 (Asia/Shanghai)
 
-Status: **release-candidate draft**. M6 is incomplete. This guide describes the
-intended v1 operator contract but must not be used to claim production support
-until `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` and the required platform record are
-present.
+Status: **release candidate**. M6-G6 closeout is complete:
+`M6_G6_LOCAL_RELEASE_CHECKLIST_OK` with independent `AUDIT_PASS` (zero
+blocker/high/medium), all four required platform rows `verified`, and the
+final marker `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` recorded in
+[native-udp-status.md](native-udp-status.md).
 
 ## Configuration contract
 
@@ -55,10 +56,9 @@ encodings.
 
 ## Payload and PMTU behavior
 
-Follow [`native-udp-payload-policy.md`](native-udp-payload-policy.md). The v1
-application baseline is 1200 bytes only after that document changes from
-`candidate` to frozen. The measured 1314-byte current-host ceiling is not a
-cross-platform guarantee.
+Follow [`native-udp-payload-policy.md`](native-udp-payload-policy.md). The
+v1 application baseline is the frozen 1200-byte inner payload. The measured
+1314-byte current-host ceiling is not a cross-platform guarantee.
 
 Payloads above the live HTTP/3 Datagram ceiling are dropped locally without
 truncation. Payloads below that ceiling can still be lost by the network. A

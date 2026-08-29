@@ -1,11 +1,19 @@
 # Native UDP v1 Payload and PMTU Policy
 
-Last updated: 2026-07-20 (Asia/Shanghai)
+Last updated: 2026-08-26 (Asia/Shanghai)
 
-Status: **candidate**. M6-G1a through G1d, including the shipped-client
-default-verifier measurement and three-run closeout, are complete. The policy
-remains unfrozen until the remaining G5 platform records either verify the
-1200-byte baseline or explicitly leave native UDP unqualified/disabled.
+Status: **frozen** (v1 release policy). Frozen during M6-G6 closeout after
+all four freeze criteria below were satisfied by recorded evidence: G1b2
+repeated the 1314-byte current-host measurement with the shipped
+default-verifier client and rejected 1315 bytes without truncation; the
+temporary CA trust was removed and the certificate re-verified untrusted
+(G5 untrusted A/B); the G1 ceiling/PMTU/client/TCP/server regression set
+passed three times (G1d closeout); and all four G5 platform records are
+`verified` in `tests/m6/platform_qualification.json` under the G5a record
+contract, with `M6_G1_PAYLOAD_PMTU_OK` attributed to macOS,
+`G5E_PAYLOAD_1200_OK`/`G5E_PAYLOAD_1314_OK` on Android, and
+`M5_G5_NO_PADDING_BASELINE_OK` from the product matrix on Linux and
+Windows.
 
 ## Application contract
 
@@ -70,6 +78,9 @@ unreliable-datagram padding protocol requires a separate design and audit.
 ## Freeze criteria
 
 This document becomes the frozen v1 release policy only after:
+
+All four criteria are satisfied; see the status note above for the
+recorded evidence per criterion.
 
 1. shipped `naive` with `CertVerifier::CreateDefault()` repeats the 1314-byte
    current-host measurement and rejects 1315 bytes without truncation;

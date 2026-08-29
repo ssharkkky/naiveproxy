@@ -1995,6 +1995,165 @@ the runner. The final `M6_G5_PLATFORM_QUALIFICATION_OK` marker was withheld
 until the Android arm64 record was verified; G5e closed that row, so the
 marker is now recorded in the G5e section.
 
+### M6-G6 — release-candidate closeout and independent audit: complete
+
+Date: 2026-08-29 (Asia/Shanghai)
+
+The release matrix runner `tests/m6/g6_release_matrix.sh` reproduces the
+release from clean inputs in one pass against the exact release pins: client
+runtime `474a1e4b0aeb9c64e6d0083eaddd205c887bf608` (HEAD `73a0afe80d` is
+docs-only; `git diff 474a1e4b0a..HEAD -- src/net` is empty), forwardproxy
+`964281a9` (audited runtime base `8f044e27`, build lock `e9663e4`), Caddy
+`dd9a89c1` (rebuilt per run into the matrix tmp root by
+`forwardproxy/scripts/build-naive-caddy.sh` with Go `1.25.12` / xcaddy
+`v0.4.5`; `go version -m` on the binary is checked for `go1.25.12`), Go
+`1.25.12`, quic-go `0.59.0`, gn `2407 (3357c4f51b1a)` at the DEPS pin.
+
+Gate order: release pin checks -> 11 Release ninja targets (no-op against
+the frozen tree) -> M1-M3 matrix -> 56-case Naive TCP owner matrix -> Caddy
+RC rebuild + toolchain pin check -> pre-seeded isolated Go module cache
+for the shipped-binary gate -> `tests/m5/g5_production_binary.sh` on the RC
+pins -> three clean-root M5 product repetitions -> M6 G2 network-impairment
+matrix (5 profiles x 3 clean-root runs) -> M6 G3 3600 s qualification soak
+-> M6 G4 sanitizer/fuzz -> forwardproxy owner/legacy/privacy/race
+regressions -> Caddy `modules/caddyhttp` regression -> hygiene (3x `git
+diff --check`, forbidden-generated-artifact scans over the three M6 diff
+ranges, untracked allow-list).
+
+Harness fixes landed during G6 (test-only; no gate weakened):
+
+- `tests/m6/g1_live_ceiling.sh` and `tests/m6/g1_shipped_ceiling.sh`:
+  `expected_client` advanced from the G2-era pin `17c717793c` to the frozen
+  RC `474a1e4b0a`. The five M6 runtime commits (`a5d33cb3f9`,
+  `d6f95e9f61`, `cc2208ec87`, `2ec711012e`, `474a1e4b0a`) changed
+  `src/net` after the G2-era pin, so the stale pin rejected the RC tree.
+- The G6 runner pre-seeds a fresh per-run isolated Go module cache
+  (`M6_GO_CACHE_ROOT`) before the G2/G3 stages build the h3-origin /
+  socks-h3-probe fixtures, the same fix pattern as the G5 shipped-binary
+  gate, protecting probes from a half-extracted shared module directory.
+- The G6 runner hygiene stage filters `git status --porcelain` to untracked
+  (`??`) lines before the allow-list comparison; modified tracked files (the
+  G6 change itself) were previously counted as unexpected.
+
+Matrix execution: the first G6 matrix run (`matrix-run6`, log retained under
+`/tmp/g6/`) passed every test stage through server regressions on the
+pre-fix runner; its final hygiene stage exposed the untracked-filter harness
+bug above, not a product finding. The final run (`matrix-run7`) completed
+every stage green on the fixed runner, exiting `0` with:
+
+```text
+M6_G6_PRODUCT_REPETITION_OK run=1
+M6_G6_PRODUCT_REPETITION_OK run=2
+M6_G6_PRODUCT_REPETITION_OK run=3
+M6_G2_NETWORK_IMPAIRMENT_OK
+M6_G3_STRESS_SOAK_OK
+M6_G4_SANITIZER_FUZZ_OK
+M6_G6_LOCAL_RELEASE_CHECKLIST_OK
+```
+
+plus the M1-M3 marker set (`G1_MASQUE_SMOKE_OK`, `G2_NAIVE_TUNNEL_OK`,
+`G3_BASIC_AUTH_OK`, `G5_LIFECYCLE_OK`, `M2_SOCKS5_UDP_INGRESS_OK`,
+`M3_NATIVE_UDP_CLIENT_OK`), 56/56 Naive TCP `TEST PASS` cases, the full
+shipped-binary marker set including `M5_G5_PRODUCTION_BINARY_OK` and
+`M5_G5_UNTRUSTED_CERT_REJECTED_OK`, all three clean-root repetitions, the
+forwardproxy `M4_G0`-`M4_G5` server marker sets plus
+`M6_H3_TCP_PADDING_INTEROP_OK`, `go test ./...` and `go test -race ./...`
+ok, and Caddy `go test ./modules/caddyhttp` ok. The machine contract test
+suite (`python3 tests/m6/contract_test.py`) passes 19/19.
+
+G3 qualification soak (`M6_G3_TIER_OK tier=qualification
+duration_seconds=3600`): 97,056 datagrams over 6,066 churn waves;
+association cap 256 with 1 rejection and 64 reuses; resource peaks runner
+RSS 20,064 KiB / fd 526 and caddy RSS 43,648 KiB / fd 12; resource
+recovery verified; zero duplicate datagrams under every G2 profile
+(`M6_G2_NO_REPLAY_OK` per profile).
+
+G4 evidence: three seeded release codec fuzz runs of 1,000,000 iterations
+(seeds `20260720`, `9298`, `1928`; valid corpus 44,027 / 43,374 / 43,459
+entries) with `M6_G4_RELEASE_CODEC_FUZZ_OK`; 2,000-iteration seeded
+lifecycle; ASan/UBSan build and run `M6_G4_ASAN_UBSAN_OK`; Go server fuzz
+budget runs PASS; race suites clean; `M6_G4_SANITIZER_FUZZ_OK`.
+
+Exact-pin artifact inventory (SHA-256, macOS arm64 Release tree; the four
+contract-required release targets are marked `*`):
+
+| Artifact | SHA-256 |
+| --- | --- |
+| `naive` `*` | `fb37dfc7f4132e751fb0057dcf6be366e5c79c90c1afa16c579609f2193d7973` |
+| `naive_connect_udp_backend_test` `*` | `5715bb9c907ec33cded198ff23c5600af18c6eefd2ea9cfb99b049e0c9fab9ee` |
+| `naive_connect_udp_runner` | `9a53ef5b3a6037efd98fd71061458a9d5ddcae09ebd4cc524b14081901a0e3b9` |
+| `naive_socks5_udp_test` `*` | `9ce9cdd2c54c8fa647568012acb99b8a6879b3faa83a75cd74401c5007834f65` |
+| `naive_socks5_udp_fuzz_test` | `c76fd3fbf9e6aa0938b16f0006939521669021994ff4daeeefabd5b6a7030cac` |
+| `naive_socks5_udp_m3_runner` `*` | `50e0223df5df68459ec3f7fdc178352790fb4e337d7a19669f4ae4cba3471a72` |
+| `naive_socks5_udp_runner` | `035f9e175a3079d5cff9190e63a645c6ae7cb50c4d43e55d451b21834eb2d7a2` |
+| `naive_socks5_udp_association_test` | `d5e07760e6d07af8520072598d264a5c737867336be8fe266377d7f4a6d2d46a` |
+| `naive_socks5_server_socket_state_test` | `f12407d3f1a81e67885554fedab857f0971543435cbea10d67eb5985b86e8e96` |
+| `naive_masque_client` | `78dfd4d9d33d6d172e93408be24f6fecb1830c2147152043d3ad0909051ee186` |
+| `naive_masque_probe` | `8f7ae94edd4e8dc2b28c35e37208b0178763fc523ec56e7280d7733d57f1ee58` |
+| `naive_masque_server` (test fixture) | `772983e729b9c3d8f9b57090c1a7f8ea51c503905f413b5f5bee0cf8d88e7de0` |
+| Caddy RC binary (per-run rebuild) | `28b638d12e612f82aaf12fbdef7302030ec5e67f73908944fa4055a9c6328bb6` |
+
+The Android arm64 artifacts on the NAS were re-verified at the same SHAs as
+the G5e record: `naive`
+`e205d1b76de73416a752117ff26ead42cee1330ea9e3ace3d2090509b81c791b`, plugin
+APK `aee57c2b26a76ae2881f0335d0075055e105d97b14136ff818fc745ec6f28e7a`.
+
+Post-run cleanup verified: no test processes (caddy/masque/naive/echo/
+shaper/probe), no test listener ports (8443, 8500-8503, 19661-19664), no
+matrix tmp roots, and no G5 test CA remaining in the login keychain.
+
+Maintainer approval (G6 item 4): the project owner approved the Chromium
+API boundary (sole adapter `NaiveQuicProxyStreamRequest` over
+`NaiveConnectUdpTunnel` + `ConnectViaStream()`, preemptive auth via
+`HttpAuthController`, 407 as fresh-stream failure, pre-`Build()` QUIC
+origins per `333b7cb253`, M6 hardening confined to Naive's UDP backend, TCP
+path and `CertVerifier::CreateDefault()` untouched) and the frozen payload
+policy (1200 B baseline, 1314 B host ceiling, drop-oversize without
+truncation, no replay, no padding) on 2026-08-29.
+
+Independent audit (G6 item 5): a non-interactive `agy` session (Gemini
+3.1 Pro High, `agy --model gemini-3.1-pro-high -p`, permission prompts
+disabled, 45-minute print timeout) performed a defensive release-quality,
+read-only review over the exact M6 ranges: client
+`eaf172d971..73a0afe80d` (M6 runtime commits `a5d33cb3f9`,
+`d6f95e9f61`, `cc2208ec87`, `2ec711012e`, `474a1e4b0a`, plus platform
+qualification and documentation commits), forwardproxy
+`8f044e27..964281a9` (including build lock `e9663e4`), Caddy
+`cce894a8..dd9a89c1` (scoped post-fix audit of the TLS module race fix
+`dd9a89c1`), and the G6 harness change set (new G6 runner, M5
+environment overrides, M6 ceiling pin advances). The reviewer
+operated read-only, inspected the Git ranges, critical sources, and the
+recorded evidence (matrix logs, markers, pins), and re-verified that the
+M5 scripts' defaults remain the audited pins (no gate weakened).
+
+Findings: blocker 0, high 0, medium 0, low 2.
+
+- LOW (client): commit `17c717793c` adds a
+  `notify_proxy_delegate_of_response` constructor parameter at
+  `quic_session_pool.cc:1925`, a technical `QuicSessionPool` change that
+  is purely an API adaptation: the parameter defaults to `true`, so all
+  pre-existing streams keep today's behavior, and it is passed `false`
+  only for UDP datagram streams so UDP responses cannot pollute the TCP
+  padding capability cache. No security risk. Owner acknowledged with
+  mitigation on 2026-08-29: TCP data path and padding behavior stay
+  covered by the 56-case TCP owner matrix, `M6_H3_TCP_PADDING_INTEROP_OK`,
+  and `M5_G5_NO_PADDING_BASELINE_OK`, all green in the G6 matrix.
+- LOW (client, informational): the M6 UDP association hardening
+  (transient relay error tolerance `d6f95e9f61`, zombie-target eviction
+  `a5d33cb3f9`) introduces no vulnerability or replay vector; ambiguous
+  datagrams are dropped without replay.
+
+Verdict:
+
+```text
+AUDIT_PASS
+Zero blocker, high, or medium findings.
+```
+
+M6-G6 exit: `M6_G6_LOCAL_RELEASE_CHECKLIST_OK` plus independent
+`AUDIT_PASS` is recorded, and the final marker
+`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` closes M6.
+
 ## Canonical M5 verification commands
 
 ```bash
