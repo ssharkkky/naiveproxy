@@ -413,6 +413,10 @@ The detailed sequential plan is in
 Exit criterion: release checklist passes, no known high-severity lifecycle or
 memory-safety issue remains, and maintainers approve the Chromium API boundary.
 
+Result: **M6 complete.** All G0-G6 gates passed; the independent release-candidate
+audit returned `AUDIT_PASS`; final marker `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`;
+merged to `master` at `fcf3bb36f3`. See [`native-udp-status.md`](native-udp-status.md).
+
 ## 7. Verification matrix
 
 | Area | Minimum verification |

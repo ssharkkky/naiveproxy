@@ -11,7 +11,7 @@ Read these files in order before changing code:
 
 1. `docs/README.md` — documentation map, authority rules, and handoff checklist.
 2. `docs/native-udp-status.md` — verified current state and exact test commands.
-3. `docs/m6-execution-plan.md` — the active M6 G0–G6 release-hardening plan.
+3. `docs/m6-execution-plan.md` — the completed M6 G0–G6 release-hardening plan.
 4. `docs/m5-agy-audit.md` and `docs/m5-execution-plan.md` — completed M5
    product boundary and independent audit.
 5. `docs/native-udp-development-plan.md` — frozen v1 scope and M0–M6 roadmap.
@@ -25,7 +25,7 @@ revisions are `forwardproxy` `8f044e2` and Caddy `cce894a8`; the independent
 review returned `AUDIT_PASS` with zero blocker/high/medium findings. The audit's
 sole low CI-pinning observation was closed by `8f044e2`. M5's independent
 review also returned `AUDIT_PASS` with zero blocker/high/medium findings. The
-active milestone is M6 release hardening. M6-G0 is complete at `80d37395a6`;
+milestone M6 release hardening is **complete** (all gates G0–G6 closed; release candidate qualified with independent audit `AUDIT_PASS`, marker `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`; native UDP merged to `master` at `fcf3bb36f3`). M6-G0 was complete at `80d37395a6`;
 M6-G1 payload/PMTU gate is complete with final marker
 `M6_G1_PAYLOAD_PMTU_OK`; M6-G2 is complete at `028d3984d4`, G3's
 qualification soak passed with `M6_G3_STRESS_SOAK_OK`, and macOS arm64 G5b is
@@ -39,13 +39,13 @@ M6 currently carries a candidate Caddy race fix at `dd9a89c1` (forwardproxy
 build-lock commit `e9663e4`). This supersedes `cce894a8` only for M6
 release-candidate work; the immutable M4 audit remains evidence for its named
 `cce894a8` range. Post-fix G3/G4 and owner regressions are green; a scoped
-independent audit is still required during G6.
+independent audit completed in G6 (`3881038645`, `AUDIT_PASS`).
 
 The current forwardproxy qualification head is test-only commit `964281a`
 (`9b40eeb` plus TLS-readiness/target follow-up). Native Windows fast run
 `30167351024` passed its complete `go test ./...` suite; full run
 `30167583501` passed the complete Windows Server 2022 x64 row and emitted
-`M6_G5D_WINDOWS_X64_OK`. Android real-device G5e and G6 remain open.
+`M6_G5D_WINDOWS_X64_OK`. Android real-device G5e is complete (`cfb42328ac`) and G6 closed the release candidate (`3881038645` → `fcf3bb36f3`).
 
 ## Frozen engineering boundaries
 
@@ -133,6 +133,23 @@ reconsideration.
 - `1870779147` — begin M6-G1 with deterministic live-ceiling transition tests.
 - `9c72a7da08` — measure the live product ceiling and IPv6-minimum PMTU behavior.
 - `028d3984d4` — complete the seeded M6 network-impairment product matrix.
+- `e93c8e5aa6` — complete macOS arm64 M6 qualification (G5b).
+- `9f10b14f2e` — complete native Windows x64 qualification (G5d, `M6_G5D_WINDOWS_X64_OK`).
+- `cfb42328ac` — complete Android arm64 real-device qualification (G5e).
+- `3881038645` / `fcf3bb36f3` — M6-G6 release-candidate matrix, independent audit
+  (`AUDIT_PASS`, `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`), and closeout; merged to `master`.
 
 If repository state has advanced beyond these commits, trust the current Git
 history and the newest status-ledger update rather than this snapshot.
+
+## Follow-on work (post-M6, not yet implemented)
+
+- **Performance: CUBIC → BBR.** Native UDP on a lossy high-RTT path is
+  CUBIC-capped (~50–100 KB/s per session) because the outer QUIC uses CUBIC on
+  both ends and CUBIC collapses its window under loss; Hy2 (BBR, `standard`
+  profile) reaches ~700–800 KB/s on the same path. Planned fix: client enables
+  in-tree Chromium BBR (`kTBBR` v1 / `kB2ON` v2) behind a `quic_congestion`
+  config option; server ports Hy2's Go BBR into a minimal `quic-go` fork
+  (selectable profile, default `standard`). Any implementation is a client/server
+  runtime change subject to the owner-matrix regression + audit-reconsideration
+  rules above. (Detailed plan: local `bbr-server-plan.md`, untracked.)

@@ -7,3 +7,6 @@ src/out/
 src/.host_tool_cache/
 .vscode/
 *.pyc
+
+# local working docs (not part of repo deliverables)
+bbr-server-plan.md

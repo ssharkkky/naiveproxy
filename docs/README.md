@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-07-26 (Asia/Shanghai)
+Last updated: 2026-09-01 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -17,10 +17,10 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   Caddy `cce894a8`.
 - M5 final marker: `M5_NATIVE_UDP_MVP_OK`; audited client revision
   `eaf172d971`.
-- Active milestone: M6 hardening and release-candidate qualification.
+- Milestone status: **M6 complete** (release candidate qualified, `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at `fcf3bb36f3`.
 - M6-G0 release contract/environment marker: `M6_G0_CONTRACT_OK`; commit
   `80d37395a6`.
-- Active M6 gates: G5e Android runtime qualification and G6 release closeout.
+- All M6 gates complete: G5e Android runtime and G6 release closeout are now verified (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`).
   G1-G4, macOS G5b, and G5f cross-platform wire interoperability are
   complete. The forced-SOCKS TCP probe
   exposed a forwardproxy padding-negotiation defect; owner runtime fix
@@ -53,11 +53,10 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   `M6_G5D_WINDOWS_FORWARDPROXY_TESTS_OK`.
   Full native run `30167583501` then passed at NaiveProxy `3ed7cbc3de`,
   forwardproxy `964281a`, and Caddy `dd9a89c1`, emitting
-  `M6_G5D_WINDOWS_X64_OK`. Windows x64 is verified; Android remains
-  fail-closed pending its real-device runtime row.
-- Overall progress remains 6 of 7 milestones (86%), approximately 95-97% by
-  weighted engineering scope. This is not a production-release claim while
-  G5 and G6 evidence remains open.
+  `M6_G5D_WINDOWS_X64_OK`. Windows x64 and Android arm64 (G5e) are both verified.
+- All 7 milestones (M0-M6) are complete (100%); M6 closed as a qualified release
+  candidate (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at
+  `fcf3bb36f3`. Not yet a production release (see `native-udp-release-guide.md`).
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   native UDP commits.
 
@@ -76,9 +75,9 @@ SOCKS5 UDP / HTTP3 application
 | Document | Role | Update policy |
 | --- | --- | --- |
 | [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
-| [`m6-execution-plan.md`](m6-execution-plan.md) | Active M6 G0-G6 release-hardening sequence, release blockers, platform matrix, risks, and stop conditions | Update while M6 sequencing or contracts change |
-| [`native-udp-payload-policy.md`](native-udp-payload-policy.md) | Candidate M6 1200-byte application/PMTU policy and exact freeze criteria | Keep `candidate` until G1b2/G1d and platform evidence close |
-| [`native-udp-release-guide.md`](native-udp-release-guide.md) | Candidate M6 configuration, compatibility, observability, troubleshooting, upgrade, rollback, and limitations guide | Keep draft until G6 release/audit closeout |
+| [`m6-execution-plan.md`](m6-execution-plan.md) | Completed M6 G0-G6 release-hardening sequence, release blockers, platform matrix, risks, and stop conditions | Historical; factual clarifications only |
+| [`native-udp-payload-policy.md`](native-udp-payload-policy.md) | Frozen M6 1200-byte application/PMTU policy and exact freeze criteria | Frozen; historical |
+| [`native-udp-release-guide.md`](native-udp-release-guide.md) | M6 release-candidate configuration, compatibility, observability, troubleshooting, upgrade, rollback, and limitations guide | G6 closed; update if release configuration changes |
 | [`../tests/m6/platform_qualification.json`](../tests/m6/platform_qualification.json) | Machine-readable G5 platform evidence state; all rows fail closed until exact build/runtime evidence is supplied | Update only from attributable platform results |
 | [`m5-execution-plan.md`](m5-execution-plan.md) | Completed M5 G0-G6 sequencing, contracts, test matrix, and verified results | Historical; factual clarifications only |
 | [`native-udp-development-plan.md`](native-udp-development-plan.md) | Stable v1 scope, architecture, M0-M6 roadmap, estimates, and release boundary | Update only when scope or milestone boundaries change |

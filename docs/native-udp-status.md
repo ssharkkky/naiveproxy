@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-08-26 (Asia/Shanghai)
+Last updated: 2026-09-01 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
 [`m6-execution-plan.md`](m6-execution-plan.md).
@@ -19,7 +19,7 @@ verified. Update it at every completed G target and milestone.
 | M3 — native UDP client data path | Complete and independently audited | Full client path, controlled interoperability, recovery, all limits/lifecycle cases, complete regressions, three stress runs; `agy` returned `AUDIT_PASS` with zero blocker/high/medium | None |
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
-| M6 — hardening and release candidate | In progress; G0-G5 complete; G6 open | G0 contract, G1 payload/PMTU, three-run G2 impairment matrix, post-fix G3 soak, post-fix G4 frozen-budget gate, G5a record contract; macOS arm64, Linux x64, Windows x64, and Android arm64 verified; macOS-client/Linux-server wire gate `13df84bfd9` passes; `M6_G5_PLATFORM_QUALIFICATION_OK` | G6 release closeout and independent audit |
+| M6 — hardening and release candidate | **Complete**; G0-G6 closed; release candidate qualified | All G0-G6 gates closed; macOS arm64, Linux x64, Windows x64, and Android arm64 platform qualification verified; cross-platform wire gate `13df84bfd9` passes; independent release-candidate audit `AUDIT_PASS` (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at `fcf3bb36f3` | None |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -41,19 +41,19 @@ M6 work is sequenced in `docs/m6-execution-plan.md` and summarized in
 - Production Caddy/`forwardproxy` native UDP server: 100% complete and
   independently audited.
 - End-to-end product MVP: 100% complete and independently audited. Release
-  hardening is in progress through M6-G5 platform qualification.
+  hardening is complete (M6 closed; release candidate qualified at `fcf3bb36f3`).
 
 Current remaining planning range:
 
 | Remaining milestone | Estimated effort |
 | --- | ---: |
-| M6 — hardening and release candidate | 6–15 person-days |
-| **Total remaining** | **6–15 person-days** |
+| (none) | 0 |
+| **Total remaining** | **0** |
 
-These are engineering estimates, not elapsed-calendar guarantees. The product
-is not production-ready: shipped-client G1b2 and the three-run G1d closeout
-pass, and all four G5 platform records are verified, but the G6 release/audit
-closeout remains open.
+All M0-M6 milestones are complete. The native UDP release candidate is
+qualified: the independent G6 audit returned `AUDIT_PASS` and the final marker
+`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` closed M6; the full stack is merged to
+`master` at `fcf3bb36f3`.
 
 ## M1 detailed status
 
@@ -1181,7 +1181,7 @@ and release readiness.
 
 ## M6 execution baseline — hardening and release candidate
 
-Status: in progress. The active plan is
+Status: complete (all G0-G6 gates closed; release candidate qualified; independent audit `AUDIT_PASS`). The plan was
 [`m6-execution-plan.md`](m6-execution-plan.md).
 
 M6 inherits the independently audited M5 boundary and keeps production client,
@@ -1753,7 +1753,7 @@ M6_G5C_LINUX_X64_OK
 The machine-readable platform record now marks `linux-x64` verified. Windows
 and Android remain `not run`.
 
-### M6-G5d — Windows x64 qualification: fixture repair pending native rerun
+### M6-G5d — Windows x64 qualification: complete
 
 GitHub Actions run `30013662603` at NaiveProxy `d958cc8017` reproduced the
 Windows Release client and pinned Caddy/forwardproxy server, then stalled in
@@ -1963,8 +1963,8 @@ M6_G5D_WINDOWS_SERVER_OK
 M6_G5D_WINDOWS_X64_OK
 ```
 
-The machine-readable `windows-x64` row is now `verified`. Android arm64
-real-device runtime remains the only open G5 platform row.
+The machine-readable `windows-x64` row is now `verified`. Android arm64 real-device qualification (G5e) is also complete (`cfb42328ac`), so all
+four G5 platform rows are verified.
 
 ### M6-G5f — cross-platform wire interoperability: complete
 

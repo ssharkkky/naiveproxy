@@ -1,9 +1,11 @@
 # M6 Hardening and Release-Candidate Execution Plan
 
-Last updated: 2026-07-26 (Asia/Shanghai)
+Last updated: 2026-09-01 (Asia/Shanghai)
 
-Status: M5 is complete and independently audited. M6-G0 through G4 are
-complete, but G5 remains open. A cross-platform TCP-parity probe exposed a
+Status: **M6 complete** (all M0-M6 gates closed and independently audited; release
+candidate qualified with `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`; merged to `master`
+at `fcf3bb36f3`). M5 was complete and independently audited; M6-G0 through G4
+were complete before G5/G6 closed. A cross-platform TCP-parity probe exposed a
 post-M4 forwardproxy/Naive padding-negotiation defect; forwardproxy commit
 `baa7f2dd` is the narrow runtime fix and `f14924cd` adds the hostless
 TLS-listener fixture. Current qualification head `964281a` adds only portable
