@@ -273,7 +273,26 @@ jobs:
         run: |
           mkdir -p app/libs/$APK_ABI
           cp ../src/out/Release/naive app/libs/$APK_ABI/libnaive.so
-          ./gradlew :app:assembleRelease
+          # Forks and ordinary push builds do not have the release-signing
+          # secret. Build a debug APK in that case so Android compilation
+          # remains covered; published releases must still use the pinned
+          # release keystore and fail closed when its secret is unavailable.
+          if [[ "${{ github.event_name }}" == "release" && -z "$KEYSTORE_PASS" ]]; then
+            echo 'KEYSTORE_PASS is required for release APKs' >&2
+            exit 1
+          fi
+          if [[ -n "$KEYSTORE_PASS" ]]; then
+            ./gradlew :app:assembleRelease
+            APK_PATH="app/build/outputs/apk/release/${BUNDLE}"
+          else
+            ./gradlew :app:assembleDebug
+            APK_PATH=$(find app/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)
+            test -n "$APK_PATH"
+            mkdir -p app/build/outputs/apk/release
+            cp "$APK_PATH" "app/build/outputs/apk/release/${BUNDLE}"
+            APK_PATH="app/build/outputs/apk/release/${BUNDLE}"
+          fi
+          test -f "$APK_PATH"
           openssl sha256 app/build/outputs/apk/release/${{ env.BUNDLE }} >sha256sum.txt
           echo "SHA256SUM=$(cut -d' ' -f2 sha256sum.txt)" >>$GITHUB_ENV
       - uses: actions/upload-artifact@v4
