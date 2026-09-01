@@ -72,6 +72,8 @@ Verified on 2026-09-02:
 
 ```text
 quic-go fork: go build ./..., go vet ./..., go test ./...                 PASS (in fork worktree)
+quic-go fork (current `f84ad47`): go test ./...                          PASS (27 packages)
+client `naive_quic_congestion_test` (Release binary via musl loader)       PASS; `M7_G1_CLIENT_BBR_OK`
 Caddy fork:   go test ./..., go vet ./..., go build ./cmd/caddy           PASS
 forwardproxy: focused M4 G0-G4 tests and go test ./...                    PASS
 forwardproxy: go test -race ./...                                         PASS
