@@ -20,7 +20,7 @@ verified. Update it at every completed G target and milestone.
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
 | M6 — hardening and release candidate | **Complete**; G0-G6 closed; release candidate qualified | All G0-G6 gates closed; macOS arm64, Linux x64, Windows x64, and Android arm64 platform qualification verified; cross-platform wire gate `13df84bfd9` passes; independent release-candidate audit `AUDIT_PASS` (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at `fcf3bb36f3` | None |
-| M7 — BBR congestion control | **In progress**; G2 implementation and G3 conditional validation complete, release gates open | quic-go fork `f84ad47630af` and Caddy integration `c7434300cb` + whitespace fix `3bcce47f` pass focused builds/tests; independent validation found a publication blocker and no runtime protocol regression | Publish Caddy fork, update forwardproxy pin, then run G4/G5 |
+| M7 — BBR congestion control | **In progress**; G1/G2 complete, G3 published and pinned, G4/G5 open | quic-go `f84ad47630af`, Caddy `3bcce47f`, and forwardproxy direct pins pass focused builds/tests; clean-path runtime smoke is green; lossy reference parity and final audit remain open | Run fixed-loss G4 parity, then full G5 matrix and scoped audit |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -63,8 +63,10 @@ The client G1 change is on `master` at `71dc1dfb13`; the server-side
 quic-go fork is published as `ssharkkky/quic-go:codex/bbr` at
 `f84ad47630af13742b99c769f2e4af3bdb59ac5f`. It adds selectable Hy2-derived
 BBR profiles and preserves CUBIC as the zero-value default. The Caddy G3
-integration is currently local at `c7434300cb2885d9d0ea898582496fd05e7b45b8`
-plus the whitespace-default fix `3bcce47f`; it has not been pushed.
+integration is published at `ssharkkky/caddy:codex/m7-caddy-bbr`, commit
+`3bcce47fa48f`, and forwardproxy directly pins both that Caddy pseudo-version
+and the quic-go fork (`ssharkkky/forwardproxy:codex/m7-caddy-bbr-pin`, commits
+`01c466c` and `c329155`).
 
 Verified on 2026-09-02:
 
@@ -82,11 +84,30 @@ was not run to completion because the fixed test Caddyfile attempted to bind
 `:80`, already occupied on this host; no existing process was disturbed.
 
 The independent scoped server validation found no protocol or CUBIC-path
-regression, but did not return a release `AUDIT_PASS`: Caddy's commit is not
-published and `forwardproxy` still pins the audited pre-M7 Caddy commit. This
-publication/pin issue blocks reproducible G3 release evidence. Reference-path
-BBR throughput, full M1-M6/56-case matrices, cross-platform rows, and G4/G5
-qualification remain **not run**.
+regression. The former publication/pin blocker is closed by the published
+Caddy commit and the two direct forwardproxy pins; a formal M7 scoped
+`AUDIT_PASS` has not yet been recorded. Reference-path lossy BBR parity, full
+M1-M6/56-case matrices, cross-platform rows, and G4/G5 qualification remain
+**not run**.
+
+### M7 runtime smoke (2026-09-02)
+
+An isolated deployment under `/root/native-udp-m7-test` was run on the
+authorized client/server hosts and then removed. It used separate ports
+18443/18444 and separate SOCKS listeners 11080/11081; existing Naive 1080,
+web listeners, Hysteria, Xray, frps, and Docker services were not changed.
+
+- BBR and CUBIC HTTP/3 CONNECT-UDP probes each returned 32/32 paced UDP echo
+  datagrams (1,200-byte payloads).
+- Through each SOCKS listener, three authenticated downloads of the same
+  10 MiB file completed with HTTP 200. BBR speeds were 3.66–3.94 MB/s and
+  CUBIC speeds 3.68–4.07 MB/s on this clean path; this is a smoke result, not
+  the required lossy-path G4 parity evidence.
+- A burst test that sent hundreds of datagrams at once reached the intentional
+  per-target queue bound (16); paced testing avoided that bound. No protocol
+  failure was inferred from the burst result.
+- Cleanup verified no `/root/native-udp-m7-test` processes or directories
+  remained and removed the temporary UFW rules for ports 18443/18444.
 
 ## M1 detailed status
 
