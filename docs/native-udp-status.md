@@ -30,11 +30,11 @@ M6 work is sequenced in `docs/m6-execution-plan.md` and summarized in
 
 ### Overall progress estimate
 
-- Milestone count: M0–M5 are complete, 6 of 7 milestones, or 86%.
-- Weighted engineering estimate: approximately 95–97% complete. This weights
-  the remaining shipped-client policy, qualification, platform, and release
-  evidence more heavily than a simple milestone count; it is not a release
-  claim.
+- Milestone count: M0–M6 are complete, 7 of 7 milestones, or 100%.
+- The M6 release candidate is qualified: independent audit `AUDIT_PASS` and
+  marker `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` closed M6; merged to `master`
+  at `fcf3bb36f3`. Not yet a production release (see
+  `native-udp-release-guide.md`).
 - Chromium-driven native UDP client: M1-M3 are independently audited; the M5
   production-context ordering fix `333b7cb253` passed the complete owner matrix
   and is included in the completed M5-G6 audit boundary.
@@ -1875,9 +1875,9 @@ Shell syntax checks
 git diff --check
 ```
 
-No production source changed. G5d remains fail-closed pending a fresh native
-Windows run through control close, idle/reconnect, trust cleanup, server tests,
-and `M6_G5D_WINDOWS_X64_OK`.
+No production source changed in this gate. G5d is **complete**: the fresh native
+Windows run passed control close, idle/reconnect, trust cleanup, and server
+tests, emitting `M6_G5D_WINDOWS_X64_OK` (GitHub Actions full run `30167583501`).
 
 The `3c3db3885c` preflight test was later found insufficient: it injected a
 synthetic `ConnectionResetError` subclass with a hand-written `winerror`

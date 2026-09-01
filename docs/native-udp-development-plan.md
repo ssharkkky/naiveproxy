@@ -462,13 +462,12 @@ Current remaining planning ranges:
 
 | Milestone | Range | Current decision gate |
 | --- | ---: | --- |
-| M6 hardening/release | 10–20 person-days | Begin after the MVP matrix passes |
+| (none) | 0 | M6 complete (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`) |
 
-The remaining range is approximately 10–20 person-days, excluding long
-cross-platform soak time. M0–M5 are complete and independently audited; this
-is 86% by completed-milestone count and approximately 90–92% by weighted
-engineering scope. The product MVP is complete, but it is not production-ready
-until M6 release qualification passes. If later work would require replacing standard H3
+All M0–M6 milestones are complete (100% by completed-milestone count). M6
+release qualification passed (independent audit `AUDIT_PASS`, marker
+`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); the product is a qualified release
+candidate, not yet a production release. If later work would require replacing standard H3
 Datagrams, bypassing existing server policy, altering the completed TCP path,
 or adding a private UDP protocol, stop and revise scope before continuing.
 

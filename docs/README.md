@@ -10,7 +10,7 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 ## Current handoff
 
 - Branch: `codex/native-udp-foundation`.
-- M0-M5 are complete. M1-M5 are independently audited.
+- M0-M6 are complete. M1-M5 are independently audited; M6 release candidate audited (`AUDIT_PASS`).
 - M3 final client marker: `M3_NATIVE_UDP_CLIENT_OK`; closeout commit
   `2bb83aec`.
 - M4 final server marker: `M4_NATIVE_UDP_SERVER_OK`; forwardproxy `8f044e2`,
@@ -98,7 +98,7 @@ were accepted.
 3. [`m5-agy-audit.md`](m5-agy-audit.md) and
    [`m5-execution-plan.md`](m5-execution-plan.md) — completed MVP boundary.
 4. [`native-udp-development-plan.md`](native-udp-development-plan.md) — frozen
-   v1 scope and remaining M6 boundary.
+   v1 scope and M6 boundary (complete).
 5. [`m4-agy-audit.md`](m4-agy-audit.md) and
    [`m4-execution-plan.md`](m4-execution-plan.md) — server evidence inherited
    by M5.

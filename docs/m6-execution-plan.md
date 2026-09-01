@@ -450,5 +450,5 @@ resource totals, error class, and platform/toolchain version.
 | G6 release/audit closeout | 1-2 person-days |
 
 The ranges overlap where one harness serves several gates; the roadmap's
-retained M6 planning range remains 10-20 person-days, excluding unattended
+planned M6 range was 10-20 person-days (M6 now complete), excluding unattended
 soak time and waits for platform infrastructure.
