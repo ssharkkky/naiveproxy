@@ -423,14 +423,15 @@ Post-M6 performance follow-on (highest priority). The detailed sequential plan
 is in [`m7-execution-plan.md`](m7-execution-plan.md):
 
 - G0 freezes the CUBIC baseline, the exact pins (including the Hy2 BBR commit),
-  the production `quic.Config` site(s), and the client/server `quic_congestion`
-  config schema.
-- G1 adds the client `quic_congestion` option (CUBIC default) and selects the
+  the production `quic.Config` site(s), and the client `quic-congestion` /
+  server `NAIVE_QUIC_CONGESTION` schema.
+- G1 adds the client `quic-congestion` option (CUBIC default) and selects the
   in-tree Chromium BBR (`kTBBR` v1 / `kB2ON` v2) before `Build()`.
-- G2 creates the minimal `ssharkkky/quic-go` fork (Hy2 BBR port, `standard`
-  default; `CongestionControl` enum; `OnCongestionEventEx` wiring), byte-
-  identical to `v0.59.0` except the BBR additions.
-- G3 points Caddy at the fork (`go.mod` replace + `CongestionAlgorithm`) with
+- G2 creates the minimal `ssharkkky/quic-go` fork (Hy2 BBR port,
+  standard/conservative/aggressive profiles with `standard` default;
+  `CongestionControl` enum; `OnCongestionEventEx` wiring), behaviorally
+  unchanged from `v0.59.0` on the CUBIC path except for the BBR additions.
+- G3 points Caddy at the fork (`go.mod` replace + `CongestionControl`) with
   zero forwardproxy change.
 - G4 measures end-to-end parity on the lossy reference path toward the Hy2
   reference.

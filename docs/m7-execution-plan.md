@@ -57,19 +57,39 @@ NAK handling, or privacy behavior.
 | Audited NaiveProxy runtime | audited through `eaf172d971`, including `333b7cb253` | Any later `src/net` change reopens the affected client audit boundary |
 | In-tree Chromium BBR | `src/net/third_party/quiche/.../congestion_control/bbr_sender.cc` (v1) + `bbr2_*.cc` (v2); selection at `quic_sent_packet_manager.cc:153-157` | Reuse as-is; no new BBR code; connect via `client_connection_options` (`kTBBR`/`kB2ON`) before `Build()` |
 | forwardproxy runtime | qualification head `964281a`; build-lock `e9663e4` | Zero forwardproxy source change (BBR inherits via Caddy `quic-go` replace) |
-| Caddy | `dd9a89c1` | `go.mod` replace `quic-go => ssharkkky/quic-go <pin>`; set `CongestionAlgorithm` at both QUIC config sites |
-| quic-go | `v0.59.0` | Minimal fork base; byte-identical except BBR/enum/`OnCongestionEventEx` |
-| Hy2 BBR source | (record exact commit in G0) | Port `core/internal/congestion/bbr/` (`standard` profile default); pin the exact commit |
+| Caddy | `dd9a89c1` | `go.mod` replace `quic-go => ssharkkky/quic-go <pin>`; map `NAIVE_QUIC_CONGESTION` to `CongestionControl` at both QUIC config sites |
+| quic-go | `v0.59.0` | Minimal fork base; CUBIC source path/behavior unchanged except for BBR/enum/`OnCongestionEventEx` additions |
+| Hy2 BBR source | (record exact commit in G0) | Port `core/internal/congestion/bbr/` (standard/conservative/aggressive; `standard` default); pin the exact commit |
 | Server toolchain | Go `1.25.12`, xcaddy `0.4.5`, quic-go `0.59.0` | No floating tool or module versions |
 
 Repository ownership remains split:
 
-- NaiveProxy owns the client `quic_congestion` option and the before-`Build()`
+- NaiveProxy owns the client `quic-congestion` option and the before-`Build()`
   connection-option wiring, plus client tests.
 - A separately pinned `ssharkkky/quic-go` fork owns the server BBR port, the
   `CongestionControl` enum, and the `OnCongestionEventEx` wiring.
-- Caddy owns the `go.mod` replace and the `CongestionAlgorithm` selection.
+- Caddy owns the `go.mod` replace, `NAIVE_QUIC_CONGESTION` parsing, and the
+  `CongestionControl` selection.
 - `forwardproxy` is unchanged.
+
+### 2.1 Naming and configuration contract (frozen for M7)
+
+The existing Naive JSON/CLI configuration uses kebab-case keys (for example
+`insecure-concurrency`). The client option should therefore be spelled
+`quic-congestion` in both JSON and CLI form unless G0 records a deliberate
+compatibility exception. The values are `cubic`, `bbr1`, and `bbr2`; an unknown
+value must be a startup error, never a silent fallback.
+
+The server is configured through the deployment environment variable
+`NAIVE_QUIC_CONGESTION`. M7 supports `cubic` (default), `bbr-standard`,
+`bbr-conservative`, and `bbr-aggressive`; `standard` is the default profile
+when BBR is selected. The conservative/aggressive profiles are implemented and
+parsed in M7, but their performance qualification runs after the standard
+profile's main parity gate. Invalid values are fatal at startup. The internal
+Go API uses `CongestionControl` consistently for the enum and the `quic.Config`
+field, with a separate profile field only when the selected algorithm is BBR.
+Caddy maps the environment value to that API at each production QUIC config
+constructor.
 
 ## 3. Inherited non-negotiable contracts
 
@@ -106,6 +126,38 @@ The following block M7:
 - a secret or target disclosure; or an unpinned dependency, including the Hy2
   BBR source commit.
 
+### 4.1 Implementation specification (frozen decisions)
+
+The following decisions are prerequisites for implementation and are recorded
+here so later gates cannot introduce competing names or defaults:
+
+1. **Client/server configuration:** client uses `quic-congestion` in JSON and
+   CLI; server uses `NAIVE_QUIC_CONGESTION`; both default to CUBIC and reject
+   unknown values. M7 exposes client `cubic`/`bbr1`/`bbr2` and server
+   `cubic`/`bbr-standard`/`bbr-conservative`/`bbr-aggressive`. Endpoints may
+   independently use different algorithms; old binaries ignore the new setting
+   and remain CUBIC.
+2. **Congestion-event adapter:** the exact v0.59.0 ACK/loss call site, the
+   `ackedPackets`/`lostPackets` element types, event-time definition, ordering
+   when ACK and loss coexist, and proof that one packet is not reported twice.
+3. **BBR provenance:** the exact Hy2 repository and commit, license/attribution
+   obligations, and the complete parameter table for all three M7 server
+   profiles (`standard`, `conservative`, and `aggressive`).
+4. **Performance acceptance:** fixed impairment seed; seven runs per case;
+   median as the primary statistic; download at least 5x the CUBIC median and
+   at least 500 KB/s; upload median no more than 10% below CUBIC; no material
+   CPU, loss, or queueing regression. The standard profile is the first parity
+   gate; conservative/aggressive performance comparisons run afterward.
+5. **Compatibility matrix:** server Linux amd64/arm64; client Linux amd64/arm64
+   plus OpenWrt-supported targets built from the same source; existing macOS,
+   Windows, and Android rows remain required where the outer QUIC stack is
+   exercised. Mixed CUBIC/BBR and old/new binary combinations are tested.
+6. **Deployment rollback:** set `NAIVE_QUIC_CONGESTION=cubic` and restart to
+   revert at runtime; build rollback points to official quic-go `v0.59.0`.
+   A requested unavailable profile fails closed at startup.
+
+G0 records the evidence and exact source pins for these decisions.
+
 ## 5. Sequential gates
 
 ### G0 — baseline, contract, and pin freeze
@@ -129,12 +181,17 @@ Work:
    ported server BBR implements the full `SendAlgorithmWithDebugInfos`
    (including `OnCongestionEvent`/`OnCongestionEventEx`/`PacingRate` as
    applicable to the fork's interface).
-5. Freeze the config schema: client `quic_congestion` (`cubic` default / `bbr1`
-   / `bbr2`); server `quic_congestion` (`cubic` default / `bbr-standard` /
-   `bbr-conservative` / `bbr-aggressive`).
+5. Freeze the config schema: client `quic-congestion` (`cubic` default / `bbr1`
+   / `bbr2`) and server `NAIVE_QUIC_CONGESTION` (`cubic` default /
+   `bbr-standard` / `bbr-conservative` / `bbr-aggressive`).
+6. Produce the implementation-spec record required by §4.1, including the
+   canonical API spelling, the exact event-adapter signature/pseudocode, the
+   Hy2 source/license/profile table, quantitative acceptance thresholds, the
+   platform/interop matrix, and the deployment rollback procedure.
 
-Exit: markers `M7_G0_BASELINE_OK`, `M7_G0_PINS_OK`, `M7_G0_CONFIG_SCHEMA_OK`,
-and `M7_G0_CONTRACT_OK` recorded; no runtime source changed.
+Exit: markers `M7_G0_BASELINE_OK`, `M7_G0_PINS_OK`,
+`M7_G0_CONFIG_SCHEMA_OK`, `M7_G0_CONTRACT_OK`, and
+`M7_G0_IMPLEMENTATION_SPEC_OK` recorded; no runtime source changed.
 
 Stop if the audited M6 runtime differs from its boundary, the Hy2 BBR commit is
 unavailable, or the production `quic.Config` site cannot be determined.
@@ -153,7 +210,9 @@ Work:
 2. In `naive_proxy_bin.cc`, after obtaining `quic_context->params()`, push
    `quic::kTBBR` (`bbr1`) or `quic::kB2ON` (`bbr2`) to
    `client_connection_options` before `Build()`; push nothing for `cubic`.
-3. Verify the default (`cubic`) is byte-for-byte the existing path.
+3. Reject unknown values and add parser tests for JSON and CLI forms. Verify
+   that `cubic` leaves the existing option vector unchanged and that the BBR
+   tag is inserted before `Build()` on every production construction path.
 
 Exit: 56 TCP owner cases + native-UDP matrix green at default; BBR selected
 when `bbr1`/`bbr2` is set (unit + a live single-session throughput check).
@@ -174,20 +233,44 @@ Work:
    the type remap (`congestion.ByteCount`→`protocol.ByteCount`,
    `congestion.PacketNumber`→`protocol.PacketNumber`,
    `congestion.MaxCongestionWindowPackets`→`protocol.MaxCongestionWindowPackets`,
-   `apernet/.../monotime.Time`→`internal/monotime.Time`); `standard` profile
-   default.
+   `apernet/.../monotime.Time`→`internal/monotime.Time`); implement the
+   `standard`, `conservative`, and `aggressive` parameter sets, with
+   `standard` as the BBR profile default.
 3. Add a `CongestionControl` enum to `quic.Config` (`Cubic` default, `Bbr` +
    profile) and switch the send-algorithm selection (`internal/ackhandler/
-   sent_packet_handler.go`) on it.
+   sent_packet_handler.go`) on it. Profile selection must be deterministic and
+   covered by parameter-selection unit tests; throughput qualification for the
+   two non-standard profiles is deferred until after G4.
 4. Wire `OnCongestionEventEx` (Solution B): an optional interface method; the
    handler collects the acked/lost lists and the event time at the
-   congestion-event point and type-asserts to call it. CUBIC is untouched when
-   the method is absent.
-5. Prove the fork diff is limited to BBR/enum/`OnCongestionEventEx` (byte-
-   identical to `v0.59.0` otherwise).
+   congestion-event point and type-asserts to call it. The implementation must
+   document the exact call-site pseudocode, list ownership/lifetime, ACK/loss
+   ordering, and duplicate-prevention rule. CUBIC is untouched when the method
+   is absent.
+   The design record should include an equivalent of the following (with the
+   actual v0.59.0 types and call-site names filled in during G0):
 
-Exit: unit — BBR window does not collapse under seeded loss; the CUBIC path is
-byte-identical; the fork diff review is clean. Marker `M7_G2_QUICGO_FORK_OK`.
+   ```text
+   ack/loss processing:
+     acked := newly_acked_packets_once
+     lost  := newly_lost_packets_once
+     prior := bytes_in_flight_before_event
+     if ex, ok := congestion.(CongestionControllerEx); ok {
+       ex.OnCongestionEventEx(prior, event_time, acked, lost)
+     } else {
+       congestion.OnCongestionEvent(largest_acked, lost_bytes, prior)
+     }
+   ```
+
+   The adapter must not also feed the same packets through a second BBR event
+   path, and the CUBIC fallback must preserve the existing call exactly.
+5. Prove the fork diff is limited to BBR/enum/`OnCongestionEventEx` (byte-
+   identical to `v0.59.0` otherwise; “byte-identical” here means the source
+   path and behavior, not the final binary hash).
+
+Exit: unit — BBR window does not collapse under seeded loss; ACK/loss adapter
+tests prove exactly-once event delivery; the CUBIC path is behaviorally
+unchanged; the fork diff review is clean. Marker `M7_G2_QUICGO_FORK_OK`.
 
 Stop if the fork diverges from `v0.59.0` outside the allowed files, or the
 CUBIC path changes.
@@ -201,9 +284,12 @@ Purpose: point Caddy at the fork and select BBR without touching forwardproxy.
 Work:
 
 1. Add `go.mod` replace `quic-go => ssharkkky/quic-go <pin>` to the Caddy fork.
-2. Set `CongestionAlgorithm` (and profile) at both QUIC config sites; keep the
-   CUBIC default.
-3. Run server legacy + privacy regressions; confirm forwardproxy is unchanged.
+2. Set the canonical congestion-control field (and profile) at every
+   production QUIC config constructor identified in G0; map
+   `NAIVE_QUIC_CONGESTION` to the selected value and keep CUBIC as the
+   zero-value/default.
+3. Verify the module graph and `go.sum` resolve the exact fork commit, then run
+   server legacy + privacy regressions and confirm forwardproxy is unchanged.
 
 Exit: server regressions green with CUBIC and with BBR; scoped server audit
 re-considered. Marker `M7_G3_CADDY_INTEGRATION_OK`.
@@ -220,10 +306,14 @@ Work:
 
 1. Deploy client `bbr1` + server `bbr-standard`; measure single- and 8-parallel
    throughput on the lossy path versus the G0 CUBIC baseline.
-2. Confirm the download approaches the Hy2 reference (~700+ KB/s) and the upload
-   is not regressed.
+2. Use the G0 impairment seed, fixed tool/build revisions, repeated runs, and
+   the statistic/threshold frozen in §4.1. Record download, upload, loss, RTT,
+   CPU, and queueing; confirm the download improves by the required margin and
+   upload does not regress beyond the agreed bound.
 
-Exit: a recorded, attributable throughput improvement toward the Hy2 reference.
+Exit: a recorded, attributable throughput improvement meeting the §4.1
+standard-profile threshold. Non-standard profile performance is qualified only
+after this exit and before the final M7 closeout.
 Marker `M7_G4_PARITY_OK`.
 
 Stop if BBR does not improve on CUBIC on the reference path (re-open root cause).
@@ -237,8 +327,12 @@ Purpose: close M7 with full regressions and a scoped audit.
 Work:
 
 1. Full M1–M6 + 56 TCP + server legacy/privacy matrix at CUBIC (default) and BBR.
-2. Cross-platform BBR runs where the outer QUIC stack is exercised.
-3. A scoped independent audit re-considers the client and server runtime
+2. Run every platform and mixed-version/interoperability row frozen in G0;
+   explicitly verify both endpoints can independently remain on CUBIC or BBR.
+3. After the standard-profile parity gate, run conservative/aggressive profile
+   selection, stability, and comparative throughput checks; record them
+   separately from the primary standard-profile result.
+4. A scoped independent audit re-considers the client and server runtime
    boundaries; record exact revisions.
 
 Exit: all regressions green; audit `AUDIT_PASS` with zero blocker/high/medium;

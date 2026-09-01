@@ -154,8 +154,9 @@ audit-reconsideration rules above.
   QUIC uses CUBIC on both ends and CUBIC collapses its window under loss; Hy2
   (BBR, `standard` profile) reaches ~700–800 KB/s on the same path. Fix: client
   enables in-tree Chromium BBR (`kTBBR` v1 / `kB2ON` v2) behind a
-  `quic_congestion` option (CUBIC default); server ports Hy2's Go BBR into a
-  minimal `quic-go` fork (selectable profile, default `standard`). Plan:
+  `quic-congestion` option (CUBIC default); server ports Hy2's Go BBR into a
+  minimal `quic-go` fork (standard/conservative/aggressive profiles, with
+  `standard` default). Plan:
   `docs/m7-execution-plan.md` (marker `M7_BBR_OK`).
 - **M8 — H2 datagram fallback (after M7).** Extends native UDP so UDP ASSOCIATE
   still works when the outer is H2 (not QUIC), carrying CONNECT-UDP datagrams
