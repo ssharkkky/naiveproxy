@@ -57,6 +57,11 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - All 7 milestones (M0-M6) are complete (100%); M6 closed as a qualified release
   candidate (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at
   `fcf3bb36f3`. Not yet a production release (see `native-udp-release-guide.md`).
+- Post-M6 follow-on (planned, not started): **M7 BBR congestion control**
+  (highest priority) and **M8 H2 datagram fallback**; plans in
+  `m7-execution-plan.md` and `m8-execution-plan.md`. Both keep the audited M6
+  defaults (CUBIC; H3 DATAGRAM primary), do not alter the TCP path, and add no
+  private protocol.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   native UDP commits.
 
@@ -76,6 +81,8 @@ SOCKS5 UDP / HTTP3 application
 | --- | --- | --- |
 | [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
 | [`m6-execution-plan.md`](m6-execution-plan.md) | Completed M6 G0-G6 release-hardening sequence, release blockers, platform matrix, risks, and stop conditions | Historical; factual clarifications only |
+| [`m7-execution-plan.md`](m7-execution-plan.md) | Planned M7 BBR congestion-control sequence (client Chromium BBR + server Hy2-ported BBR, CUBIC default): gates, risks, stop conditions | Pending plan; update only after a gate passes |
+| [`m8-execution-plan.md`](m8-execution-plan.md) | Planned M8 H2 datagram-fallback sequence (RFC 9298 stream option over H2): gates, risks, stop conditions | Pending plan; update only after a gate passes |
 | [`native-udp-payload-policy.md`](native-udp-payload-policy.md) | Frozen M6 1200-byte application/PMTU policy and exact freeze criteria | Frozen; historical |
 | [`native-udp-release-guide.md`](native-udp-release-guide.md) | M6 release-candidate configuration, compatibility, observability, troubleshooting, upgrade, rollback, and limitations guide | G6 closed; update if release configuration changes |
 | [`../tests/m6/platform_qualification.json`](../tests/m6/platform_qualification.json) | Machine-readable G5 platform evidence state; all rows fail closed until exact build/runtime evidence is supplied | Update only from attributable platform results |

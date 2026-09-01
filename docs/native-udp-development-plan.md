@@ -417,6 +417,50 @@ Result: **M6 complete.** All G0-G6 gates passed; the independent release-candida
 audit returned `AUDIT_PASS`; final marker `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`;
 merged to `master` at `fcf3bb36f3`. See [`native-udp-status.md`](native-udp-status.md).
 
+### M7 — BBR congestion control (planned, ~10–18 person-days)
+
+Post-M6 performance follow-on (highest priority). The detailed sequential plan
+is in [`m7-execution-plan.md`](m7-execution-plan.md):
+
+- G0 freezes the CUBIC baseline, the exact pins (including the Hy2 BBR commit),
+  the production `quic.Config` site(s), and the client/server `quic_congestion`
+  config schema.
+- G1 adds the client `quic_congestion` option (CUBIC default) and selects the
+  in-tree Chromium BBR (`kTBBR` v1 / `kB2ON` v2) before `Build()`.
+- G2 creates the minimal `ssharkkky/quic-go` fork (Hy2 BBR port, `standard`
+  default; `CongestionControl` enum; `OnCongestionEventEx` wiring), byte-
+  identical to `v0.59.0` except the BBR additions.
+- G3 points Caddy at the fork (`go.mod` replace + `CongestionAlgorithm`) with
+  zero forwardproxy change.
+- G4 measures end-to-end parity on the lossy reference path toward the Hy2
+  reference.
+- G5 runs full regressions at CUBIC and BBR and a scoped independent audit.
+
+Exit criterion: the CUBIC (default) path is provably unchanged, BBR (both ends)
+measures materially above the CUBIC baseline on the lossy path toward the Hy2
+reference, and a scoped audit returns `AUDIT_PASS`. Status: **planned** (not
+started).
+
+### M8 — H2 datagram fallback (planned, ~10–17 person-days)
+
+Post-M6 reachability follow-on (lower priority than M7). The detailed
+sequential plan is in [`m8-execution-plan.md`](m8-execution-plan.md):
+
+- G0 freezes the H2 CONNECT-UDP framing (RFC 9298 stream option), the per-path
+  delivery semantics, the max-datagram policy, and the config/enable decision,
+  and revises the `AGENTS.md` all-`quic://` boundary.
+- G1 adds the client H2 datagram-carry path (length-prefixed datagrams over an
+  H2 stream) with H3 DATAGRAM unchanged as primary.
+- G2 adds the server H2 CONNECT-UDP stream handling (forwardproxy + Caddy)
+  alongside H3 DATAGRAM.
+- G3 verifies cross-path delivery semantics and privacy on both paths.
+- G4 runs the full TCP/H3/H2 matrix and a scoped audit of the boundary revision.
+
+Exit criterion: the H3 DATAGRAM path is provably unchanged, UDP ASSOCIATE works
+over an H2 outer with the documented reliable/ordered semantics, and a scoped
+audit re-considers the "no UDP-over-stream" boundary and returns `AUDIT_PASS`.
+Status: **planned** (not started); land after M7.
+
 ## 7. Verification matrix
 
 | Area | Minimum verification |
@@ -462,14 +506,20 @@ Current remaining planning ranges:
 
 | Milestone | Range | Current decision gate |
 | --- | ---: | --- |
-| (none) | 0 | M6 complete (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`) |
+| M7 BBR congestion control | 10–18 person-days | Planned; begin after the M6 release is cut (BBR first) |
+| M8 H2 datagram fallback | 10–17 person-days | Planned; begin after M7 |
+| (M0–M6) | 0 | Complete (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`) |
 
-All M0–M6 milestones are complete (100% by completed-milestone count). M6
+All M0–M6 milestones are complete (100% by completed-milestone count); M6
 release qualification passed (independent audit `AUDIT_PASS`, marker
 `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); the product is a qualified release
-candidate, not yet a production release. If later work would require replacing standard H3
-Datagrams, bypassing existing server policy, altering the completed TCP path,
-or adding a private UDP protocol, stop and revise scope before continuing.
+candidate, not yet a production release. M7 (BBR congestion control) and M8
+(H2 datagram fallback) are post-M6 follow-ons that do not alter the TCP path
+or add a private protocol: M7 keeps CUBIC as the default congestion algorithm,
+and M8 keeps the H3 DATAGRAM path as the primary native-UDP path. If later
+work would require replacing standard H3 Datagrams, bypassing existing server
+policy, altering the completed TCP path, or adding a private UDP protocol,
+stop and revise scope before continuing.
 
 ## 10. Current status and next actions
 
@@ -575,5 +625,19 @@ Next:
 - [x] Execute M6-G0: verify the machine-readable release contract, audited M5
   inputs, current-host toolchain, platform evidence states, and focused build
   readiness without changing production source; commit `80d37395a6`.
-- [ ] Execute M6-G1: measure the live payload ceiling, define the release
+- [x] Execute M6-G1: measure the live payload ceiling, define the release
   policy, and verify PMTU/oversize recovery, isolation, and no replay.
+- [x] Execute M6-G2 through G6: deterministic impairment, pressure/soak, fuzz/
+  sanitizer/race, macOS arm64 / Linux x64 / Windows x64 / Android arm64
+  platform qualification, and release-candidate closeout with independent
+  `AUDIT_PASS`; final marker `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`, merged to
+  `master` at `fcf3bb36f3`.
+
+Post-M6 follow-on (planned, not started):
+
+- [ ] M7 (BBR congestion control): plan in `docs/m7-execution-plan.md`; begin
+  after the M6 release is cut. Client Chromium BBR + server Hy2-ported BBR,
+  both opt-in with CUBIC default. Marker `M7_BBR_OK`.
+- [ ] M8 (H2 datagram fallback): plan in `docs/m8-execution-plan.md`; begin
+  after M7. RFC 9298 stream-option fallback over H2 when the outer is not
+  QUIC; revises the all-`quic://` boundary. Marker `M8_H2_FALLBACK_OK`.

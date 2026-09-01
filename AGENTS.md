@@ -144,12 +144,22 @@ history and the newest status-ledger update rather than this snapshot.
 
 ## Follow-on work (post-M6, not yet implemented)
 
-- **Performance: CUBIC → BBR.** Native UDP on a lossy high-RTT path is
-  CUBIC-capped (~50–100 KB/s per session) because the outer QUIC uses CUBIC on
-  both ends and CUBIC collapses its window under loss; Hy2 (BBR, `standard`
-  profile) reaches ~700–800 KB/s on the same path. Planned fix: client enables
-  in-tree Chromium BBR (`kTBBR` v1 / `kB2ON` v2) behind a `quic_congestion`
-  config option; server ports Hy2's Go BBR into a minimal `quic-go` fork
-  (selectable profile, default `standard`). Any implementation is a client/server
-  runtime change subject to the owner-matrix regression + audit-reconsideration
-  rules above. (Detailed plan: local `bbr-server-plan.md`, untracked.)
+Two post-M6 follow-on milestones are planned (not started); both keep the
+audited M6 defaults and do not alter the TCP path or add a private protocol.
+Each is a client/server runtime change subject to the owner-matrix regression +
+audit-reconsideration rules above.
+
+- **M7 — BBR congestion control (highest priority).** Native UDP on a lossy
+  high-RTT path is CUBIC-capped (~50–100 KB/s per session) because the outer
+  QUIC uses CUBIC on both ends and CUBIC collapses its window under loss; Hy2
+  (BBR, `standard` profile) reaches ~700–800 KB/s on the same path. Fix: client
+  enables in-tree Chromium BBR (`kTBBR` v1 / `kB2ON` v2) behind a
+  `quic_congestion` option (CUBIC default); server ports Hy2's Go BBR into a
+  minimal `quic-go` fork (selectable profile, default `standard`). Plan:
+  `docs/m7-execution-plan.md` (marker `M7_BBR_OK`).
+- **M8 — H2 datagram fallback (after M7).** Extends native UDP so UDP ASSOCIATE
+  still works when the outer is H2 (not QUIC), carrying CONNECT-UDP datagrams
+  over a reliable H2 stream (RFC 9298 stream option); H3 DATAGRAM stays the
+  primary path. Revises the all-`quic://` boundary (adds the RFC-sanctioned
+  stream option, still no private protocol). Plan:
+  `docs/m8-execution-plan.md` (marker `M8_H2_FALLBACK_OK`).
