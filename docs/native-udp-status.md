@@ -1,9 +1,9 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-09-01 (Asia/Shanghai)
+Last updated: 2026-09-02 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
-[`m6-execution-plan.md`](m6-execution-plan.md).
+[`m7-execution-plan.md`](m7-execution-plan.md).
 
 This is the execution ledger for the native UDP project. The development plan
 defines scope and design; this file records what has actually been built and
@@ -20,6 +20,7 @@ verified. Update it at every completed G target and milestone.
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
 | M6 — hardening and release candidate | **Complete**; G0-G6 closed; release candidate qualified | All G0-G6 gates closed; macOS arm64, Linux x64, Windows x64, and Android arm64 platform qualification verified; cross-platform wire gate `13df84bfd9` passes; independent release-candidate audit `AUDIT_PASS` (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at `fcf3bb36f3` | None |
+| M7 — BBR congestion control | **In progress**; G2 implementation and G3 conditional validation complete, release gates open | quic-go fork `f84ad47630af` and Caddy integration `c7434300cb` + whitespace fix `3bcce47f` pass focused builds/tests; independent validation found a publication blocker and no runtime protocol regression | Publish Caddy fork, update forwardproxy pin, then run G4/G5 |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -54,6 +55,38 @@ All M0-M6 milestones are complete. The native UDP release candidate is
 qualified: the independent G6 audit returned `AUDIT_PASS` and the final marker
 `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` closed M6; the full stack is merged to
 `master` at `fcf3bb36f3`.
+
+## M7 implementation evidence (not yet release-qualified)
+
+M7 work has started under [`m7-execution-plan.md`](m7-execution-plan.md).
+The client G1 change is on `master` at `71dc1dfb13`; the server-side
+quic-go fork is published as `ssharkkky/quic-go:codex/bbr` at
+`f84ad47630af13742b99c769f2e4af3bdb59ac5f`. It adds selectable Hy2-derived
+BBR profiles and preserves CUBIC as the zero-value default. The Caddy G3
+integration is currently local at `c7434300cb2885d9d0ea898582496fd05e7b45b8`
+plus the whitespace-default fix `3bcce47f`; it has not been pushed.
+
+Verified on 2026-09-02:
+
+```text
+quic-go fork: go build ./..., go vet ./..., go test ./...                 PASS (in fork worktree)
+Caddy fork:   go test ./..., go vet ./..., go build ./cmd/caddy           PASS
+forwardproxy: focused M4 G0-G4 tests and go test ./...                    PASS
+forwardproxy: go test -race ./...                                         PASS
+combined Caddy+forwardproxy build with explicit quic-go replace            PASS
+```
+
+The combined server binary linked against the exact quic-go pseudo-version
+`v0.59.1-0.20260901171950-f84ad47630af`. The G5 cross-process server script
+was not run to completion because the fixed test Caddyfile attempted to bind
+`:80`, already occupied on this host; no existing process was disturbed.
+
+The independent scoped server validation found no protocol or CUBIC-path
+regression, but did not return a release `AUDIT_PASS`: Caddy's commit is not
+published and `forwardproxy` still pins the audited pre-M7 Caddy commit. This
+publication/pin issue blocks reproducible G3 release evidence. Reference-path
+BBR throughput, full M1-M6/56-case matrices, cross-platform rows, and G4/G5
+qualification remain **not run**.
 
 ## M1 detailed status
 
