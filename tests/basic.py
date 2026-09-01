@@ -33,10 +33,15 @@ result = subprocess.run(
 result.check_returncode()
 
 HTTPS_SERVER_HOSTNAME = '127.0.0.1'
-HTTP_SERVER_PORT = 60443 if server_protocol == 'https' else 60080
+# Ask the OS for an available port instead of relying on a fixed one.  Some
+# Windows runners reserve parts of the ephemeral port range (including the
+# old HTTPS test port), which makes binding a hard-coded port fail with
+# WSAEACCES even when no process is listening on it.
+HTTP_SERVER_PORT = 0
 
 httpd = http.server.HTTPServer(
     (HTTPS_SERVER_HOSTNAME, HTTP_SERVER_PORT), http.server.SimpleHTTPRequestHandler)
+HTTP_SERVER_PORT = httpd.server_port
 httpd.timeout = 1
 httpd.allow_reuse_address = True
 if server_protocol == 'https':
