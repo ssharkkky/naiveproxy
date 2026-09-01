@@ -2148,6 +2148,20 @@ if (is_posix && !is_ios) {
     ]
   }
 
+  executable("naive_quic_congestion_test") {
+    sources = [
+      "tools/naive/naive_quic_congestion_test_bin.cc",
+      "tools/naive/naive_config.cc",
+      "tools/naive/naive_config.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+      "//url",
+    ]
+  }
+
   executable("naive_socks5_server_socket_state_test") {
     sources = [
       "tools/naive/naive_socks5_server_socket_state_test_bin.cc",

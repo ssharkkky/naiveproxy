@@ -10,6 +10,8 @@
 #include <string>
 #include <vector>
 
+#include <memory>
+
 #include "base/files/file_path.h"
 #include "base/logging.h"
 #include "base/logging/logging_settings.h"
@@ -36,6 +38,12 @@ struct NaiveListenConfig {
   NaiveListenConfig(const NaiveListenConfig&);
   ~NaiveListenConfig();
   bool Parse(const std::string& str);
+};
+
+enum class QuicCongestionControl {
+  kCubic = 0,
+  kBbr1,
+  kBbr2,
 };
 
 struct NaiveConfig {
@@ -72,11 +80,27 @@ struct NaiveConfig {
 
   std::optional<bool> no_post_quantum;
 
+  QuicCongestionControl quic_congestion = QuicCongestionControl::kCubic;
+
   NaiveConfig();
   NaiveConfig(const NaiveConfig&);
   ~NaiveConfig();
   bool Parse(const base::DictValue& value);
 };
+
+class QuicContext;
+
+// Shared production helper: builds a QuicContext from NaiveConfig before
+// URLRequestContextBuilder::Build(). Called on every production QUIC context
+// construction path (naive_proxy_bin.cc). Returns nullptr when no QUIC
+// context is needed (no forced origins and no BBR), preserving the M6 frozen
+// invariant that empty origins + cubic creates no context. For BBR, the tag
+// is pushed only when a context already exists due to origins; BBR without
+// quic:// proxy is inert (no new context), avoiding a new frozen-contract
+// branch. The returned context is ready before Build() and contains
+// origins_to_force_quic_on and client_connection_options (kTBBR/kB2ON).
+std::unique_ptr<QuicContext> CreateQuicContextFromNaiveConfig(
+    const NaiveConfig& config);
 
 }  // namespace net
 #endif  // NET_TOOLS_NAIVE_NAIVE_CONFIG_H_

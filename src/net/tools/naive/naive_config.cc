@@ -12,6 +12,9 @@
 #include "net/base/proxy_server.h"
 #include "net/base/proxy_string_util.h"
 #include "net/base/url_util.h"
+#include "net/quic/quic_context.h"
+#include "net/third_party/quiche/src/quiche/quic/core/crypto/crypto_protocol.h"
+#include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "url/gurl.h"
 
 namespace net {
@@ -321,7 +324,50 @@ bool NaiveConfig::Parse(const base::DictValue& value) {
     no_post_quantum = true;
   }
 
+  if (const base::Value* v = value.Find("quic-congestion")) {
+    if (const std::string* str = v->GetIfString()) {
+      if (*str == "cubic") {
+        quic_congestion = QuicCongestionControl::kCubic;
+      } else if (*str == "bbr1") {
+        quic_congestion = QuicCongestionControl::kBbr1;
+      } else if (*str == "bbr2") {
+        quic_congestion = QuicCongestionControl::kBbr2;
+      } else {
+        std::cerr << "Invalid quic-congestion" << std::endl;
+        return false;
+      }
+    } else {
+      std::cerr << "Invalid quic-congestion" << std::endl;
+      return false;
+    }
+  }
+
   return true;
+}
+
+std::unique_ptr<QuicContext> CreateQuicContextFromNaiveConfig(
+    const NaiveConfig& config) {
+  // Mirrors the production BuildURLRequestContext ordering: origins first,
+  // then congestion tag, all before URLRequestContextBuilder::Build().
+  // Preserves M6 invariant: empty origins + cubic => no context, no tag.
+  // BBR without quic:// proxy (empty origins) is inert: returns nullptr and
+  // pushes no tag, avoiding a new frozen-contract context branch. Tag is
+  // applied only when a context already exists due to forced origins.
+  if (config.origins_to_force_quic_on.empty()) {
+    return nullptr;
+  }
+  auto quic_context = std::make_unique<QuicContext>();
+  QuicParams* quic_params = quic_context->params();
+  quic_params->supported_versions = {quic::ParsedQuicVersion::RFCv1()};
+  quic_params->origins_to_force_quic_on.insert(
+      config.origins_to_force_quic_on.begin(),
+      config.origins_to_force_quic_on.end());
+  if (config.quic_congestion == QuicCongestionControl::kBbr1) {
+    quic_params->client_connection_options.push_back(quic::kTBBR);
+  } else if (config.quic_congestion == QuicCongestionControl::kBbr2) {
+    quic_params->client_connection_options.push_back(quic::kB2ON);
+  }
+  return quic_context;
 }
 
 }  // namespace net

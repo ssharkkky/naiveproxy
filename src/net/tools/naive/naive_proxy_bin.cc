@@ -64,7 +64,6 @@
 #include "net/socket/udp_server_socket.h"
 #include "net/ssl/ssl_config_service.h"
 #include "net/ssl/ssl_key_logger_impl.h"
-#include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/tools/naive/naive_command_line.h"
 #include "net/tools/naive/naive_config.h"
 #include "net/tools/naive/naive_connect_udp_backend_factory.h"
@@ -273,16 +272,10 @@ std::unique_ptr<URLRequestContext> BuildURLRequestContext(
     builder.set_ssl_config_service(std::make_unique<NoPostQuantum>());
   }
 
-  if (!config.origins_to_force_quic_on.empty()) {
-    // QuicSessionPool copies QuicParams while the URLRequestContext is built.
-    // Configure explicit QUIC proxy origins first so the proof verifier sees
-    // the same forced-origin set as the connection scheduler.
-    auto quic_context = std::make_unique<QuicContext>();
-    auto* quic = quic_context->params();
-    quic->supported_versions = {quic::ParsedQuicVersion::RFCv1()};
-    quic->origins_to_force_quic_on.insert(
-        config.origins_to_force_quic_on.begin(),
-        config.origins_to_force_quic_on.end());
+  // QuicSessionPool copies QuicParams while the URLRequestContext is built.
+  // Configure explicit QUIC proxy origins and congestion control before Build()
+  // via the shared production helper (also used by tests).
+  if (auto quic_context = CreateQuicContextFromNaiveConfig(config)) {
     builder.set_quic_context(std::move(quic_context));
   }
 
@@ -433,8 +426,10 @@ int main(int argc, char* argv[]) {
                  "--resolver-range=...       Redirect resolver range\n"
                  "--log[=<path>]             Log to stderr, or file\n"
                  "--log-net-log=<path>       Save NetLog\n"
-                 "--ssl-key-log-file=<path>  Save SSL keys for Wireshark\n"
-                 "--no-post-quantum          No post-quantum key agreement\n"
+                  "--ssl-key-log-file=<path>  Save SSL keys for Wireshark\n"
+                  "--no-post-quantum          No post-quantum key agreement\n"
+                  "--quic-congestion=<cubic|bbr1|bbr2>\n"
+                  "                           QUIC congestion control, default cubic\n"
               << std::endl;
     exit(EXIT_SUCCESS);
   }
