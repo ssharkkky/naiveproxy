@@ -111,6 +111,26 @@ web listeners, Hysteria, Xray, frps, and Docker services were not changed.
 - Cleanup verified no `/root/native-udp-m7-test` processes or directories
   remained and removed the temporary UFW rules for ports 18443/18444.
 
+### M7 G4 fixed-loss comparison (2026-09-02, not qualified)
+
+Using `lllinya.com` as the client, `triptrip999.qzz.io` as the server, and a
+userspace UDP shaper with fixed seed `202`, bidirectional 5% loss was applied
+to isolated relay ports. Three 10 MiB authenticated downloads were attempted
+through each outer-QUIC profile:
+
+```text
+BBR   32.5 KB/s, 34.4 KB/s, 54.6 KB/s   median 34.4 KB/s
+CUBIC 31.1 KB/s, 31.9 KB/s, 48.9 KB/s   median 31.9 KB/s
+```
+
+BBR therefore improved this run by only 7.8% and did not meet the frozen G4
+acceptance requirement (at least 5x the CUBIC median and at least 500 KB/s).
+The UDP application probe did not establish a usable echo association under
+this loss profile, so no UDP parity claim is made. The isolated Caddy/client,
+shaper processes, directories, and temporary firewall rules were removed after
+the run. G4 remains **not qualified** and G5/final audit must not be marked
+complete.
+
 ## M1 detailed status
 
 ### Foundation completed before G1
