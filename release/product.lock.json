@@ -9,10 +9,10 @@
   },
   "server": {
     "forwardproxy_repository": "ssharkkky/forwardproxy",
-    "forwardproxy_commit": "30e8559e713bd9a35f6599bb2ff6b60f09d804d7",
+    "forwardproxy_commit": "44eb9333496909f377cc823225c7c03e4b6dc98f",
     "forwardproxy_runtime_base": "0db468de815e417ee75d8bf96c3000838229dbf0",
     "caddy_repository": "ssharkkky/caddy",
-    "caddy_commit": "c993cb481746aab068a6058a05cbd17936534ba1",
+    "caddy_commit": "523eea380035e368628a2495654df6e0de0fdadc",
     "quic_go_repository": "ssharkkky/quic-go",
     "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf"
   },
