@@ -20,7 +20,7 @@ verified. Update it at every completed G target and milestone.
 | M4 — production server path | Complete and independently audited | Reproducible builds, full server/client regressions, independent RFC 9298 matrix, lifecycle, race, privacy, artifact checks, and `AUDIT_PASS`; final server commit `8f044e2`, Caddy `cce894a8` | None |
 | M5 — end-to-end MVP | Complete and independently audited | Full product matrix, shipped default-verifier client, lifecycle/no-replay, complete regressions, three fresh-root repetitions, artifact closeout, and `AUDIT_PASS` | None |
 | M6 — hardening and release candidate | **Complete**; G0-G6 closed; release candidate qualified | All G0-G6 gates closed; macOS arm64, Linux x64, Windows x64, and Android arm64 platform qualification verified; cross-platform wire gate `13df84bfd9` passes; independent release-candidate audit `AUDIT_PASS` (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at `fcf3bb36f3` | None |
-| M7 — BBR congestion control | **In progress**; G1/G2 complete, G3 published and pinned, G4/G5 open | quic-go `f84ad47630af`, Caddy `3bcce47f`, and forwardproxy direct pins pass focused builds/tests; clean-path runtime smoke is green; lossy reference parity and final audit remain open | Run fixed-loss G4 parity, then full G5 matrix and scoped audit |
+| M7 — BBR congestion control | **G4 complete; G5 intentionally deferred** | Correctly combined client/server BBR passed the fixed-loss reference parity gate; `M7_G4_PARITY_OK` recorded below. Full regression/audit G5 is outside the requested closeout scope. | None |
 
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
@@ -56,7 +56,7 @@ qualified: the independent G6 audit returned `AUDIT_PASS` and the final marker
 `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` closed M6; the full stack is merged to
 `master` at `fcf3bb36f3`.
 
-## M7 implementation evidence (not yet release-qualified)
+## M7 implementation evidence and G4 closeout (G5 deferred)
 
 M7 work has started under [`m7-execution-plan.md`](m7-execution-plan.md).
 The client G1 change is on `master` at `71dc1dfb13`; the server-side
@@ -88,9 +88,9 @@ was not run to completion because the fixed test Caddyfile attempted to bind
 The independent scoped server validation found no protocol or CUBIC-path
 regression. The former publication/pin blocker is closed by the published
 Caddy commit and the two direct forwardproxy pins; a formal M7 scoped
-`AUDIT_PASS` has not yet been recorded. Reference-path lossy BBR parity, full
-M1-M6/56-case matrices, cross-platform rows, and G4/G5 qualification remain
-**not run**.
+`AUDIT_PASS` has not been run. The full M1-M6/56-case matrices and
+cross-platform rows belong to G5, which is intentionally deferred after the
+G4-only closeout.
 
 ### M7 runtime smoke (2026-09-02)
 
@@ -110,6 +110,61 @@ web listeners, Hysteria, Xray, frps, and Docker services were not changed.
   failure was inferred from the burst result.
 - Cleanup verified no `/root/native-udp-m7-test` processes or directories
   remained and removed the temporary UFW rules for ports 18443/18444.
+
+### M7 G4 fixed-loss parity closeout (2026-09-02)
+
+The final G4 run used `lllinya.com` as the client and `triptrip999.qzz.io` as
+the server. It used the frozen `loss` profile (seed `202`, 5% independent
+loss in each direction, no added delay) on isolated UDP relay port `18444`.
+The temporary Caddy binary was built from Caddy `3bcce47f`, forwardproxy
+`c329155`, and quic-go `f84ad47630af`; `go version -m` resolved the exact
+quic-go pseudo-version and `caddy list-modules` contained
+`http.handlers.forward_proxy`. The client was the G1 Release binary from
+NaiveProxy `71dc1dfb13`, configured with `quic-congestion=bbr1` or `cubic`.
+Production ports, services, and configurations were not changed.
+
+For each profile, seven 20 MiB downloads and seven 20 MiB uploads were run
+through one SOCKS5 listener. CUBIC's 90-second samples are explicitly
+right-censored when the transfer did not finish; BBR samples all completed:
+
+```text
+TCP download, single connection (curl speed_download)
+  BBR:   2,521,306 .. 3,074,087 B/s, median 2,748,313 B/s (2.75 MB/s)
+  CUBIC:    55,946 ..    64,144 B/s, median    59,649 B/s (0.060 MB/s)
+  ratio: 46.1x; BBR median exceeds the 500 KB/s and 5x G4 thresholds
+
+TCP download, eight parallel connections (batch wall time)
+  BBR:   55.722, 56.262, 57.605, 61.732, 62.715, 63.834, 66.272 s
+         median aggregate 2,591 KB/s (all 8/8 streams completed)
+  CUBIC: 30-second observation batches; median aggregate 59.7 KB/s
+         (all streams were short reads, no batch completed the 20 MiB object)
+
+TCP upload, single connection (curl speed_upload)
+  BBR:   938,693 .. 1,127,725 B/s, median 1,095,133 B/s; 7/7 HTTP 200
+  CUBIC: 106,312 .. 174,034 B/s, median 115,052 B/s; 0/7 completed in 90 s
+
+UDP application probe, 20 paced 1,200-byte echo datagrams per round
+  BBR:   20, 18, 17, 19, 17, 18, 16; median 17/20 (85%)
+  CUBIC: 20, 16, 16, 17, 18, 19, 16; median 17/20 (85%)
+```
+
+The existing Hy2 service was also run through a second isolated shaper
+(`18445 -> 8444`) as a comparator: three 20 MiB downloads completed at
+2.19–2.40 MB/s, three uploads at 1.21–1.25 MB/s, and seven UDP rounds had a
+median 18/20 replies. This is supporting parity evidence, not a Naive gate.
+
+The main shaper recorded `1,608,906` forwarded and `84,510` dropped packets
+(5.00% drop); the Hy2 shaper recorded `136,203` forwarded and `7,143`
+dropped (4.99%). No paced-probe queue overflow occurred. Point-in-time BBR
+snapshots were approximately 6% server CPU and 2% client CPU; CUBIC's
+right-censored throughput and the identical shaper policy show no performance
+regression, but these CPU readings are observational rather than a dedicated
+CPU benchmark.
+
+All temporary clients, Caddy, HTTP/UDP targets, shapers, files, and UFW rules
+were removed. Post-cleanup checks found only the production client on `1080`,
+production Caddy on `8443`, and Hy2 on `8444`; all three remained active.
+Marker: `M7_G4_PARITY_OK`.
 
 ### M7 corrected BBR deployment diagnostic (2026-09-02)
 

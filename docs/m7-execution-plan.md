@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-01 (Asia/Shanghai)
 
-Status: **M7 planned** (not started). Post-M6 follow-on, highest performance
+Status: **G4 complete; G5 deferred by project scope**. Post-M6 follow-on, highest performance
 priority. M0-M6 are complete and independently audited (release candidate
 `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`, merged to `master` at `fcf3bb36f3`). M7
 replaces the outer QUIC CUBIC congestion control with BBR on both ends to remove
@@ -298,7 +298,9 @@ Stop if forwardproxy behavior changes or a dependency floats.
 
 ### G4 — end-to-end parity measurement
 
-Status: not started.
+Status: complete. The fixed-loss reference matrix and marker
+`M7_G4_PARITY_OK` are recorded in `native-udp-status.md`. G5 is intentionally
+deferred for the requested G4-only closeout.
 
 Purpose: prove the throughput gain on the reference path.
 
@@ -312,8 +314,8 @@ Work:
    upload does not regress beyond the agreed bound.
 
 Exit: a recorded, attributable throughput improvement meeting the §4.1
-standard-profile threshold. Non-standard profile performance is qualified only
-after this exit and before the final M7 closeout.
+standard-profile threshold. Met by the 2026-09-02 fixed-loss matrix. Non-
+standard profile performance and full regression/audit remain G5 scope.
 Marker `M7_G4_PARITY_OK`.
 
 Stop if BBR does not improve on CUBIC on the reference path (re-open root cause).
