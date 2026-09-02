@@ -147,10 +147,10 @@ do not qualify the lossy G4 gate. All temporary clients, echo service,
 directories, and firewall rules were removed; production listeners were not
 changed.
 
-### M7 50% loss retry with Hy2 (2026-09-02)
+### M7 5% loss retry with Hy2 (2026-09-02; label corrected)
 
 For an additional stress comparison, a fixed-seed userspace shaper applied
-50% bidirectional random loss to isolated Naive BBR, Naive CUBIC, and the
+5% bidirectional random loss to isolated Naive BBR, Naive CUBIC, and the
 existing Hy2 service. The client remained `lllinya.com` and the server
 remained `triptrip999.qzz.io`.
 
@@ -158,15 +158,33 @@ remained `triptrip999.qzz.io`.
   Naive CUBIC samples approximately 48–55 KB/s. Hy2 completed at 1.61 and
   1.68 MB/s in two samples.
 - UDP echo: Naive BBR and CUBIC each received 0/5 paced probes; Hy2 received
-  3/5. This is a severe-loss survivability result, not a throughput claim.
+  3/5. This is a loss survivability result, not a throughput claim.
 
 The earlier Naive UDP 0/20 result was therefore not a protocol-path failure:
-at 50% loss the Naive CONNECT-UDP control/association exchange often cannot
+at 5% loss the Naive CONNECT-UDP control/association exchange can still
 complete, while the already-established Hy2 client retained a usable UDP
 forwarding session. UDP payloads themselves are not retransmitted by either
 proxy; Hy2's advantage here is its established-session/loss handling rather
 than a generic property of UDP. All temporary processes, directories, and
 firewall rules were removed after this run.
+
+### M7 true 50% loss retry (2026-09-02)
+
+The comparison was repeated with explicit `--loss-percent 50` rather than the
+5% named profile above. Shaper logs confirmed near 1:1 drop/forward counts on
+all three paths. TCP 10 MiB attempts produced:
+
+```text
+Naive BBR:   48,898 bytes in 30 s, 1.6 KB/s (timed out)
+Naive CUBIC: connection reset after 5.4 s, 0 bytes
+Hy2:         1,457,922 bytes in 30 s, 48.6 KB/s (timed out)
+```
+
+The paced UDP probe (five 1,200-byte packets, 500 ms apart) received `0/5`
+for Naive BBR, `0/5` for Naive CUBIC, and `0/5` for Hy2. At true 50% loss,
+none of the protocols established a usable UDP association; this is a
+survivability result, not a throughput comparison. All test processes,
+directories, and temporary UFW rules were removed.
 
 ## M1 detailed status
 
