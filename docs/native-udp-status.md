@@ -2545,3 +2545,19 @@ included in future feature commits.
 M6-G6 closes the branch with harness commit `2430df7acc` (release matrix
 plus harness pin fixes) and closeout record `e96cfbd0cc` (status ledger,
 release guide, payload policy), both pushed to origin.
+
+## Post-M7 CONNECT-UDP admission tuning — verified
+
+On 2026-09-03 CST, the production forwardproxy admission caps were raised to
+accommodate the router's single sing-box UDP fan-out: handler-wide active
+associations from 256 to 512, and per-source-public-IP active associations
+from 32 to 128. The narrow forwardproxy change is commit `25b4cd6`; its full
+`go test ./...` suite passed with Go 1.25.12 in the isolated build tree.
+
+The deployed Caddy binary was rebuilt with the locked M7 inputs (Caddy
+`3bcce47`, quic-go `f84ad47630af`, Go 1.25.12, xcaddy 0.4.5) and installed as
+`/root/native-udp-deploy/caddy-naive-udp`, SHA256
+`fe6de99fee5d3502644cc7c4d0944318e4b78bedbf78ff47158261e1ccef9ad9`.
+`native-udp-caddy.service` restarted successfully with `NRestarts=0` and
+8443/8444 listeners intact. The previous binary remains at
+`/root/native-udp-deploy/caddy-naive-udp.pre-limit-20260902-2345` for rollback.
