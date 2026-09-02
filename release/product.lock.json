@@ -5,22 +5,22 @@
   "release_channel": "experimental",
   "naiveproxy": {
     "repository": "ssharkkky/naiveproxy",
-    "commit": "b26229ec06b95cf3b17f9eda37f38c7612940e17"
+    "commit": "d69d37921980c006061413a26154d5d9da391fcd"
   },
   "server": {
     "forwardproxy_repository": "ssharkkky/forwardproxy",
-    "forwardproxy_commit": "44eb9333496909f377cc823225c7c03e4b6dc98f",
+    "forwardproxy_commit": "c32eb3aae930b089298e50f01f18ef47d03d80cb",
     "forwardproxy_runtime_base": "0db468de815e417ee75d8bf96c3000838229dbf0",
     "caddy_repository": "ssharkkky/caddy",
-    "caddy_commit": "523eea380035e368628a2495654df6e0de0fdadc",
+    "caddy_commit": "7ab578122df0b82221c5bca85a280151ca449e0d",
     "quic_go_repository": "ssharkkky/quic-go",
     "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf"
   },
   "toolchain": {
     "go": "1.26.0",
     "xcaddy": "0.4.5",
-    "caddy": "v2.11.4",
-    "quic_go": "v0.62.1-0.20260902170459-af5cf06bcc93"
+    "caddy": "v2.11.5-0.20260902192414-7ab578122df0",
+    "quic_go": "v0.62.1-0.20260902185508-c308178d8c77"
   },
   "defaults": {
     "client_quic_congestion": "cubic",
