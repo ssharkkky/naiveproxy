@@ -17,13 +17,11 @@ update time. The current fork defaults are:
 | Repository | Default branch | Current role |
 | --- | --- | --- |
 | `ssharkkky/naiveproxy` | `master` | Chromium client and native UDP client option |
-| `ssharkkky/forwardproxy` | `naive` | CONNECT-UDP server module and server build scripts |
+| `ssharkkky/forwardproxy` | `master` | CONNECT-UDP server module and server build scripts |
 | `ssharkkky/caddy` | `master` | H3 DATAGRAM and BBR configuration integration |
 | `ssharkkky/quic-go` | `master` | QUIC BBR implementation and API wiring |
 
-`forwardproxy` intentionally retains the upstream project's `naive` default
-branch name; it is the primary branch for this fork. “Use main latest” in an
-update means fetch the applicable default branch above, test that source, and
+“Use latest master” means fetch each fork's `master`, test that source, and
 then resolve it to a full SHA in the product lock. Release jobs still check
 out the locked SHAs, never a moving branch.
 
@@ -60,7 +58,7 @@ merge automatically:
 - **Caddy:** fetch `ssharkkky/caddy` `master`, preserve the H3 Datagram/BBR
   integration, check every production `quic.Config` constructor, and run Caddy
   plus forwardproxy tests.
-- **forwardproxy:** fetch the `naive` default branch, update its Caddy and
+- **forwardproxy:** fetch `ssharkkky/forwardproxy` `master`, update its Caddy and
   quic-go pins to the tested default-branch SHAs, run legacy/privacy/race and
   native-UDP tests, then update the server lock.
 
