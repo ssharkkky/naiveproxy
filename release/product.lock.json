@@ -9,12 +9,12 @@
   },
   "server": {
     "forwardproxy_repository": "ssharkkky/forwardproxy",
-    "forwardproxy_commit": "9d5607266388b4575a971de9a558fa8ad0cc4299",
+    "forwardproxy_commit": "30e8559e713bd9a35f6599bb2ff6b60f09d804d7",
     "forwardproxy_runtime_base": "0db468de815e417ee75d8bf96c3000838229dbf0",
     "caddy_repository": "ssharkkky/caddy",
-    "caddy_commit": "bf677f58c75d7ed4e31ca5a58dc432026dff8986",
+    "caddy_commit": "c993cb481746aab068a6058a05cbd17936534ba1",
     "quic_go_repository": "ssharkkky/quic-go",
-    "quic_go_commit": "70dba6817bbba31571763333a9e6b28c71930b50"
+    "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf"
   },
   "toolchain": {
     "go": "1.26.0",
