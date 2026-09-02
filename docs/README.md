@@ -9,7 +9,7 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 
 ## Current handoff
 
-- Branch: `codex/native-udp-foundation`.
+- Branch: `master`.
 - M0-M6 are complete. M1-M5 are independently audited; M6 release candidate audited (`AUDIT_PASS`).
 - M3 final client marker: `M3_NATIVE_UDP_CLIENT_OK`; closeout commit
   `2bb83aec`.

@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-09-02 (Asia/Shanghai)
+Last updated: 2026-09-03 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Active milestone plan:
 [`m7-execution-plan.md`](m7-execution-plan.md).
@@ -59,14 +59,13 @@ qualified: the independent G6 audit returned `AUDIT_PASS` and the final marker
 ## M7 implementation evidence and G4 closeout (G5 deferred)
 
 M7 work has started under [`m7-execution-plan.md`](m7-execution-plan.md).
-The client G1 change is on `master` at `71dc1dfb13`; the server-side
-quic-go fork is published as `ssharkkky/quic-go:codex/bbr` at
-`f84ad47630af13742b99c769f2e4af3bdb59ac5f`. It adds selectable Hy2-derived
+The client G1 change is on `master` at `b26229ec06`; the server-side
+quic-go fork is published on its default `master` at
+`af5cf06bcc93b32ac19bad75f4669465ed6e8f11`. It adds selectable Hy2-derived
 BBR profiles and preserves CUBIC as the zero-value default. The Caddy G3
-integration is published at `ssharkkky/caddy:codex/m7-caddy-bbr`, commit
-`3bcce47fa48f`, and forwardproxy directly pins both that Caddy pseudo-version
-and the quic-go fork (`ssharkkky/forwardproxy:codex/m7-caddy-bbr-pin`, commits
-`01c466c` and `c329155`).
+integration is now merged to the fork default `master` at `e111f21c85`; the
+forwardproxy server/build line is on its default `naive` branch at
+`0db468de81` and directly pins those default-branch snapshots.
 
 Verified on 2026-09-02:
 
