@@ -147,6 +147,27 @@ do not qualify the lossy G4 gate. All temporary clients, echo service,
 directories, and firewall rules were removed; production listeners were not
 changed.
 
+### M7 50% loss retry with Hy2 (2026-09-02)
+
+For an additional stress comparison, a fixed-seed userspace shaper applied
+50% bidirectional random loss to isolated Naive BBR, Naive CUBIC, and the
+existing Hy2 service. The client remained `lllinya.com` and the server
+remained `triptrip999.qzz.io`.
+
+- TCP 10 MiB downloads: Naive BBR samples were approximately 47–58 KB/s;
+  Naive CUBIC samples approximately 48–55 KB/s. Hy2 completed at 1.61 and
+  1.68 MB/s in two samples.
+- UDP echo: Naive BBR and CUBIC each received 0/5 paced probes; Hy2 received
+  3/5. This is a severe-loss survivability result, not a throughput claim.
+
+The earlier Naive UDP 0/20 result was therefore not a protocol-path failure:
+at 50% loss the Naive CONNECT-UDP control/association exchange often cannot
+complete, while the already-established Hy2 client retained a usable UDP
+forwarding session. UDP payloads themselves are not retransmitted by either
+proxy; Hy2's advantage here is its established-session/loss handling rather
+than a generic property of UDP. All temporary processes, directories, and
+firewall rules were removed after this run.
+
 ## M1 detailed status
 
 ### Foundation completed before G1
