@@ -111,7 +111,44 @@ web listeners, Hysteria, Xray, frps, and Docker services were not changed.
 - Cleanup verified no `/root/native-udp-m7-test` processes or directories
   remained and removed the temporary UFW rules for ports 18443/18444.
 
-### M7 G4 fixed-loss comparison (2026-09-02, not qualified)
+### M7 corrected BBR deployment diagnostic (2026-09-02)
+
+The earlier lossy comparisons below did not exercise server-side BBR. Binary
+provenance inspection found that the temporary client contained G1 and accepted
+`quic-congestion=bbr1`, but the Caddy binary actually serving the comparison
+contained `forward_proxy` with upstream `quic-go v0.59.0`. A separate Caddy
+binary contained the M7 quic-go fork but did not contain the `forward_proxy`
+module. Consequently, the alleged Naive BBR path still used server CUBIC.
+
+The diagnosis was repeated with one combined binary built from exact local
+worktrees: Caddy `3bcce47f`, forwardproxy `c329155`, and quic-go `f84ad47`.
+`go version -m` and `caddy list-modules` verified all three replacements and
+`http.handlers.forward_proxy` before deployment. On the authorized
+`lllinya.com` client to `triptrip999.qzz.io` server path:
+
+```text
+5% bidirectional loss, seed 202, 20 MiB download
+Naive BBR:   20 MiB in 8.38 s, approximately 2.50 MB/s
+Naive CUBIC: 1.95 MiB in 35 s, approximately 55 KB/s (timed out)
+Hy2 BBR:     20 MiB in 8.29 s, approximately 2.53 MB/s
+```
+
+Server qlog confirmed the mechanism. Correct BBR grew its congestion window
+from 40 KiB to 1.22 MiB under 5% loss and ended near 1.17 MiB. CUBIC reached
+only 79 KiB and ended near 10 KiB. A clean-path 20 MiB BBR run completed in
+about 2.6 seconds and grew the server window to 6.4 MiB. By contrast, qlog from
+the wrongly deployed server reduced 40,960 bytes to 28,672 bytes on its first
+loss (the CUBIC 0.7 factor) and never exceeded 40 KiB.
+
+This isolates the prior throughput gap to the server deployment artifact, not
+the Naive HTTP/3 CONNECT or forwardproxy data path: with the correct BBR
+binary, Naive and Hy2 were equal within about 1.1% in this diagnostic. This was
+one download sample, not the complete G4 TCP upload/download, UDP, and repeated
+median qualification matrix. All isolated listeners, clients, qlogs, shapers,
+temporary files, and UFW rules were removed; production services were not
+changed.
+
+### M7 G4 fixed-loss comparison (2026-09-02, superseded)
 
 Using `lllinya.com` as the client, `triptrip999.qzz.io` as the server, and a
 userspace UDP shaper with fixed seed `202`, bidirectional 5% loss was applied
@@ -123,8 +160,11 @@ BBR   32.5 KB/s, 34.4 KB/s, 54.6 KB/s   median 34.4 KB/s
 CUBIC 31.1 KB/s, 31.9 KB/s, 48.9 KB/s   median 31.9 KB/s
 ```
 
-BBR therefore improved this run by only 7.8% and did not meet the frozen G4
-acceptance requirement (at least 5x the CUBIC median and at least 500 KB/s).
+This result is invalid as a BBR comparison because its server binary used
+upstream quic-go CUBIC, as established by the corrected deployment diagnostic
+above. The observed 7.8% difference must not be used as M7 performance
+evidence.
+
 The UDP application probe did not establish a usable echo association under
 this loss profile, so no UDP parity claim is made. The isolated Caddy/client,
 shaper processes, directories, and temporary firewall rules were removed after
@@ -147,7 +187,7 @@ do not qualify the lossy G4 gate. All temporary clients, echo service,
 directories, and firewall rules were removed; production listeners were not
 changed.
 
-### M7 5% loss retry with Hy2 (2026-09-02; label corrected)
+### M7 5% loss retry with Hy2 (2026-09-02; superseded)
 
 For an additional stress comparison, a fixed-seed userspace shaper applied
 5% bidirectional random loss to isolated Naive BBR, Naive CUBIC, and the
@@ -160,15 +200,18 @@ remained `triptrip999.qzz.io`.
 - UDP echo: Naive BBR and CUBIC each received 0/5 paced probes; Hy2 received
   3/5. This is a loss survivability result, not a throughput claim.
 
-The earlier Naive UDP 0/20 result was therefore not a protocol-path failure:
-at 5% loss the Naive CONNECT-UDP control/association exchange can still
+The Naive BBR throughput comparison in this run is invalid because server-side
+BBR was not active. The UDP association observations remain topology evidence,
+but do not compare BBR implementations. The earlier Naive UDP 0/20 result was
+therefore not a protocol-path failure: at 5% loss the Naive CONNECT-UDP
+control/association exchange can still
 complete, while the already-established Hy2 client retained a usable UDP
 forwarding session. UDP payloads themselves are not retransmitted by either
 proxy; Hy2's advantage here is its established-session/loss handling rather
 than a generic property of UDP. All temporary processes, directories, and
 firewall rules were removed after this run.
 
-### M7 true 50% loss retry (2026-09-02)
+### M7 true 50% loss retry (2026-09-02; BBR comparison superseded)
 
 The comparison was repeated with explicit `--loss-percent 50` rather than the
 5% named profile above. Shaper logs confirmed near 1:1 drop/forward counts on
@@ -180,8 +223,10 @@ Naive CUBIC: connection reset after 5.4 s, 0 bytes
 Hy2:         1,457,922 bytes in 30 s, 48.6 KB/s (timed out)
 ```
 
-The paced UDP probe (five 1,200-byte packets, 500 ms apart) received `0/5`
-for Naive BBR, `0/5` for Naive CUBIC, and `0/5` for Hy2. At true 50% loss,
+The Naive row labeled BBR did not have server-side BBR active and is invalid as
+a congestion-control comparison. The paced UDP probe (five 1,200-byte packets,
+500 ms apart) received `0/5` for Naive BBR, `0/5` for Naive CUBIC, and `0/5`
+for Hy2. At true 50% loss,
 none of the protocols established a usable UDP association; this is a
 survivability result, not a throughput comparison. All test processes,
 directories, and temporary UFW rules were removed.
