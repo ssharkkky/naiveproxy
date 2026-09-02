@@ -1,0 +1,48 @@
+name: Product dependency lock check
+
+on:
+  pull_request:
+    paths:
+      - release/product.lock.json
+      - scripts/verify-product-lock.sh
+      - .github/workflows/product-server-release.yml
+      - .github/workflows/dependency-lock-check.yml
+  schedule:
+    - cron: "17 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  lock:
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Validate lock schema and immutable refs
+        run: ./scripts/verify-product-lock.sh
+      - name: Confirm pinned commits are published
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          import json
+          import subprocess
+          with open("release/product.lock.json", encoding="utf-8") as f:
+              lock = json.load(f)
+          repos = [
+              (lock["naiveproxy"]["repository"], lock["naiveproxy"]["commit"]),
+              (lock["server"]["forwardproxy_repository"], lock["server"]["forwardproxy_commit"]),
+              (lock["server"]["caddy_repository"], lock["server"]["caddy_commit"]),
+              (lock["server"]["quic_go_repository"], lock["server"]["quic_go_commit"]),
+          ]
+          for repo, commit in repos:
+              url = f"https://github.com/{repo}.git"
+              subprocess.run(
+                  ["gh", "api", f"repos/{repo}/commits/{commit}"],
+                  check=True,
+                  stdout=subprocess.DEVNULL,
+              )
+          print("PUBLISHED_PINS_OK")
+          PY

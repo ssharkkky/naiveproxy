@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "product": "naiveproxy-native-udp",
+  "product_version": "v150.0.7871.63-1-native-udp-m7",
+  "release_channel": "experimental",
+  "naiveproxy": {
+    "repository": "ssharkkky/naiveproxy",
+    "commit": "71dc1dfb13a96dadf05bd466a580c823784ce8ff"
+  },
+  "server": {
+    "forwardproxy_repository": "ssharkkky/forwardproxy",
+    "forwardproxy_commit": "75f7081178f2b9ee858e62b6b4d2cb867437d502",
+    "forwardproxy_runtime_base": "c329155ccc187b3559aed6247d6932af98d5b838",
+    "caddy_repository": "ssharkkky/caddy",
+    "caddy_commit": "3bcce47fa48fec241072539d061cb7429f443f5a",
+    "quic_go_repository": "ssharkkky/quic-go",
+    "quic_go_commit": "f84ad47630af13742b99c769f2e4af3bdb59ac5f"
+  },
+  "toolchain": {
+    "go": "1.25.12",
+    "xcaddy": "0.4.5",
+    "caddy": "v2.11.2",
+    "quic_go": "v0.59.1-0.20260901171950-f84ad47630af"
+  },
+  "defaults": {
+    "client_quic_congestion": "cubic",
+    "server_quic_congestion": "cubic"
+  }
+}

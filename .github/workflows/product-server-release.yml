@@ -1,0 +1,104 @@
+name: Product server release
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      publish:
+        description: Upload the built server bundle to an existing GitHub release
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: write
+
+jobs:
+  server:
+    name: Build pinned native-UDP server
+    runs-on: ubuntu-22.04
+    timeout-minutes: 30
+    steps:
+      - name: Check out product lock
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.release.tag_name || github.ref_name }}
+          fetch-depth: 0
+
+      - name: Read product pins
+        id: pins
+        shell: bash
+        run: |
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          with open("release/product.lock.json", encoding="utf-8") as f:
+              lock = json.load(f)
+          print(f"forwardproxy={lock['server']['forwardproxy_commit']}")
+          print(f"caddy={lock['server']['caddy_commit']}")
+          print(f"quic_go={lock['server']['quic_go_commit']}")
+          print(f"product_version={lock['product_version']}")
+          PY
+          ./scripts/verify-product-lock.sh
+
+      - name: Check out pinned forwardproxy
+        uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/forwardproxy
+          ref: ${{ steps.pins.outputs.forwardproxy }}
+          path: _product/forwardproxy
+          fetch-depth: 0
+
+      - name: Check out pinned Caddy
+        uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/caddy
+          ref: ${{ steps.pins.outputs.caddy }}
+          path: _product/caddy
+          fetch-depth: 0
+
+      - name: Check out pinned quic-go
+        uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/quic-go
+          ref: ${{ steps.pins.outputs.quic_go }}
+          path: _product/quic-go
+          fetch-depth: 0
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.25.12
+          cache: false
+
+      - name: Build and verify server
+        shell: bash
+        run: |
+          go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.5
+          mkdir -p _product/dist
+          GO_BIN="$(command -v go)" \
+          XCADDY_BIN="$(go env GOPATH)/bin/xcaddy" \
+          CADDY_SOURCE_DIR="$GITHUB_WORKSPACE/_product/caddy" \
+            _product/forwardproxy/scripts/build-m7-caddy.sh \
+            "$GITHUB_WORKSPACE/_product/dist/caddy"
+          cp release/product.lock.json _product/dist/
+          cp _product/forwardproxy/M7_TOOLCHAIN.lock _product/dist/
+          tar cJf "_product/naive-caddy-${{ steps.pins.outputs.product_version }}-linux-amd64.tar.xz" \
+            -C _product/dist caddy product.lock.json M7_TOOLCHAIN.lock
+          sha256sum "_product/naive-caddy-${{ steps.pins.outputs.product_version }}-linux-amd64.tar.xz" \
+            > _product/dist/SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: naive-caddy-${{ steps.pins.outputs.product_version }}-linux-amd64
+          path: _product/dist/
+
+      - name: Upload server bundle to release
+        if: ${{ github.event_name == 'release' || inputs.publish == true }}
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="${{ github.event.release.tag_name || github.ref_name }}"
+          gh release upload "$tag" \
+            "_product/naive-caddy-${{ steps.pins.outputs.product_version }}-linux-amd64.tar.xz" \
+            _product/dist/SHA256SUMS --clobber
