@@ -11,6 +11,22 @@ server toolchain, the product version, and the CUBIC defaults. A release is
 valid only when the lock is committed before the build starts. No workflow may
 use `latest` or an unpinned branch for a release artifact.
 
+The development source for every repository is its fork's default branch at
+update time. The current fork defaults are:
+
+| Repository | Default branch | Current role |
+| --- | --- | --- |
+| `ssharkkky/naiveproxy` | `master` | Chromium client and native UDP client option |
+| `ssharkkky/forwardproxy` | `naive` | CONNECT-UDP server module and server build scripts |
+| `ssharkkky/caddy` | `master` | H3 DATAGRAM and BBR configuration integration |
+| `ssharkkky/quic-go` | `master` | QUIC BBR implementation and API wiring |
+
+`forwardproxy` intentionally retains the upstream project's `naive` default
+branch name; it is the primary branch for this fork. “Use main latest” in an
+update means fetch the applicable default branch above, test that source, and
+then resolve it to a full SHA in the product lock. Release jobs still check
+out the locked SHAs, never a moving branch.
+
 The forwardproxy repository contains the corresponding `M7_TOOLCHAIN.lock` and
 `scripts/build-m7-caddy.sh`. The product workflow checks out those exact pins
 and verifies the resulting module graph and Caddy modules.
@@ -33,20 +49,36 @@ official prebuilt packages.
 
 ## Dependency updates
 
-Update one owner at a time and do not merge automatically:
+Refresh one owner at a time from the fork default branches above and do not
+merge automatically:
 
 - **NaiveProxy/Chromium:** run the full client matrix, 56 TCP cases, and the
   native-UDP interoperability probes. Re-run the server combination tests.
-- **quic-go:** rebase the fork from the new upstream tag, replay the BBR patch,
-  run `go test ./...`, `go vet ./...`, and race tests, then update Caddy's pin.
-- **Caddy:** rebase the H3 Datagram/BBR patch, check every production
-  `quic.Config` constructor, and run Caddy plus forwardproxy tests.
-- **forwardproxy:** keep Caddy and quic-go fixed, run legacy/privacy/race and
+- **quic-go:** fetch `ssharkkky/quic-go` `master`, preserve the BBR patch,
+  run `go test ./...`, `go vet ./...`, and race tests, then update Caddy's
+  dependency pin.
+- **Caddy:** fetch `ssharkkky/caddy` `master`, preserve the H3 Datagram/BBR
+  integration, check every production `quic.Config` constructor, and run Caddy
+  plus forwardproxy tests.
+- **forwardproxy:** fetch the `naive` default branch, update its Caddy and
+  quic-go pins to the tested default-branch SHAs, run legacy/privacy/race and
   native-UDP tests, then update the server lock.
 
 After each update, regenerate the product lock and run the complete combination
 workflow. If a QUIC API, wire behavior, default, or privacy boundary changes,
 stop and open a compatibility review rather than forcing the update through.
+
+For a routine dependency refresh, record the moving-branch snapshot before
+building and then freeze it:
+
+```bash
+git fetch origin <default-branch>
+git rev-parse origin/<default-branch>
+./scripts/verify-product-lock.sh
+```
+
+The first two commands identify the latest default-branch source; the lock
+file must contain the resulting 40-character SHAs before any release build.
 
 ## Release gates
 
