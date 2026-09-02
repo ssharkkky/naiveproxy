@@ -326,6 +326,19 @@ int QuicProxyClientSocket::DoLoop(int last_io_result) {
         rv = DoReadReplyComplete(rv);
         net_log_.EndEventWithNetErrorCode(
             NetLogEventType::HTTP_TRANSACTION_TUNNEL_READ_HEADERS, rv);
+        // If reading the response itself fails after Fast Open returned from
+        // Connect(), there is no connect_callback_ left to invoke. Successful
+        // responses continue through the normal response-processing states;
+        // HTTP status failures are handled in STATE_PROCESS_RESPONSE_CODE.
+        if (use_fastopen_ && read_headers_pending_ && rv < 0) {
+          read_headers_pending_ = false;
+          // The pending application read observes the closed stream. Any
+          // subsequent data after this response must be ignored.
+          next_state_ = STATE_DISCONNECTED;
+          // The Fast Open Connect() already completed; do not report this
+          // response through connect_callback_.
+          rv = ERR_IO_PENDING;
+        }
         break;
       case STATE_PROCESS_RESPONSE_HEADERS:
         DCHECK_EQ(OK, rv);
@@ -340,11 +353,12 @@ int QuicProxyClientSocket::DoLoop(int last_io_result) {
         if (use_fastopen_ && read_headers_pending_) {
           read_headers_pending_ = false;
           if (rv < 0) {
-            // read_callback_ will be called with this error and be reset.
-            // Further data after that will be ignored.
+            // The pending application read observes the closed stream. Any
+            // subsequent data after this response must be ignored.
             next_state_ = STATE_DISCONNECTED;
           }
-          // Prevents calling connect_callback_.
+          // Fast Open already completed Connect(); do not invoke the
+          // consumed connect_callback_ for the later response.
           rv = ERR_IO_PENDING;
         }
         break;
