@@ -131,6 +131,22 @@ shaper processes, directories, and temporary firewall rules were removed after
 the run. G4 remains **not qualified** and G5/final audit must not be marked
 complete.
 
+### M7 UDP/Hy2 retry (2026-09-02)
+
+The prior failed UDP result was a test-topology/handshake failure: no
+CONNECT-UDP association had been established. With Naive BBR and CUBIC pointed
+directly at the production Caddy H3 listener (`triptrip999.qzz.io:8443`), paced
+1,200-byte UDP echo probes returned 20/20 for both. The existing Hysteria
+service on `:8444` also returned 20/20 through a temporary client on
+`lllinya.com`.
+
+Three Hy2 downloads of the 10 MiB test file completed at 3.21–3.62 MB/s. In
+the same clean-path retry, one Naive BBR download completed at 2.88 MB/s and
+one Naive CUBIC download at 3.19 MB/s. These results are similar in scale and
+do not qualify the lossy G4 gate. All temporary clients, echo service,
+directories, and firewall rules were removed; production listeners were not
+changed.
+
 ## M1 detailed status
 
 ### Foundation completed before G1
