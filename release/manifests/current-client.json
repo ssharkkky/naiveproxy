@@ -1,0 +1,66 @@
+{
+  "schema_version": 1,
+  "component": "naiveproxy-native-udp-client",
+  "generated_at": "2026-09-03T18:32:55+08:00",
+  "product_lock": {
+    "path": "release/product.lock.json",
+    "sha256": "03a95a5d05b510e420c14cc0cba24d34cffa2cca7122d1d36524eefb4927bfd0",
+    "product_version": "v150.0.7871.63-2-native-udp-m7",
+    "naiveproxy_commit": "9842de51eb67902af178615f02f5ba878e8e1505"
+  },
+  "build": {
+    "repository": "ssharkkky/naiveproxy",
+    "workflow": "Build",
+    "run_id": 33708458095,
+    "run_url": "https://github.com/ssharkkky/naiveproxy/actions/runs/33708458095",
+    "workflow_commit": "0864269bf6431cbaf0325ba45236bf836a1437a4",
+    "result": "success",
+    "runtime_tree_note": "The only changes from the locked naiveproxy commit to the workflow commit are release/product.lock.json updates; git diff --quiet over src passed."
+  },
+  "artifacts": [
+    {
+      "platform": "linux-x64",
+      "job_id": 100502878912,
+      "artifact_id": 9877116646,
+      "archive_sha256": "e5339abec9cdcc71a25073bd88c053c8585c6c460ba3b039bcddc23fe70ae852",
+      "binary_sha256": "4b24c709396a03a299f7dc5784b56c6b598e535f84072599b11ae52d8bfb1dca",
+      "version": "naive 150.0.7871.63",
+      "basic_test": "passed"
+    },
+    {
+      "platform": "openwrt-x86_64",
+      "job_id": 100502878247,
+      "artifact_id": 9876203117,
+      "archive_sha256": "ad26f715211b665ef91ed07f7da3e661ca76416fedd33fd9d21db5ea6781f22e",
+      "binary_sha256": "609bb34c492f29a1b158fcdc1e5a55957eda0d087b9ef9c51205214fd5a29e10",
+      "version": "naive 150.0.7871.63",
+      "basic_test": "passed"
+    }
+  ],
+  "deployments": [
+    {
+      "host": "rtr.local",
+      "address": "192.168.2.1",
+      "platform": "openwrt-x86_64",
+      "service": "/etc/init.d/native-udp",
+      "binary": "/usr/bin/native-udp",
+      "binary_sha256": "609bb34c492f29a1b158fcdc1e5a55957eda0d087b9ef9c51205214fd5a29e10",
+      "listen": "socks://127.0.0.1:1080",
+      "quic_congestion": "bbr1",
+      "deployment_action": "already matched the verified artifact; no restart performed",
+      "verified_at": "2026-09-03T18:25:00+08:00"
+    },
+    {
+      "host": "lllinya.com",
+      "platform": "linux-x64",
+      "service": "native-udp-client.service",
+      "binary": "/root/native-udp-deploy/naive",
+      "binary_sha256": "4b24c709396a03a299f7dc5784b56c6b598e535f84072599b11ae52d8bfb1dca",
+      "listen": "socks://127.0.0.1:1080",
+      "quic_congestion": "bbr1",
+      "deployed_at": "2026-09-03T18:21:51+08:00",
+      "rollback_binary": "/root/native-udp-deploy/naive.pre-standard-20260903-182150",
+      "verification": "service active, NRestarts=0, SOCKS TCP probe returned HTTP 204, SOCKS UDP echo returned CURRENT_DEPLOYMENT_UDP_OK"
+    }
+  ]
+}

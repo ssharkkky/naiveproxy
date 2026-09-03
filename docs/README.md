@@ -1,13 +1,29 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-09-01 (Asia/Shanghai)
+Last updated: 2026-09-03 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
 normal upstream README describes the released TCP-focused product. Repository
 operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 
-## Current handoff
+## Current product and deployment
+
+- All four fork development branches are `master`. The immutable current
+  product inputs are in [`../release/product.lock.json`](../release/product.lock.json):
+  NaiveProxy `9842de51`, forwardproxy `4265c663`, Caddy `0ea5700f`, and
+  quic-go `c308178d`.
+- M7 G4 is complete (`M7_G4_PARITY_OK`); G5 regression/audit qualification is
+  intentionally deferred. The release channel therefore remains
+  `experimental`, not stable.
+- [`current-deployment.md`](current-deployment.md) is the authority for the
+  binaries running on `rtr.local`, `lllinya.com`, and
+  `triptrip999.qzz.io`. It links the client and server manifests, online
+  SHA256 values, runtime configuration, metrics semantics, and rollback files.
+- Older commit IDs and deployment hashes below are historical gate evidence.
+  They must not be used to infer the current product lock or live deployment.
+
+## Historical milestone handoff
 
 - Branch: `master`.
 - M0-M6 are complete. M1-M5 are independently audited; M6 release candidate audited (`AUDIT_PASS`).
@@ -57,11 +73,9 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 - All 7 milestones (M0-M6) are complete (100%); M6 closed as a qualified release
   candidate (`M6_NATIVE_UDP_RELEASE_CANDIDATE_OK`); merged to `master` at
   `fcf3bb36f3`. Not yet a production release (see `native-udp-release-guide.md`).
-- Post-M6 follow-on (planned, not started): **M7 BBR congestion control**
-  (highest priority) and **M8 H2 datagram fallback**; plans in
-  `m7-execution-plan.md` and `m8-execution-plan.md`. Both keep the audited M6
-  defaults (CUBIC; H3 DATAGRAM primary), do not alter the TCP path, and add no
-  private protocol.
+- Post-M6 follow-on: **M7 BBR congestion control has completed through G4**;
+  G5 is deferred. **M8 H2 datagram fallback is planned but not started**.
+  Both retain CUBIC as the product default and add no private wire protocol.
 - Unrelated untracked `.DS_Store` and `src/tmp/` entries must remain outside
   native UDP commits.
 
@@ -79,9 +93,10 @@ SOCKS5 UDP / HTTP3 application
 
 | Document | Role | Update policy |
 | --- | --- | --- |
+| [`current-deployment.md`](current-deployment.md) | Current live client/server artifacts, manifests, SHA256, configuration, metrics semantics, and rollback | Update after every production artifact replacement |
 | [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
 | [`m6-execution-plan.md`](m6-execution-plan.md) | Completed M6 G0-G6 release-hardening sequence, release blockers, platform matrix, risks, and stop conditions | Historical; factual clarifications only |
-| [`m7-execution-plan.md`](m7-execution-plan.md) | Planned M7 BBR congestion-control sequence (client Chromium BBR + server Hy2-ported BBR, CUBIC default): gates, risks, stop conditions | Pending plan; update only after a gate passes |
+| [`m7-execution-plan.md`](m7-execution-plan.md) | M7 BBR congestion-control sequence; G1-G4 complete and G5 intentionally deferred | Historical plan plus factual G4 closeout |
 | [`m8-execution-plan.md`](m8-execution-plan.md) | Planned M8 H2 datagram-fallback sequence (RFC 9298 stream option over H2): gates, risks, stop conditions | Pending plan; update only after a gate passes |
 | [`native-udp-payload-policy.md`](native-udp-payload-policy.md) | Frozen M6 1200-byte application/PMTU policy and exact freeze criteria | Frozen; historical |
 | [`native-udp-release-guide.md`](native-udp-release-guide.md) | M6 release-candidate configuration, compatibility, observability, troubleshooting, upgrade, rollback, and limitations guide | G6 closed; update if release configuration changes |
@@ -100,17 +115,22 @@ were accepted.
 
 ## Read in this order
 
-1. [`native-udp-status.md`](native-udp-status.md) — current facts and commands.
-2. [`m6-execution-plan.md`](m6-execution-plan.md) — active release-hardening
-   gate and exit contracts.
-3. [`m5-agy-audit.md`](m5-agy-audit.md) and
+1. [`current-deployment.md`](current-deployment.md) — current live artifacts
+   and runtime facts.
+2. [`native-udp-status.md`](native-udp-status.md) — verified milestone ledger
+   and commands.
+3. [`m7-execution-plan.md`](m7-execution-plan.md) — completed G1-G4 BBR work
+   and deferred G5 boundary.
+4. [`m6-execution-plan.md`](m6-execution-plan.md) — completed release-hardening
+   gates and exit contracts.
+5. [`m5-agy-audit.md`](m5-agy-audit.md) and
    [`m5-execution-plan.md`](m5-execution-plan.md) — completed MVP boundary.
-4. [`native-udp-development-plan.md`](native-udp-development-plan.md) — frozen
+6. [`native-udp-development-plan.md`](native-udp-development-plan.md) — frozen
    v1 scope and M6 boundary (complete).
-5. [`m4-agy-audit.md`](m4-agy-audit.md) and
+7. [`m4-agy-audit.md`](m4-agy-audit.md) and
    [`m4-execution-plan.md`](m4-execution-plan.md) — server evidence inherited
    by M5.
-6. [`m3-agy-audit.md`](m3-agy-audit.md) and
+8. [`m3-agy-audit.md`](m3-agy-audit.md) and
    [`m3-execution-plan.md`](m3-execution-plan.md) — client evidence inherited
    by M5.
 
@@ -122,11 +142,13 @@ change after their constraints are understood.
 
 When documents disagree, use this order:
 
-1. Current code, tests, and Git history.
-2. `native-udp-status.md` for claims already verified.
-3. The active milestone execution plan for pending work.
-4. `native-udp-development-plan.md` for frozen scope and later milestones.
-5. Historical execution plans and audit records for the revisions they name.
+1. Current code, tests, Git history, and `release/product.lock.json` for source
+   inputs.
+2. `current-deployment.md` and its linked manifests for live deployment facts.
+3. `native-udp-status.md` for milestone claims already verified.
+4. The active milestone execution plan for pending work.
+5. `native-udp-development-plan.md` for frozen scope and later milestones.
+6. Historical execution plans and audit records for the revisions they name.
 
 Do not duplicate detailed evidence across documents:
 

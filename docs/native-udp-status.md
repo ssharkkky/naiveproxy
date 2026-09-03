@@ -2,12 +2,41 @@
 
 Last updated: 2026-09-03 (Asia/Shanghai)
 
-Documentation entry point: [`README.md`](README.md). Active milestone plan:
+Documentation entry point: [`README.md`](README.md). Current deployment:
+[`current-deployment.md`](current-deployment.md). M7 milestone record:
 [`m7-execution-plan.md`](m7-execution-plan.md).
 
 This is the execution ledger for the native UDP project. The development plan
 defines scope and design; this file records what has actually been built and
 verified. Update it at every completed G target and milestone.
+
+## Current product lock and deployment
+
+The current source and deployment authority is intentionally separated from
+the historical milestone evidence below:
+
+- Product lock: [`release/product.lock.json`](../release/product.lock.json),
+  version `v150.0.7871.63-2-native-udp-m7`, channel `experimental`.
+- Locked `master` commits: NaiveProxy `9842de51eb67902af178615f02f5ba878e8e1505`,
+  forwardproxy `4265c663dcaf3981a57f676984d1b0b03615dee0`, Caddy
+  `0ea5700f64254ba24e39d57b1febece2fa34927e`, and quic-go
+  `c308178d8c77061d5e261ce9df37f2bcc0ab22bf`.
+- Live deployment authority: [`current-deployment.md`](current-deployment.md).
+- Machine-readable evidence: [client manifest](../release/manifests/current-client.json)
+  and [server manifest](../release/manifests/current-server.json).
+- Current online SHA256: router client `609bb34c492f29a1b158fcdc1e5a55957eda0d087b9ef9c51205214fd5a29e10`,
+  Linux validation client `4b24c709396a03a299f7dc5784b56c6b598e535f84072599b11ae52d8bfb1dca`,
+  server `52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d`.
+
+Client Build run `33708458095` and Product server release run `33743443764`
+are green. The deployed server artifact embeds Go 1.26.0, the locked quic-go
+pseudo-version, and `http.handlers.forward_proxy`. The deployment page records
+the exact artifact IDs, rollback files, validation results, and the fact that
+all CONNECT-UDP metrics are process-local and reset on restart.
+
+All older M7 SHAs, temporary binaries, and benchmark deployments in the
+sections below are historical evidence only. Where they conflict with this
+section, use the product lock and current deployment manifests.
 
 ## Overall milestone status
 
@@ -25,9 +54,8 @@ verified. Update it at every completed G target and milestone.
 M1 is complete as an integration spike. M2 supplies the local SOCKS5 UDP
 ingress and retains its test-only echo/no-backend modes. M3 G0–G6 compose
 that ingress with the real M1 CONNECT-UDP tunnel in production while keeping
-the M2 runner independent, and the independent final audit passed. Remaining
-M6 work is sequenced in `docs/m6-execution-plan.md` and summarized in
-`docs/native-udp-development-plan.md`.
+the M2 runner independent, and the independent final audit passed. M6 is
+complete; M7 is complete through G4 with G5 intentionally deferred.
 
 ### Overall progress estimate
 
@@ -56,16 +84,12 @@ qualified: the independent G6 audit returned `AUDIT_PASS` and the final marker
 `M6_NATIVE_UDP_RELEASE_CANDIDATE_OK` closed M6; the full stack is merged to
 `master` at `fcf3bb36f3`.
 
-## M7 implementation evidence and G4 closeout (G5 deferred)
+## Historical M7 implementation evidence and G4 closeout (G5 deferred)
 
-M7 work has started under [`m7-execution-plan.md`](m7-execution-plan.md).
-The client G1 change is on `master` at `b26229ec06`; the server-side
-quic-go fork is published on its default `master` at
-`af5cf06bcc93b32ac19bad75f4669465ed6e8f11`. It adds selectable Hy2-derived
-BBR profiles and preserves CUBIC as the zero-value default. The Caddy G3
-integration is now merged to the fork default `master` at `e111f21c85`; the
-forwardproxy server/build line is on its default `naive` branch at
-`0db468de81` and directly pins those default-branch snapshots.
+M7 G1-G4 completed under [`m7-execution-plan.md`](m7-execution-plan.md).
+The SHAs in this section name the revisions used to close individual gates;
+they have since been superseded by the four-repository product lock at the top
+of this file. They remain useful audit history, not deployment provenance.
 
 Verified on 2026-09-02:
 
@@ -2545,7 +2569,7 @@ M6-G6 closes the branch with harness commit `2430df7acc` (release matrix
 plus harness pin fixes) and closeout record `e96cfbd0cc` (status ledger,
 release guide, payload policy), both pushed to origin.
 
-## Post-M7 CONNECT-UDP admission tuning — verified
+## Historical post-M7 CONNECT-UDP admission tuning — superseded deployment
 
 On 2026-09-03 CST, the production forwardproxy admission caps were raised to
 accommodate the router's single sing-box UDP fan-out: handler-wide active
@@ -2560,3 +2584,5 @@ The deployed Caddy binary was rebuilt with the locked M7 inputs (Caddy
 `native-udp-caddy.service` restarted successfully with `NRestarts=0` and
 8443/8444 listeners intact. The previous binary remains at
 `/root/native-udp-deploy/caddy-naive-udp.pre-limit-20260902-2345` for rollback.
+This binary and rollback statement were superseded by the standard artifact
+deployment recorded in [`current-deployment.md`](current-deployment.md).
