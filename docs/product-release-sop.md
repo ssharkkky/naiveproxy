@@ -40,7 +40,12 @@ and verifies the resulting module graph and Caddy modules.
    uploads the Linux, Windows, macOS, Android, and OpenWrt client artifacts;
    `product-server-release.yml` builds and uploads the pinned Caddy bundle.
 5. Review the generated manifest, SHA256 files, Go module provenance, and test
-   markers. Promote the same candidate to stable without rebuilding it.
+   markers.
+6. Deploy the exact reviewed artifacts without rebuilding. Verify the SHA256
+   again on each target, preserve a timestamped rollback binary, and update
+   `release/manifests/current-client.json`,
+   `release/manifests/current-server.json`, and `docs/current-deployment.md`.
+7. Promote the same candidate to stable without rebuilding it.
 
 Push builds are CI artifacts only. A GitHub Release is the only source of
 official prebuilt packages.
@@ -91,6 +96,32 @@ A stable artifact requires:
 
 Until M7 G5 and its audit are complete, publish only `experimental` or `rc`
 artifacts. The current M7 G4 result is not a stable-release qualification.
+
+## Deployment evidence and restart semantics
+
+The source lock proves what was built; it does not by itself prove what is
+running. Every deployment must record, for each role:
+
+- product-lock SHA256, workflow run/job/artifact IDs, platform, and binary
+  SHA256;
+- target host, service, binary path, stable listen endpoint, congestion
+  profile, deployment time, and rollback path;
+- post-start service state, listener checks, client TCP/UDP evidence, server
+  module provenance, and any abnormal stop/start observation.
+
+The `caddy_forward_proxy_connect_udp_*` metrics are in-memory process metrics.
+`active_associations`, `active_associations_peak`, `associations_total`, all
+closure counters, and the duration histogram reset to zero whenever Caddy
+restarts. Capture them before restart when comparison matters, then expect
+active and peak values to repopulate as clients reconnect. `NRestarts=0` after
+a manual deployment does not mean there was no operator restart; it means
+systemd did not automatically restart the new process.
+
+Do not change sing-box during a client binary deployment. Keep its local SOCKS5
+endpoint stable and verify the replacement through that endpoint. A Caddy
+restart terminates the outer QUIC sessions; allow for client reconnection and
+bound the service stop timeout so long-lived CONNECT streams cannot turn a
+planned replacement into an unbounded outage.
 
 ## Rollback
 
