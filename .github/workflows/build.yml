@@ -5,6 +5,8 @@ on:
     paths-ignore: [README.md]
   release:
     types: [published]
+permissions:
+  contents: write
 defaults:
   run:
     shell: bash
@@ -272,14 +274,15 @@ jobs:
           APK_ABI: ${{ matrix.abi }}
           APK_VERSION_NAME: ${{ github.event.release.tag_name || 'v1.1.1.1-1' }}
           KEYSTORE_PASS: ${{ secrets.KEYSTORE_PASS }}
+          REQUIRE_RELEASE_SIGNING: ${{ github.event_name == 'release' && github.event.release.prerelease == false }}
         run: |
           mkdir -p app/libs/$APK_ABI
           cp ../src/out/Release/naive app/libs/$APK_ABI/libnaive.so
           # Forks and ordinary push builds do not have the release-signing
-          # secret. Build a debug APK in that case so Android compilation
-          # remains covered; published releases must still use the pinned
-          # release keystore and fail closed when its secret is unavailable.
-          if [[ "${{ github.event_name }}" == "release" && -z "$KEYSTORE_PASS" ]]; then
+          # secret. Build a debug APK for experimental prereleases and ordinary
+          # pushes; stable releases must use the pinned release keystore and
+          # fail closed when its secret is unavailable.
+          if [[ "$REQUIRE_RELEASE_SIGNING" == "true" && -z "$KEYSTORE_PASS" ]]; then
             echo 'KEYSTORE_PASS is required for release APKs' >&2
             exit 1
           fi
