@@ -2328,6 +2328,32 @@ if (is_posix && !is_ios) {
     }
   }
 
+  # Fast Open async-failure regression: a pending application read on a
+  # quic:// tunnel must observe an asynchronously failed CONNECT response
+  # (non-200, stream not FIN'd) with an error instead of hanging.
+  executable("naive_fastopen_fail_runner") {
+    sources = [
+      "cert/mock_cert_verifier.cc",
+      "tools/naive/naive_fastopen_fail_runner_bin.cc",
+      "tools/naive/naive_protocol.cc",
+      "tools/naive/naive_protocol.h",
+      "tools/naive/naive_proxy_delegate.cc",
+      "tools/naive/naive_proxy_delegate.h",
+      "tools/naive/padding_utils.cc",
+      "tools/naive/padding_utils.h",
+    ]
+
+    deps = [
+      ":net",
+      "//base",
+      "//url",
+    ]
+
+    if (is_apple) {
+      deps += [ "//base/allocator:early_zone_registration_apple" ]
+    }
+  }
+
   executable("naive_masque_server") {
     sources = [ "tools/naive/naive_masque_server_bin.cc" ]
 
