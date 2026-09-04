@@ -885,6 +885,14 @@ int QuicChromiumClientStream::DeliverInitialHeaders(
     return ERR_INVALID_RESPONSE;
   }
 
+  // Body data can arrive before the initial headers are delivered to the
+  // handle (notably when the proxy socket uses Fast Open). OnBodyAvailable()
+  // intentionally buffers that notification while headers_delivered_ is
+  // false. Re-check the stream now that the headers are visible so a pending
+  // ReadBody() is woken up instead of waiting indefinitely.
+  if (handle_ && (HasBytesToRead() || FinishedReadingTrailers()))
+    NotifyHandleOfDataAvailableLater();
+
   net_log_.AddEvent(
       NetLogEventType::QUIC_CHROMIUM_CLIENT_STREAM_READ_RESPONSE_HEADERS,
       [&](NetLogCaptureMode capture_mode) {
