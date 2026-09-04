@@ -1,6 +1,6 @@
 # Current Native UDP Deployment
 
-Last verified: 2026-09-03 18:32 (Asia/Shanghai)
+Last verified: 2026-09-04 12:56 (Asia/Shanghai)
 
 This page is the authority for what is deployed now. Historical milestone
 records in `native-udp-status.md` prove earlier gates, but do not identify the
@@ -30,7 +30,7 @@ The product-lock SHA256 embedded in both manifests is
 
 | Role | Host and service | Artifact | Online SHA256 | Runtime configuration |
 | --- | --- | --- | --- | --- |
-| Production client | `rtr.local` (`192.168.2.1`), `/etc/init.d/native-udp` | Build run [`33708458095`](https://github.com/ssharkkky/naiveproxy/actions/runs/33708458095), OpenWrt x86_64 | `609bb34c492f29a1b158fcdc1e5a55957eda0d087b9ef9c51205214fd5a29e10` | SOCKS5 `127.0.0.1:1080`, `bbr1`, user `nativeudp` |
+| Production client | `rtr.local` (`192.168.2.1`), `/etc/init.d/native-udp` | Local hotfix `c8ebb943bd` (based on locked client), OpenWrt x86_64 | `66035c78b788dc5e70f9bba112cdb1ddbdcc6765c406d21c7d5d5772e5a4a9fa` | SOCKS5 `127.0.0.1:1080`, `bbr1`, user `nativeudp` |
 | Validation client | `lllinya.com`, `native-udp-client.service` | Same run, Linux x64 | `4b24c709396a03a299f7dc5784b56c6b598e535f84072599b11ae52d8bfb1dca` | SOCKS5 `127.0.0.1:1080`, `bbr1` |
 | Production server | `triptrip999.qzz.io`, `native-udp-caddy.service` | Product server run [`33743443764`](https://github.com/ssharkkky/naiveproxy/actions/runs/33743443764) | `52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d` | TCP+UDP `:8443`, `bbr-standard` |
 
@@ -39,6 +39,28 @@ The client workflow ran at `0864269b`. Between the locked NaiveProxy source
 `git diff --quiet 9842de51..0864269b -- src` passed. The runtime client source
 therefore matches the locked commit while retaining the workflow run as the
 build provenance.
+
+## Fast Open response-order hotfix
+
+The production router client was replaced on 2026-09-04 with commit
+`c8ebb943bd` after reproducing an intermittent HTTPS stall on GitHub release
+assets. The fix re-notifies a pending body read after initial response headers
+are delivered when body data or FIN arrived first. It does not alter sing-box,
+the server, the SOCKS5 endpoint, or the native UDP wire protocol. This is an
+emergency local build and is intentionally not represented as a green CI
+release artifact yet; the next standard release must include this commit in
+the product lock and regenerate the client manifest.
+
+Validation through the unchanged router SOCKS5 listener after replacement:
+
+- GitHub API: 5/5 HTTP 200.
+- GitHub home: 5/5 HTTP 200.
+- Reddit: 5/5 completed TLS/HTTP (HTTP 403 responses from the site).
+- GitHub `release-assets` 15,451,894-byte archive: 3/3 complete downloads.
+
+The previous client reproduced one timeout in an 8-run comparison. The fixed
+temporary client completed 8/8 identical downloads before production
+replacement. A rollback copy is stored under `/root/native-udp-deploy/`.
 
 The production router already had the exact verified OpenWrt artifact, so it
 was not restarted. The Linux validation client was replaced atomically and its
