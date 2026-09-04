@@ -645,6 +645,23 @@ void SpdyProxyClientSocket::OnHeadersReceived(
   // Save the response
   const int rv = SpdyHeadersToHttpResponse(response_headers, &response_);
   DCHECK_NE(rv, ERR_INCOMPLETE_HTTP2_HEADERS);
+  if (rv != OK) {
+    // Fail closed: a malformed CONNECT response must not leave
+    // response_.headers null for DoReadReplyComplete() to dereference.
+    DLOG(WARNING) << "Invalid CONNECT response headers";
+    if (use_fastopen_ && read_headers_pending_) {
+      // The Fast Open Connect() already completed, so there is no connect
+      // callback to report this to. Cancel the stream; OnClose() completes
+      // any pending data read.
+      read_headers_pending_ = false;
+      next_state_ = STATE_DISCONNECTED;
+      if (spdy_stream_.get())
+        spdy_stream_->Cancel(ERR_ABORTED);
+      return;
+    }
+    OnIOComplete(rv);
+    return;
+  }
 
   OnIOComplete(OK);
 }
