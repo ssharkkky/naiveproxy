@@ -335,6 +335,10 @@ int QuicProxyClientSocket::DoLoop(int last_io_result) {
           // The pending application read observes the closed stream. Any
           // subsequent data after this response must be ignored.
           next_state_ = STATE_DISCONNECTED;
+          // A Fast Open Connect() can complete before the app issues a
+          // Read(); a pending read must observe this failure instead of
+          // waiting for a stream close that may never come.
+          FailPendingReadOnFastOpenFailure(rv);
           // The Fast Open Connect() already completed; do not report this
           // response through connect_callback_.
           rv = ERR_IO_PENDING;
@@ -356,6 +360,10 @@ int QuicProxyClientSocket::DoLoop(int last_io_result) {
             // The pending application read observes the closed stream. Any
             // subsequent data after this response must be ignored.
             next_state_ = STATE_DISCONNECTED;
+            // A Fast Open Connect() can complete before the app issues a
+            // Read(); a pending read must observe this failure instead of
+            // waiting for a stream close that may never come.
+            FailPendingReadOnFastOpenFailure(rv);
           }
           // Fast Open already completed Connect(); do not invoke the
           // consumed connect_callback_ for the later response.
@@ -614,6 +622,19 @@ int QuicProxyClientSocket::ProcessResponseHeaders(
     return ERR_QUIC_PROTOCOL_ERROR;
   }
   return OK;
+}
+
+void QuicProxyClientSocket::FailPendingReadOnFastOpenFailure(int error) {
+  if (read_callback_.is_null()) {
+    // No pending application read; still cancel the response stream so a
+    // late body cannot be delivered after the failed CONNECT response.
+    stream_->Reset(quic::QUIC_STREAM_CANCELLED);
+    return;
+  }
+  read_buf_ = nullptr;
+  stream_->Reset(quic::QUIC_STREAM_CANCELLED);
+  // May destroy |this|; run last and use no members afterwards.
+  std::move(read_callback_).Run(error);
 }
 
 void QuicProxyClientSocket::OnBeforeTunnelRequestComplete(
