@@ -131,15 +131,18 @@ Result: GREEN, 3 consecutive runs (`FASTOPEN_ASYNC_FAILURE_OK`).
 
 ### Build and deployment
 
+The following is the historical emergency-build record for the Fast Open
+incident. It was superseded by the `v150.0.7871.63-3-native-udp-m7` release
+artifacts and current deployment recorded at the top of this ledger.
+
 - OpenWrt x86_64: `out/OpenWrt/naive`, SHA256 `6e3a6655415b0f0e4481e1d524f906aa382d2314c5d96001afd7dfabc4b063b2`,
   deployed to `rtr.local` (`/usr/bin/native-udp`) with pre-deployment
   backup `native-udp.pre-F1F2-20260904-155351`; Round-2 live validation
   green (details in [`current-deployment.md`](current-deployment.md)).
 - Linux x64 validation build: `out/Release/naive`, SHA256
   `d2fbfe24ce1078341237cd45336ba5a8f51a6f377480a5e212d5c4751104c11e`.
-- Commits on `master` (worktree branch `codex/client-release-fastopen`,
-  to be merged): `153de92c8e` (F1), `afce211960` (F2), `742b89aa24`
-  (regression), `ccea283015` (product lock pin).
+- Commits merged to `master`: `153de92c8e` (F1), `afce211960` (F2),
+  `742b89aa24` (regression), and `ccea283015` (the initial product-lock pin).
 
 ## Overall milestone status
 
