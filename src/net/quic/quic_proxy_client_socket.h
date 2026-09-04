@@ -106,6 +106,16 @@ class NET_EXPORT_PRIVATE QuicProxyClientSocket : public ProxyClientSocket {
   void OnReadResponseHeadersComplete(int result);
   int ProcessResponseHeaders(const quiche::HttpHeaderBlock& headers);
 
+  // Fast Open async failure path: a Fast Open Connect() can complete before
+  // the app has issued a Read(); when the CONNECT response then fails
+  // asynchronously, a pending application Read() must observe the failure
+  // instead of waiting indefinitely for a stream close that may never come.
+  // Must be called after next_state_ is set to STATE_DISCONNECTED. The read
+  // callback may destroy |this|, so DoLoop must not touch members afterwards
+  // (its loop condition short-circuits on the ERR_IO_PENDING the caller sets
+  // next).
+  void FailPendingReadOnFastOpenFailure(int error);
+
   // Callback for proxy_delegate_->OnBeforeTunnelRequest().
   void OnBeforeTunnelRequestComplete(
       base::expected<HttpRequestHeaders, Error> result);
