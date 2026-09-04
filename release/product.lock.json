@@ -5,7 +5,7 @@
   "release_channel": "experimental",
   "naiveproxy": {
     "repository": "ssharkkky/naiveproxy",
-    "commit": "9842de51eb67902af178615f02f5ba878e8e1505"
+    "commit": "742b89aa24131749b62856e5ed9189273a32f26e"
   },
   "server": {
     "forwardproxy_repository": "ssharkkky/forwardproxy",
