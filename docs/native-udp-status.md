@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-09-03 (Asia/Shanghai)
+Last updated: 2026-09-04 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Current deployment:
 [`current-deployment.md`](current-deployment.md). M7 milestone record:
@@ -17,8 +17,9 @@ the historical milestone evidence below:
 
 - Product lock: [`release/product.lock.json`](../release/product.lock.json),
   version `v150.0.7871.63-2-native-udp-m7`, channel `experimental`.
-- Locked `master` commits: NaiveProxy `9842de51eb67902af178615f02f5ba878e8e1505`,
-  forwardproxy `4265c663dcaf3981a57f676984d1b0b03615dee0`, Caddy
+- Locked `master` commits: NaiveProxy `742b89aa24131749b62856e5ed9189273a32f26e`
+  (Fast Open hotfix `c8ebb943bd` plus audit fixes, see below), forwardproxy
+  `4265c663dcaf3981a57f676984d1b0b03615dee0`, Caddy
   `0ea5700f64254ba24e39d57b1febece2fa34927e`, and quic-go
   `c308178d8c77061d5e261ce9df37f2bcc0ab22bf`.
 - Live deployment authority: [`current-deployment.md`](current-deployment.md).
@@ -37,6 +38,104 @@ all CONNECT-UDP metrics are process-local and reset on restart.
 All older M7 SHAs, temporary binaries, and benchmark deployments in the
 sections below are historical evidence only. Where they conflict with this
 section, use the product lock and current deployment manifests.
+
+## Fast Open audit fixes F1/F2 and regression (2026-09-04)
+
+The release audit of the Fast Open response-order hotfix `c8ebb943bd`
+named two release blockers. Both are now fixed, regressed, and deployed:
+
+### F1 — QUIC Fast Open async failure leaves pending read uncompleted
+
+Root cause: a Fast Open `Connect()` can return OK before the CONNECT
+response arrives, after which the app issues a `Read()` on the tunnel
+stream. If the response then fails asynchronously (non-200) and the server
+does not FIN the stream, the pending read waited for a stream close that
+never came.
+
+Fix (`153de92c8e`, `src/net/quic/quic_proxy_client_socket.{h,cc}`):
+`FailPendingReadOnFastOpenFailure(rv)` completes the pending read with the
+tunnel failure and resets the response stream (`QUIC_STREAM_CANCELLED`);
+called from both Fast Open failure branches (`STATE_READ_REPLY_COMPLETE`,
+`STATE_PROCESS_RESPONSE_CODE`). The callback may destroy the socket, so it
+runs last; the `DoLoop` caller sets `rv = ERR_IO_PENDING` immediately after,
+and the loop condition short-circuits before any member is read.
+
+### F2 — SPDY OnHeadersReceived null dereference
+
+Root cause: `SpdyProxyClientSocket::OnHeadersReceived` ignored the return
+value of `SpdyHeadersToHttpResponse`; on a malformed CONNECT response,
+`response_.headers` stayed null and `DoReadReplyComplete` dereferenced it.
+
+Fix (`afce211960`, `src/net/spdy/spdy_proxy_client_socket.cc`): fail closed
+— in the Fast Open path disconnect and let `OnClose` complete any pending
+data read; otherwise resume the state machine with the error so the connect
+callback observes it. No H2 proxy fixture exists in this repository; verified
+by inspection plus the full regression matrix (the changed path is
+fail-closed and cannot alter a previously-successful response).
+
+### Regression (deterministic)
+
+`tests/fastopen_async_failure.sh` drives `naive_fastopen_fail_runner` (real
+production `NaiveProxyDelegate` + `MockCertVerifier` test context, two
+sequential TCP tunnel exchanges over `quic://`) against the masque server
+with `--fail_connects` (every CONNECT answered 502 after a 500 ms delay,
+without FIN, stream left open). Exchange 1 (no padding state, not Fast Open)
+and exchange 2 (Fast Open, application I/O pending when the failure
+arrives) must both fail with a negative error inside the 15 s watchdog; a
+hang fails the test. Server log must contain exactly two `CONNECT_ACTION
+fail_502` lines.
+
+Command (from repository root):
+
+```bash
+tests/fastopen_async_failure.sh
+```
+
+Result: GREEN, 3 consecutive runs (`FASTOPEN_ASYNC_FAILURE_OK`).
+
+### Full regression matrix (Linux x64 Release, fixed source)
+
+- `tests/basic.sh`: **56/56 PASS** (28 https + 28 http), 0 FAIL.
+- `tests/masque_g1_smoke.sh`: GREEN (`MASQUE_G1_SMOKE_OK`).
+- `tests/masque_g2_naive_tunnel.sh`: GREEN (`MASQUE_G2_NAIVE_TUNNEL_OK`).
+- `tests/masque_g3_basic_auth.sh`: GREEN (`MASQUE_G3_BASIC_AUTH_OK`).
+- `tests/masque_g5_lifecycle.sh`: GREEN (`MASQUE_G5_LIFECYCLE_OK`).
+- `tests/socks5_udp_m2.sh`: GREEN (`SOCKS5_UDP_M2_OK`).
+- `tests/socks5_udp_m3.sh`: GREEN (`SOCKS5_UDP_M3_OK`).
+- `tests/fastopen_async_failure.sh`: GREEN (new, above).
+- `naive_quic_congestion_test`: GREEN (`M7_G1_CUBIC_NO_TAG_PRESERVED_OK`,
+  `M7_G1_QUIC_CONGESTION_PARSER_OK`, `M7_G1_CLIENT_BBR_OK`).
+- Unit binaries: `naive_socks5_udp_test`,
+  `naive_socks5_server_socket_state_test`, `naive_socks5_udp_association_test`,
+  `naive_connect_udp_backend_test`, `naive_socks5_udp_fuzz_test` (250k
+  iterations, 11023 valid cases): all GREEN.
+
+`git diff --check` clean.
+
+### Sibling observations (documented, not fixed this cycle)
+
+- Datagram socket: a pending datagram read on the CONNECT-UDP socket is
+  already bounded by `OnStreamClosed` plus the idle timeout; no change
+  required for this audit.
+- IPv6 literal proxy (latent, test-only impact): `url::SchemeHostPort`
+  constructed with `CHECK_CANONICALIZATION` (e.g. in
+  `DoQuicProxyCreateSession` / `ProxyJob::DoCreateProxySession`) silently
+  produces an empty host for an unbracketed IPv6 literal such as `::1`,
+  which the resolver then rejects with `ERR_NAME_NOT_RESOLVED` (-105).
+  Production is unaffected (the configured proxy is a hostname); tests must
+  bracket IPv6 literals or use IPv4 loopback.
+
+### Build and deployment
+
+- OpenWrt x86_64: `out/OpenWrt/naive`, SHA256 `6e3a6655415b0f0e4481e1d524f906aa382d2314c5d96001afd7dfabc4b063b2`,
+  deployed to `rtr.local` (`/usr/bin/native-udp`) with pre-deployment
+  backup `native-udp.pre-F1F2-20260904-155351`; Round-2 live validation
+  green (details in [`current-deployment.md`](current-deployment.md)).
+- Linux x64 validation build: `out/Release/naive`, SHA256
+  `d2fbfe24ce1078341237cd45336ba5a8f51a6f377480a5e212d5c4751104c11e`.
+- Commits on `master` (worktree branch `codex/client-release-fastopen`,
+  to be merged): `153de92c8e` (F1), `afce211960` (F2), `742b89aa24`
+  (regression), `ccea283015` (product lock pin).
 
 ## Overall milestone status
 
