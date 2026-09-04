@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "naiveproxy-native-udp",
-  "product_version": "v150.0.7871.63-2-native-udp-m7",
+  "product_version": "v150.0.7871.63-3-native-udp-m7",
   "release_channel": "experimental",
   "naiveproxy": {
     "repository": "ssharkkky/naiveproxy",
