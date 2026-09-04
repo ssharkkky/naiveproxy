@@ -15,6 +15,7 @@
 #include "quiche/quic/masque/masque_utils.h"
 #include "quiche/quic/platform/api/quic_ip_address.h"
 #include "quiche/quic/platform/api/quic_socket_address.h"
+#include "quiche/quic/core/quic_time.h"
 #include "quiche/common/http/http_header_block.h"
 #include "quiche/common/platform/api/quiche_command_line_flags.h"
 #include "quiche/common/platform/api/quiche_system_event_loop.h"
@@ -39,6 +40,10 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, ignore_connect_requests, false,
     "Leave CONNECT requests pending for lifecycle testing.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    bool, fail_connects, false,
+    "Respond 502 (delayed 500 ms, without FIN) to every CONNECT request, to "
+    "exercise async CONNECT failure with or without Fast Open early data.");
 
 namespace {
 
@@ -54,11 +59,13 @@ class LoggingMasqueServerBackend final : public quic::MasqueServerBackend {
                              const std::string& server_authority,
                              const std::string& cache_directory,
                              std::string expected_proxy_authorization,
-                             bool ignore_connect_requests)
+                             bool ignore_connect_requests,
+                             bool fail_connects)
       : quic::MasqueServerBackend(mode, server_authority, cache_directory),
         expected_proxy_authorization_(
             std::move(expected_proxy_authorization)),
-        ignore_connect_requests_(ignore_connect_requests) {}
+        ignore_connect_requests_(ignore_connect_requests),
+        fail_connects_(fail_connects) {}
 
   void HandleConnectHeaders(
       const quiche::HttpHeaderBlock& request_headers,
@@ -78,6 +85,24 @@ class LoggingMasqueServerBackend final : public quic::MasqueServerBackend {
 
     if (ignore_connect_requests_) {
       std::cout << "CONNECT_ACTION ignored" << std::endl;
+      return;
+    }
+
+    if (fail_connects_) {
+      std::cout << "CONNECT_ACTION fail_502" << std::endl;
+      quiche::HttpHeaderBlock headers;
+      headers[":status"] = "502";
+      headers["content-type"] = "text/plain";
+      quic::QuicBackendResponse response;
+      response.set_headers(std::move(headers));
+      // Deliver the failed CONNECT response without FIN so the stream stays
+      // open: a client must not leave pending application I/O (Fast Open
+      // early data or a data read issued before the response) waiting for a
+      // close that never comes.
+      response.set_response_type(
+          quic::QuicBackendResponse::INCOMPLETE_RESPONSE);
+      response.set_delay(quic::QuicTime::Delta::FromMilliseconds(500));
+      request_handler->OnResponseBackendComplete(&response);
       return;
     }
 
@@ -104,6 +129,7 @@ class LoggingMasqueServerBackend final : public quic::MasqueServerBackend {
  private:
   const std::string expected_proxy_authorization_;
   const bool ignore_connect_requests_;
+  const bool fail_connects_;
 };
 
 }  // namespace
@@ -146,7 +172,8 @@ int main(int argc, char* argv[]) {
   auto backend = std::make_unique<LoggingMasqueServerBackend>(
       kMode, authority, quiche::GetQuicheCommandLineFlag(FLAGS_cache_dir),
       std::move(expected_proxy_authorization),
-      quiche::GetQuicheCommandLineFlag(FLAGS_ignore_connect_requests));
+      quiche::GetQuicheCommandLineFlag(FLAGS_ignore_connect_requests),
+      quiche::GetQuicheCommandLineFlag(FLAGS_fail_connects));
   auto server = std::make_unique<quic::MasqueServer>(kMode, backend.get());
   if (!server->CreateUDPSocketAndListen(
           quic::QuicSocketAddress(quic::QuicIpAddress::Any6(), port))) {
@@ -161,6 +188,9 @@ int main(int argc, char* argv[]) {
             << (quiche::GetQuicheCommandLineFlag(FLAGS_ignore_connect_requests)
                     ? "true"
                     : "false")
+            << " fail_connects="
+            << (quiche::GetQuicheCommandLineFlag(FLAGS_fail_connects) ? "true"
+                                                                      : "false")
             << std::endl;
   server->HandleEventsForever();
   return 0;

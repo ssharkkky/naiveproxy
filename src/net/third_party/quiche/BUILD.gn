@@ -124,7 +124,7 @@ source_set("quiche_tool_support") {
   configs += [ ":quiche_internal_config" ]
   all_dependent_configs = [ ":quiche_config" ]
 
-  deps = [ ":quiche" ]
+  deps = [ ":quiche", "//third_party/zlib" ]
 }
 
 proto_library("net_quic_proto") {
