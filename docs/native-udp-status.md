@@ -16,7 +16,8 @@ The current source and deployment authority is intentionally separated from
 the historical milestone evidence below:
 
 - Product lock: [`release/product.lock.json`](../release/product.lock.json),
-  version `v150.0.7871.63-2-native-udp-m7`, channel `experimental`.
+  version `v150.0.7871.63-3-native-udp-m7`, channel `experimental`, SHA256
+  `d05aed4b0f048ff16f196982e270e08c3c41cbfe89162550455e11131a366d66`.
 - Locked `master` commits: NaiveProxy `742b89aa24131749b62856e5ed9189273a32f26e`
   (Fast Open hotfix `c8ebb943bd` plus audit fixes, see below), forwardproxy
   `4265c663dcaf3981a57f676984d1b0b03615dee0`, Caddy
@@ -25,15 +26,18 @@ the historical milestone evidence below:
 - Live deployment authority: [`current-deployment.md`](current-deployment.md).
 - Machine-readable evidence: [client manifest](../release/manifests/current-client.json)
   and [server manifest](../release/manifests/current-server.json).
-- Current online SHA256: router client `609bb34c492f29a1b158fcdc1e5a55957eda0d087b9ef9c51205214fd5a29e10`,
-  Linux validation client `4b24c709396a03a299f7dc5784b56c6b598e535f84072599b11ae52d8bfb1dca`,
+- Current online SHA256: router client `0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3`,
+  Linux validation client `31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d`,
   server `52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d`.
 
-Client Build run `33708458095` and Product server release run `33743443764`
-are green. The deployed server artifact embeds Go 1.26.0, the locked quic-go
+Product server release run `33860117907` is green. Client Build run
+`33860117894` passed the deployed Linux x64 and OpenWrt x86_64 jobs before
+deployment, then completed successfully with 50/50 jobs green and zero
+failures.
+The deployed server artifact embeds Go 1.26.0, the locked quic-go
 pseudo-version, and `http.handlers.forward_proxy`. The deployment page records
-the exact artifact IDs, rollback files, validation results, and the fact that
-all CONNECT-UDP metrics are process-local and reset on restart.
+the exact artifacts, rollback files, validation results, and the fact that all
+CONNECT-UDP metrics are process-local and reset on restart.
 
 All older M7 SHAs, temporary binaries, and benchmark deployments in the
 sections below are historical evidence only. Where they conflict with this

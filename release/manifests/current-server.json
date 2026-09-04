@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "component": "naiveproxy-native-udp-server",
-  "generated_at": "2026-09-03T18:26:17+08:00",
+  "generated_at": "2026-09-04T18:55:00+08:00",
   "product_lock": {
     "path": "release/product.lock.json",
-    "sha256": "03a95a5d05b510e420c14cc0cba24d34cffa2cca7122d1d36524eefb4927bfd0",
-    "product_version": "v150.0.7871.63-2-native-udp-m7",
+    "sha256": "d05aed4b0f048ff16f196982e270e08c3c41cbfe89162550455e11131a366d66",
+    "product_version": "v150.0.7871.63-3-native-udp-m7",
     "forwardproxy_commit": "4265c663dcaf3981a57f676984d1b0b03615dee0",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
     "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf"
@@ -13,18 +13,13 @@
   "build": {
     "repository": "ssharkkky/naiveproxy",
     "workflow": "Product server release",
-    "run_id": 33743443764,
-    "job_id": 100610425262,
-    "artifact_id": 9888735036,
-    "run_url": "https://github.com/ssharkkky/naiveproxy/actions/runs/33743443764",
-    "workflow_commit": "0864269bf6431cbaf0325ba45236bf836a1437a4",
+    "run_id": 33860117907,
+    "job_id": 100982388652,
+    "run_url": "https://github.com/ssharkkky/naiveproxy/actions/runs/33860117907",
+    "workflow_commit": "2e45c5a6e5ff62bb8eb9c713d5e97db72b22c91a",
     "result": "success",
-    "go_version": "go1.26.0",
-    "xcaddy_version": "v0.4.5",
-    "toolchain_lock_sha256": "ab4c3b06767098d3ae504beb94e42e3cecc15f72ae2bf24bf2a069930eac4e74",
-    "bundle_sha256": "4014f594a1d6272b7678cb3f5cc626c82fd829648c662a1da814e39fb7fb31f4",
-    "binary_sha256": "52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d",
-    "module_verification": "http.handlers.forward_proxy present; quic-go resolves to v0.62.1-0.20260902185508-c308178d8c77"
+    "bundle_sha256": "ee8cb5fb3d6cb44cc29aefe1f093002bce10efca7a79ffc9975dea1f3e2a5496",
+    "binary_sha256": "52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d"
   },
   "deployment": {
     "host": "triptrip999.qzz.io",
@@ -33,16 +28,6 @@
     "binary_sha256": "52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d",
     "listen": ["tcp/:8443", "udp/:8443"],
     "quic_congestion": "bbr-standard",
-    "deployed_at": "2026-09-03T18:23:36+08:00",
-    "rollback_binary": "/root/native-udp-deploy/caddy-naive-udp.pre-standard-20260903-102206",
-    "verification": "configuration valid, service active, NRestarts=0, H1/H2/H3 enabled, TCP and UDP 8443 listening, live CONNECT-UDP associations repopulated"
-  },
-  "restart_observation": {
-    "before_restart": {
-      "active_associations": 33,
-      "active_associations_peak": 64
-    },
-    "old_process_exit": "The old process did not finish graceful shutdown before systemd's 90 second stop timeout and was killed with SIGKILL; the replacement then started successfully.",
-    "metric_reset_semantics": "All caddy_forward_proxy_connect_udp_* metrics are process-local. Active, peak, total, closure counters, and duration histogram restart from zero on process restart and then repopulate from new traffic."
+    "deployment_action": "release bundle verified identical to running binary; no restart required"
   }
 }
