@@ -35,7 +35,9 @@ and verifies the resulting module graph and Caddy modules.
    that repository's tests pass.
 2. Update `release/product.lock.json` with full commit SHAs and set the channel
    to `experimental`, `rc`, or `stable`.
-3. Run `scripts/verify-product-lock.sh` and the product combination workflow.
+3. Run `scripts/verify-product-lock.sh` and dispatch
+   `product-combination.yml` at the committed release ref. Require
+   `PRODUCT_COMBINATION_OK` from its locked client/server regression matrix.
 4. Create a release candidate tag. The existing client workflow builds and
    uploads the Linux, Windows, macOS, Android, and OpenWrt client artifacts;
    `product-server-release.yml` builds and uploads the pinned Caddy bundle.

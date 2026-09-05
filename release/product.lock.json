@@ -1,16 +1,16 @@
 {
   "schema_version": 1,
   "product": "naiveproxy-native-udp",
-  "product_version": "v150.0.7871.63-3-native-udp-m7",
+  "product_version": "v150.0.7871.63-4-native-udp-m7",
   "release_channel": "experimental",
   "naiveproxy": {
     "repository": "ssharkkky/naiveproxy",
-    "commit": "742b89aa24131749b62856e5ed9189273a32f26e"
+    "commit": "c86e73859ea1a65eac467378ba3188edc5145a98"
   },
   "server": {
     "forwardproxy_repository": "ssharkkky/forwardproxy",
-    "forwardproxy_commit": "4265c663dcaf3981a57f676984d1b0b03615dee0",
-    "forwardproxy_runtime_base": "0db468de815e417ee75d8bf96c3000838229dbf0",
+    "forwardproxy_commit": "d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab",
+    "forwardproxy_runtime_base": "7307332b312f29ce5f5f1cb638e4a5b993e95442",
     "caddy_repository": "ssharkkky/caddy",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
     "quic_go_repository": "ssharkkky/quic-go",
