@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-09-04 (Asia/Shanghai)
+Last updated: 2026-09-05 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -13,6 +13,11 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   product inputs are in [`../release/product.lock.json`](../release/product.lock.json):
   NaiveProxy `742b89aa`, forwardproxy `4265c663`, Caddy `0ea5700f`, and
   quic-go `c308178d`.
+- The September 5 CONNECT fixes are client `b652d34aa5` and forwardproxy
+  `7307332`. The server hotfix is deployed; permanent clients retain the
+  published release. These changes are outside the existing product lock.
+  See the issue-fix record in the status ledger and the current deployment
+  page for validation, artifacts, and rollback.
 - M7 G4 is complete (`M7_G4_PARITY_OK`); G5 regression/audit qualification is
   intentionally deferred. The release channel therefore remains
   `experimental`, not stable.

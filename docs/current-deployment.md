@@ -1,12 +1,18 @@
 # Current Native UDP Deployment
 
-Last verified: 2026-09-04 18:55 (Asia/Shanghai)
+Last verified: 2026-09-05 (Asia/Shanghai)
 
 This page is the authority for currently deployed binaries. Milestone records
 in `native-udp-status.md` are historical verification evidence, not deployment
 provenance.
 
 ## Product release
+
+The published release below remains the client baseline. On 2026-09-05 the
+server alone received a locally built CONNECT hotfix from forwardproxy
+`7307332b312f29ce5f5f1cb638e4a5b993e95442`, retaining the same Caddy and
+quic-go pins. This hotfix is not part of the published `-3` bundle or product
+lock; its actual provenance is in the current server manifest.
 
 The current experimental product release is
 [`v150.0.7871.63-3-native-udp-m7`](https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-3-native-udp-m7).
@@ -35,17 +41,46 @@ completed successfully with all 50 jobs green and zero failures.
 
 ## Running artifacts
 
-| Role | Host and service | Release binary SHA256 | Runtime configuration |
+| Role | Host and service | Running binary SHA256 | Runtime configuration |
 | --- | --- | --- | --- |
 | Production client | `rtr.local` (`192.168.2.1`), `/etc/init.d/native-udp` | `0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3` | SOCKS5 `127.0.0.1:1080`, `bbr1`, user `nativeudp` |
 | Validation client | `lllinya.com`, `native-udp-client.service` | `31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d` | SOCKS5 `127.0.0.1:1080`, `bbr1` |
-| Production server | `triptrip999.qzz.io`, `native-udp-caddy.service` | `52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d` | TCP+UDP `:8443`, `bbr-standard` |
+| Production server | `triptrip999.qzz.io`, `native-udp-caddy.service` | `fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c` | TCP+UDP `:8443`, `bbr-standard` |
 
-The server binary in the `-3` release bundle is byte-identical to the running
-server, so it was verified but not restarted. This avoids unnecessary impact
-to the co-hosted website and non-Naive proxy services. The clients were
-replaced atomically from release archives and restarted; their stable SOCKS5
-listeners and the router's sing-box configuration were not changed.
+At the September 4 release deployment the server was byte-identical and did
+not need a restart. The September 5 CONNECT hotfix replaced it and restarted
+only `native-udp-caddy.service` at 09:44:17 UTC. Other services were outside
+the authorized change scope. The first hotfix replacement rolled back because
+the health check rejected the expected unauthenticated `407`; the corrected
+check passed on retry. The client services still run the September 4 release
+binaries and retain their SOCKS5 listeners and sing-box configuration.
+
+## CONNECT hotfix validation
+
+The server now acknowledges TCP CONNECT after a successful target dial and
+races ACL-approved numeric addresses with a 250 ms fallback delay. Failed
+dials return `502` or `504`. Client fix `b652d34aa5` additionally disables the
+padding-cache-triggered early CONNECT success in H2/H3.
+
+On `lllinya.com`, temporary SOCKS listeners `11082` (H3) and `11083` (H2)
+validated that client against the actual `8443` server. Each completed 96/96
+normal TCP/TLS/HTTP connections at concurrency 8; maximum total times were
+1.367 s and 1.518 s respectively. Four UDP DNS queries through H3 passed.
+The controlled unreachable target produced bounded failures in about
+0.95-5.47 s, versus the original approximately 10.01 s application timeout.
+SOCKS applications can still see EOF/reset on failed targets; these results
+do not claim elimination of all resets or all Internet connection failures.
+
+The temporary client was the OpenWrt/musl build, SHA256
+`44ac8d16f6d8ed7508f060e06303a5d1224a916c8627cb5b40aa9f00a3e51da2`,
+run with its loader and `libgcc_s` in a private validation directory. The
+local native Linux build needs glibc 2.42 while that host provides 2.35.
+The production certificate verifier was retained. Neither permanent client
+service was replaced; a matching published client release remains separate.
+Both temporary client services and the client/server validation directories
+were removed after testing. The original client and hotfixed server services
+were rechecked as active with the hashes listed above; the server rollback
+binary remains available.
 
 ## Live verification
 
@@ -82,6 +117,10 @@ process-local. A Caddy restart resets them; capture a pre-restart snapshot for
 longitudinal comparison.
 
 ## Rollback
+
+Server rollback is `/root/native-udp-deploy/caddy-naive-udp.pre-connect-20260905`,
+verified SHA256 `52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d`.
+Restore it atomically and restart only `native-udp-caddy.service`.
 
 Immediate client rollback copies are retained at:
 

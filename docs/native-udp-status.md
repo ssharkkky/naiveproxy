@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-09-04 (Asia/Shanghai)
+Last updated: 2026-09-05 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Current deployment:
 [`current-deployment.md`](current-deployment.md). M7 milestone record:
@@ -28,7 +28,12 @@ the historical milestone evidence below:
   and [server manifest](../release/manifests/current-server.json).
 - Current online SHA256: router client `0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3`,
   Linux validation client `31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d`,
-  server `52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d`.
+  server `fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c`.
+
+The server SHA now names the local September 5 CONNECT hotfix, not the
+published product lock. Client `b652d34aa5` and forwardproxy `7307332` are
+the new runtime fixes described below. Permanent clients retain the release
+artifacts above; the fixed client was verified in temporary instances.
 
 Product server release run `33860117907` is green. Client Build run
 `33860117894` passed the deployed Linux x64 and OpenWrt x86_64 jobs before
@@ -42,6 +47,112 @@ CONNECT-UDP metrics are process-local and reset on restart.
 All older M7 SHAs, temporary binaries, and benchmark deployments in the
 sections below are historical evidence only. Where they conflict with this
 section, use the product lock and current deployment manifests.
+
+## CONNECT issue fixes (2026-09-05)
+
+Scope: [NaiveProxy #4](https://github.com/ssharkkky/naiveproxy/issues/4) and
+[forwardproxy #1](https://github.com/ssharkkky/forwardproxy/issues/1).
+Recovered the interrupted Codex session and completed its owner fixes:
+
+- Client `b652d34aa5b8f5b19cdd20511748b7bcac9f58db`: stop enabling H2/H3
+  Fast Open from cached padding capability, strip the internal `fastopen`
+  override, and wait for the actual CONNECT response. No `NaiveConnection`,
+  padding format, UDP protocol, or certificate-verifier change.
+- Server `7307332b312f29ce5f5f1cb638e4a5b993e95442`: send `200` only after
+  a successful target dial, propagate request cancellation, return `502` for
+  connection failures and `504` for timeouts. Race only resolved numeric
+  addresses that passed ACL checks, alternating families at 250 ms intervals
+  (100 ms minimum after failure), with 5 s per attempt and a total configured
+  deadline including DNS. Cancel and close losers; retain upstream tunnel
+  contexts after successful establishment. This is the connection-racing
+  portion of RFC 8305, not a claim to implement its full DNS scheduling model.
+- Caddy `0ea5700f64254ba24e39d57b1febece2fa34927e` and quic-go
+  `c308178d8c77061d5e261ce9df37f2bcc0ab22bf` remain unchanged.
+- Test repairs: retain delayed QUICHE response objects for the lifetime of
+  the fixture backend; the previous stack object expired before its alarm.
+  Preserve the F1 regression using a test-only legacy Fast Open delegate.
+  Allow `NAIVE_BUILD_DIR` in owner scripts. Forwardproxy `d50ef3f` disables
+  test-only automatic redirects to occupied port 80. Client `9545c56f5c`
+  separately verifies the server's 128-association `503`, since the SOCKS
+  admission probe reaches only the client's independent 32-association cap.
+
+Verified client commands from the repository root:
+
+```bash
+export NAIVE_BUILD_DIR="$PWD/src/out/M7Linux"
+export CCACHE_DIR="$PWD/src/.host_tool_cache"
+export GOTOOLCHAIN=go1.26.0
+export GOMAXPROCS=2
+tests/connect_response.sh
+tests/fastopen_async_failure.sh
+tests/masque_g1_smoke.sh
+tests/masque_g2_naive_tunnel.sh
+tests/masque_g3_basic_auth.sh
+tests/masque_g5_lifecycle.sh
+tests/socks5_udp_m2.sh
+tests/socks5_udp_m3.sh
+python3 tests/basic.py --naive="$NAIVE_BUILD_DIR/naive" --server_protocol=https
+python3 tests/basic.py --naive="$NAIVE_BUILD_DIR/naive" --server_protocol=http
+```
+
+All pass. `CONNECT_RESPONSE_MATRIX_OK` covers delayed H2/H3 responses
+`200`, `502`, and `504`, with two sequential CONNECTs and exactly one
+completion each. Both exchanges wait approximately 500 ms; errors propagate
+as `ERR_TUNNEL_CONNECTION_FAILED` (-111). The fixture leaves streams open,
+so completion cannot depend on FIN. Legacy `FASTOPEN_ASYNC_FAILURE_OK`
+remains green. TCP: 56/56. Codec/state/association/backend/congestion unit
+binaries pass; fuzz marker `M6_G4_CODEC_FUZZ_OK` reports 250,000 iterations
+and 11,023 valid cases. Seeded backend lifecycle covers 2,000 iterations.
+
+Server verification: Go 1.26.0 `go test -p 2 -count=1 ./...` and
+`go test -race -p 2 -count=1 ./...` pass. The built
+`/tmp/naive-connect-caddy-final` passes `scripts/test-m4-g5-server.sh` with
+`CADDY_BIN` naming that binary, `GO_BIN` naming Go 1.26.0, and
+`M4_CADDY_CONFIG=/tmp/naive-connect-g5.Caddyfile` (local explicit certificate,
+hostless listener, no port-80 redirect). Markers include
+`M6_H3_TCP_PADDING_INTEROP_OK`, `M4_G5_RESOURCE_LIMIT_OK`, real idle expiry,
+restart, privacy, and `M4_G5_SERVER_INTEROP_OK`.
+`go vet ./...` is not green: all remaining copylocks and testing-goroutine
+warnings were independently reproduced at baseline `4265c663`; this fix
+removes the copied-lock receiver on `dialContextCheckACL`.
+
+All M5 product gates also pass with the fixed client and server. Set the
+environment above plus the following, then run each gate separately:
+
+```bash
+export M5_FORWARDPROXY_DIR=/root/paseo/forwardproxy
+export M5_CADDY_DIR=/root/paseo/caddy
+export M5_CADDY_BIN=/tmp/naive-connect-caddy-final
+export M5_EXPECTED_FORWARDPROXY=7307332b312f29ce5f5f1cb638e4a5b993e95442
+export M5_EXPECTED_CADDY=0ea5700f64254ba24e39d57b1febece2fa34927e
+export M5_EXPECTED_CLIENT=b652d34aa5b8f5b19cdd20511748b7bcac9f58db
+export GO_BIN=/root/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.linux-amd64/bin/go
+tests/m5/g1_cross_repo_echo.sh
+tests/m5/g2_product_matrix.sh
+tests/m5/g3_product_security.sh
+tests/m5/g4_lifecycle_matrix.sh
+tests/m5/g5_production_binary.sh
+```
+
+The expectation variables name the runtime revisions; the subsequent
+test-only commits listed above do not change those runtime inputs. G1/G2
+prove IPv4/IPv6/domain UDP, DNS, concurrency, and the independent HTTP/3
+application. G3 includes client and server admission, `503`, authentication,
+policy, non-QUIC rejection, and privacy. G4 proves control close, two server
+restarts, outer-QUIC recovery, client idle, and no replay. G5 reports
+`M5_G5_UNTRUSTED_CERT_REJECTED_OK`, `M5_G4_SERVER_IDLE_RECONNECT_OK`,
+`M5_G5_TRUST_CLEANUP_OK`, `M5_G5_DEFAULT_CERT_VERIFIER_OK`,
+`M5_G5_PRODUCTION_BINARY_OK`, `M5_G5_H3_DATAGRAM_EVIDENCE_OK`, and
+`M5_G5_NO_PADDING_BASELINE_OK`. Interrupted attempts are excluded; the final
+G3 and G5 executions completed in a supervised temporary process with the
+aggregate `CONNECT_PRODUCT_REGRESSION_OK`. `git diff --check` passes.
+
+Audit impact: the changed CONNECT establishment policy and TCP dialer are
+outside the immutable M3-M6 audit ranges. The issue regressions reconsider
+those boundaries; they do not extend the historical `AUDIT_PASS` verdicts.
+No new independent audit or cross-platform release qualification is claimed,
+and deferred M7-G5 remains deferred. Live results and the explicit local
+server-build exception to the release lock are in `current-deployment.md`.
 
 ## Fast Open audit fixes F1/F2 and regression (2026-09-04)
 
