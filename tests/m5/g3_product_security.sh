@@ -7,6 +7,7 @@ repo_dir=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 forwardproxy_dir=${M5_FORWARDPROXY_DIR:-/path/to/naive-forwardproxy-m4}
 caddy_dir=${M5_CADDY_DIR:-/path/to/caddy-naive-udp-m4}
 caddy_bin=${M5_CADDY_BIN:-$forwardproxy_dir/build/m4-caddy}
+go_bin=${GO_BIN:-go}
 m3_runner="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_m3_runner"
 m2_runner="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_runner"
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m5-g3.XXXXXX")
@@ -80,6 +81,8 @@ ninja -C "${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}" naive_socks5_udp_m3_run
 test -x "$m3_runner"
 test -x "$m2_runner"
 test -x "$caddy_bin"
+(cd "$forwardproxy_dir" && "$go_bin" build \
+  -o "$tmp_dir/server-admission" ./cmd/m4-rfc9298-client)
 export PYTHONDONTWRITEBYTECODE=1
 
 topology=$(python3 "$script_dir/topology.py")
@@ -224,6 +227,11 @@ start_runner admission 12000 --proxy-user=m5-user --proxy-pass=m5-pass
 python3 "$script_dir/g3_matrix.py" --socks-port "$socks_port" \
   --mode admission --target-port "$echo_port"
 finish_runner
+# The SOCKS probe reaches the client's 32-association cap. Independently
+# exercise the server's 128-association cap and require its real 503 response.
+"$tmp_dir/server-admission" -mode limits -proxy "127.0.0.1:$proxy_port" \
+  -username m5-user -password m5-pass -timeout 15s
+echo M5_G3_SERVER_ADMISSION_OK
 start_runner dns-failure 4500 --proxy-user=m5-user --proxy-pass=m5-pass
 run_failure M5_G3_DNS_FAILURE_OK m5-does-not-exist.invalid "$echo_port" 1 \
   --recovery-port "$echo_port"
