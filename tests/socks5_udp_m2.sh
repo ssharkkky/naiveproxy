@@ -4,10 +4,10 @@ set -eu
 
 script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
-runner="$repo_dir/src/out/Release/naive_socks5_udp_runner"
-codec_test="$repo_dir/src/out/Release/naive_socks5_udp_test"
-state_test="$repo_dir/src/out/Release/naive_socks5_server_socket_state_test"
-association_test="$repo_dir/src/out/Release/naive_socks5_udp_association_test"
+runner="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_runner"
+codec_test="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_test"
+state_test="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_server_socket_state_test"
+association_test="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_association_test"
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m2.XXXXXX")
 runner_pid=""
 
@@ -20,7 +20,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-ninja -C "$repo_dir/src/out/Release" naive naive_socks5_udp_test \
+ninja -C "${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}" naive naive_socks5_udp_test \
   naive_socks5_server_socket_state_test naive_socks5_udp_association_test \
   naive_socks5_udp_runner
 "$codec_test"

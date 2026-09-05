@@ -34,14 +34,14 @@ openssl pkcs8 -topk8 -nocrypt \
   -in "$test_dir/key.pem" -outform DER -out "$test_dir/key.pk8"
 
 env CCACHE_DIR="$src_dir/.host_tool_cache" \
-  ninja -C "$src_dir/out/Release" \
+  ninja -C "${NAIVE_BUILD_DIR:-$src_dir/out/Release}" \
   naive_masque_server naive_connect_udp_runner
 
 python3 -u "$script_dir/masque_udp_echo.py" \
   --host=127.0.0.1 --port="$echo_port" >"$test_dir/echo.log" 2>&1 &
 echo_pid="$!"
 
-"$src_dir/out/Release/naive_masque_server" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_masque_server" \
   --port="$server_port" \
   --server_authority="$authority" \
   --masque_mode=open \
@@ -67,7 +67,7 @@ done
 grep '^READY ' "$test_dir/server.log"
 grep '^READY ' "$test_dir/echo.log"
 
-if "$src_dir/out/Release/naive_connect_udp_runner" \
+if "${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_connect_udp_runner" \
   localhost "$server_port" 127.0.0.1 "$echo_port" g3-missing-auth \
   >"$test_dir/missing.log" 2>&1; then
   echo 'missing credentials unexpectedly succeeded'
@@ -75,7 +75,7 @@ if "$src_dir/out/Release/naive_connect_udp_runner" \
 fi
 grep '^CONNECT_UDP_FAILED ' "$test_dir/missing.log"
 
-if "$src_dir/out/Release/naive_connect_udp_runner" \
+if "${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_connect_udp_runner" \
   --proxy-user=naive-user --proxy-pass=wrong-pass \
   localhost "$server_port" 127.0.0.1 "$echo_port" g3-wrong-auth \
   >"$test_dir/wrong.log" 2>&1; then
@@ -84,7 +84,7 @@ if "$src_dir/out/Release/naive_connect_udp_runner" \
 fi
 grep '^CONNECT_UDP_FAILED ' "$test_dir/wrong.log"
 
-"$src_dir/out/Release/naive_connect_udp_runner" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_connect_udp_runner" \
   --proxy-user=naive-user --proxy-pass=naive-pass \
   localhost "$server_port" 127.0.0.1 "$echo_port" g3-authenticated-echo
 

@@ -37,7 +37,7 @@ class NaiveProxyDelegate : public ProxyDelegate {
   void OnSuccessfulRequestAfterFailures(
       const ProxyRetryInfoMap& proxy_retry_info) override {}
 
-  // This only affects h2 proxy client socket.
+  // Supplies headers for HTTP proxy tunnels, including H2 and H3.
   base::expected<HttpRequestHeaders, Error> OnBeforeTunnelRequest(
       const ProxyChain& proxy_chain,
       size_t chain_index,

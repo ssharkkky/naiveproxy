@@ -34,14 +34,14 @@ openssl pkcs8 -topk8 -nocrypt \
   -in "$test_dir/key.pem" -outform DER -out "$test_dir/key.pk8"
 
 env CCACHE_DIR="$src_dir/.host_tool_cache" \
-  ninja -C "$src_dir/out/Release" \
+  ninja -C "${NAIVE_BUILD_DIR:-$src_dir/out/Release}" \
   naive_masque_server naive_connect_udp_runner
 
 python3 -u "$script_dir/masque_udp_echo.py" \
   --host=::1 --port="$echo_port" >"$test_dir/echo.log" 2>&1 &
 echo_pid="$!"
 
-"$src_dir/out/Release/naive_masque_server" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_masque_server" \
   --port="$server_port" \
   --server_authority="$authority" \
   --masque_mode=open \
@@ -65,7 +65,7 @@ done
 grep '^READY ' "$test_dir/server.log"
 grep '^READY ' "$test_dir/echo.log"
 
-if ! "$src_dir/out/Release/naive_connect_udp_runner" \
+if ! "${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_connect_udp_runner" \
   ::1 "$server_port" ::1 "$echo_port" g2-naive-tunnel-echo \
   >"$test_dir/runner.log" 2>&1; then
   cat "$test_dir/runner.log" "$test_dir/server.log" "$test_dir/echo.log"

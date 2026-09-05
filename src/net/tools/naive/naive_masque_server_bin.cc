@@ -44,6 +44,9 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
     bool, fail_connects, false,
     "Respond 502 (delayed 500 ms, without FIN) to every CONNECT request, to "
     "exercise async CONNECT failure with or without Fast Open early data.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    int32_t, connect_response_status, 502,
+    "HTTP response status for the delayed --fail_connects fixture.");
 
 namespace {
 
@@ -65,7 +68,17 @@ class LoggingMasqueServerBackend final : public quic::MasqueServerBackend {
         expected_proxy_authorization_(
             std::move(expected_proxy_authorization)),
         ignore_connect_requests_(ignore_connect_requests),
-        fail_connects_(fail_connects) {}
+        fail_connects_(fail_connects) {
+    quiche::HttpHeaderBlock headers;
+    headers[":status"] = std::to_string(quiche::GetQuicheCommandLineFlag(
+        FLAGS_connect_response_status));
+    headers["content-type"] = "text/plain";
+    delayed_connect_response_.set_headers(std::move(headers));
+    delayed_connect_response_.set_response_type(
+        quic::QuicBackendResponse::INCOMPLETE_RESPONSE);
+    delayed_connect_response_.set_delay(
+        quic::QuicTime::Delta::FromMilliseconds(500));
+  }
 
   void HandleConnectHeaders(
       const quiche::HttpHeaderBlock& request_headers,
@@ -89,20 +102,12 @@ class LoggingMasqueServerBackend final : public quic::MasqueServerBackend {
     }
 
     if (fail_connects_) {
-      std::cout << "CONNECT_ACTION fail_502" << std::endl;
-      quiche::HttpHeaderBlock headers;
-      headers[":status"] = "502";
-      headers["content-type"] = "text/plain";
-      quic::QuicBackendResponse response;
-      response.set_headers(std::move(headers));
-      // Deliver the failed CONNECT response without FIN so the stream stays
-      // open: a client must not leave pending application I/O (Fast Open
-      // early data or a data read issued before the response) waiting for a
-      // close that never comes.
-      response.set_response_type(
-          quic::QuicBackendResponse::INCOMPLETE_RESPONSE);
-      response.set_delay(quic::QuicTime::Delta::FromMilliseconds(500));
-      request_handler->OnResponseBackendComplete(&response);
+      const int status = quiche::GetQuicheCommandLineFlag(
+          FLAGS_connect_response_status);
+      std::cout << "CONNECT_ACTION fail_" << status << std::endl;
+      // QUICHE's delay alarm borrows this response. Keep it alive until the
+      // server is destroyed, and omit FIN to test response-driven completion.
+      request_handler->OnResponseBackendComplete(&delayed_connect_response_);
       return;
     }
 
@@ -130,6 +135,7 @@ class LoggingMasqueServerBackend final : public quic::MasqueServerBackend {
   const std::string expected_proxy_authorization_;
   const bool ignore_connect_requests_;
   const bool fail_connects_;
+  quic::QuicBackendResponse delayed_connect_response_;
 };
 
 }  // namespace

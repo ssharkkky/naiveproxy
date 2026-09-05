@@ -44,7 +44,9 @@
 #include "base/timer/timer.h"
 #include "build/build_config.h"
 #include "net/base/io_buffer.h"
+#include "net/base/load_flags.h"
 #include "net/base/net_errors.h"
+#include "net/base/privacy_mode.h"
 #include "net/base/proxy_chain.h"
 #include "net/base/proxy_server.h"
 #include "net/cert/mock_cert_verifier.h"
@@ -59,7 +61,10 @@
 #include "net/proxy_resolution/proxy_config.h"
 #include "net/proxy_resolution/proxy_config_service_fixed.h"
 #include "net/proxy_resolution/proxy_config_with_annotation.h"
+#include "net/proxy_resolution/proxy_info.h"
 #include "net/quic/quic_context.h"
+#include "net/socket/client_socket_handle.h"
+#include "net/socket/client_socket_pool_manager.h"
 #include "net/third_party/quiche/src/quiche/quic/core/quic_versions.h"
 #include "net/tools/naive/naive_proxy_delegate.h"
 #include "net/traffic_annotation/network_traffic_annotation.h"
@@ -95,8 +100,26 @@ constexpr int kReadBufferSize = 64 * 1024;
 // server). 15 s is far beyond any of those and well below a hang.
 constexpr base::TimeDelta kExchangeWatchdog = base::Seconds(15);
 
+// Preserve the F1 regression independently of production's CONNECT policy.
+class LegacyFastOpenDelegate : public net::NaiveProxyDelegate {
+ public:
+  using net::NaiveProxyDelegate::NaiveProxyDelegate;
+
+  base::expected<net::HttpRequestHeaders, net::Error> OnBeforeTunnelRequest(
+      const net::ProxyChain& chain,
+      size_t index,
+      OnBeforeTunnelRequestCallback callback) override {
+    auto headers = net::NaiveProxyDelegate::OnBeforeTunnelRequest(
+        chain, index, std::move(callback));
+    if (headers.has_value() && GetProxyChainPaddingType(chain).has_value()) {
+      headers->SetHeader("fastopen", "1");
+    }
+    return headers;
+  }
+};
+
 std::unique_ptr<net::URLRequestContext> BuildRunnerContext(
-    const net::ProxyChain& proxy_chain) {
+    const net::ProxyChain& proxy_chain, bool standard_connect) {
   net::URLRequestContextBuilder builder;
   builder.DisableHttpCache();
   builder.set_net_log(net::NetLog::Get());
@@ -117,10 +140,15 @@ std::unique_ptr<net::URLRequestContext> BuildRunnerContext(
   auto cert_verifier = std::make_unique<net::MockCertVerifier>();
   cert_verifier->set_default_result(net::OK);
   builder.SetCertVerifier(std::move(cert_verifier));
-  builder.set_proxy_delegate(std::make_unique<net::NaiveProxyDelegate>(
-      net::HttpRequestHeaders(),
-      std::vector<net::PaddingType>{net::PaddingType::kVariant1,
-                                    net::PaddingType::kNone}));
+  const std::vector<net::PaddingType> padding_types{
+      net::PaddingType::kVariant1, net::PaddingType::kNone};
+  if (standard_connect) {
+    builder.set_proxy_delegate(std::make_unique<net::NaiveProxyDelegate>(
+        net::HttpRequestHeaders(), padding_types));
+  } else {
+    builder.set_proxy_delegate(std::make_unique<LegacyFastOpenDelegate>(
+        net::HttpRequestHeaders(), padding_types));
+  }
 
   // QuicSessionPool copies QuicParams when the context is built. Configure
   // the controlled endpoint before Build() so the test-only self-signed root
@@ -133,6 +161,74 @@ std::unique_ptr<net::URLRequestContext> BuildRunnerContext(
       url::kHttpsScheme, proxy.host(), proxy.port()));
   builder.set_quic_context(std::move(quic_context));
   return builder.Build();
+}
+
+int RunStandardConnect(net::URLRequestContext* context,
+                       const net::ProxyChain& proxy_chain,
+                       const std::string& target_host,
+                       int target_port,
+                       bool expect_success) {
+  auto* session = context->http_transaction_factory()->GetSession();
+  net::ProxyInfo proxy_info;
+  proxy_info.UseProxyChain(proxy_chain);
+  for (int exchange = 1; exchange <= 2; ++exchange) {
+    net::ClientSocketHandle handle;
+    base::RunLoop loop;
+    base::OneShotTimer watchdog;
+    int result = net::ERR_IO_PENDING;
+    int callbacks = 0;
+    watchdog.Start(
+        FROM_HERE, kExchangeWatchdog,
+        base::BindOnce(
+            [](int* result, base::RepeatingClosure quit) {
+              *result = net::ERR_TIMED_OUT;
+              quit.Run();
+            },
+            &result, loop.QuitClosure()));
+    const auto started = base::TimeTicks::Now();
+    result = net::InitSocketHandleForHttpRequest(
+        url::SchemeHostPort("http", target_host, target_port),
+        net::LOAD_IGNORE_LIMITS, net::MAXIMUM_PRIORITY, session, proxy_info, {},
+        net::PRIVACY_MODE_DISABLED,
+        net::NetworkAnonymizationKey::CreateTransient(),
+        net::SecureDnsPolicy::kDisable, net::SocketTag(),
+        net::handles::kInvalidNetworkHandle, net::NetLogWithSource(), &handle,
+        base::BindOnce(
+            [](int* callbacks, int* result, base::RepeatingClosure quit,
+               int rv) {
+              ++*callbacks;
+              *result = rv;
+              quit.Run();
+            },
+            &callbacks, &result, loop.QuitClosure()),
+        net::ClientSocketPool::ProxyAuthCallback());
+    if (result == net::ERR_IO_PENDING) {
+      loop.Run();
+    }
+    watchdog.Stop();
+    const auto elapsed = base::TimeTicks::Now() - started;
+    handle.ResetAndCloseSocket();
+    const int expected = expect_success ? net::OK
+                                        : net::ERR_TUNNEL_CONNECTION_FAILED;
+    if (result != expected || callbacks != 1 ||
+        elapsed < base::Milliseconds(400)) {
+      std::cerr << "STANDARD_CONNECT_FAILED exchange=" << exchange
+                << " error=" << result << " callbacks=" << callbacks
+                << " elapsed_ms=" << elapsed.InMilliseconds() << std::endl;
+      return EXIT_FAILURE;
+    }
+    auto* delegate =
+        static_cast<net::NaiveProxyDelegate*>(context->proxy_delegate());
+    if (!delegate->GetProxyChainPaddingType(proxy_chain).has_value()) {
+      std::cerr << "STANDARD_CONNECT_PADDING_NOT_LEARNED" << std::endl;
+      return EXIT_FAILURE;
+    }
+    std::cout << "STANDARD_CONNECT_RESPONSE_OK exchange=" << exchange
+              << " error=" << result << " callbacks=" << callbacks
+              << " elapsed_ms=" << elapsed.InMilliseconds() << std::endl;
+  }
+  std::cout << "STANDARD_CONNECT_OK" << std::endl;
+  return EXIT_SUCCESS;
 }
 
 class FastOpenFailRunner;
@@ -156,9 +252,9 @@ class FastOpenFailRunner {
                      int target_port)
       : context_(context),
         proxy_chain_(proxy_chain),
-        delegate_(std::make_unique<ExchangeDelegate>(this)),
         target_url_("http://" + target_host + ":" + std::to_string(target_port) +
-                     "/index.html") {}
+                     "/index.html"),
+        delegate_(std::make_unique<ExchangeDelegate>(this)) {}
 
   ~FastOpenFailRunner() { request_.reset(); }
 
@@ -362,18 +458,26 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
+  const auto* command_line = base::CommandLine::ForCurrentProcess();
+  const bool standard_connect = command_line->HasSwitch("standard-connect");
   net::ProxyChain proxy_chain = net::ProxyChain::FromSchemeHostAndPort(
-      net::ProxyServer::SCHEME_QUIC, args[0],
+      command_line->HasSwitch("https-proxy") ? net::ProxyServer::SCHEME_HTTPS
+                                             : net::ProxyServer::SCHEME_QUIC,
+      args[0],
       static_cast<uint16_t>(proxy_port));
   if (!proxy_chain.IsValid()) {
     std::cerr << "INVALID_PROXY" << std::endl;
     return EXIT_FAILURE;
   }
 
-  auto context = BuildRunnerContext(proxy_chain);
+  auto context = BuildRunnerContext(proxy_chain, standard_connect);
   std::cout << "SESSION_READY proxy=" << proxy_chain.ToDebugString()
             << std::endl;
 
+  if (standard_connect) {
+    return RunStandardConnect(context.get(), proxy_chain, args[2], target_port,
+                              command_line->HasSwitch("expect-success"));
+  }
   FastOpenFailRunner runner(context.get(), proxy_chain, args[2], target_port);
   return runner.Run();
 }
