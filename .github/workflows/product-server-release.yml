@@ -84,8 +84,11 @@ jobs:
           cp _product/forwardproxy/M7_TOOLCHAIN.lock _product/dist/
           tar cJf "_product/naive-caddy-${{ steps.pins.outputs.product_version }}-linux-amd64.tar.xz" \
             -C _product/dist caddy product.lock.json M7_TOOLCHAIN.lock
-          sha256sum "_product/naive-caddy-${{ steps.pins.outputs.product_version }}-linux-amd64.tar.xz" \
-            > _product/dist/SHA256SUMS
+          (
+            cd _product
+            sha256sum "naive-caddy-${{ steps.pins.outputs.product_version }}-linux-amd64.tar.xz" \
+              > dist/SHA256SUMS
+          )
 
       - uses: actions/upload-artifact@v4
         with:
