@@ -13,6 +13,7 @@ jobs:
     env:
       CACHE_EPOCH: 1
       GOTOOLCHAIN: go1.26.0
+      GO_BIN: go
       GOMAXPROCS: 2
       CCACHE_MAXSIZE: 200M
       PYTHONDONTWRITEBYTECODE: "1"
