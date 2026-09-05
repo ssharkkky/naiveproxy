@@ -1,0 +1,141 @@
+name: Product combination
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  combination:
+    runs-on: ubuntu-22.04
+    timeout-minutes: 120
+    env:
+      CACHE_EPOCH: 1
+      GOTOOLCHAIN: go1.26.0
+      GOMAXPROCS: 2
+      CCACHE_MAXSIZE: 200M
+      PYTHONDONTWRITEBYTECODE: "1"
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Read immutable product inputs
+        id: pins
+        run: |
+          ./scripts/verify-product-lock.sh
+          python3 - <<'PY' >> "$GITHUB_OUTPUT"
+          import json
+          with open('release/product.lock.json') as source:
+              lock = json.load(source)
+          print('client=' + lock['naiveproxy']['commit'])
+          print('forwardproxy=' + lock['server']['forwardproxy_commit'])
+          print('caddy=' + lock['server']['caddy_commit'])
+          print('quic_go=' + lock['server']['quic_go_commit'])
+          PY
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.pins.outputs.client }}
+          path: _product/client
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/forwardproxy
+          ref: ${{ steps.pins.outputs.forwardproxy }}
+          path: _product/forwardproxy
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/caddy
+          ref: ${{ steps.pins.outputs.caddy }}
+          path: _product/caddy
+          fetch-depth: 0
+      - uses: actions/checkout@v4
+        with:
+          repository: ssharkkky/quic-go
+          ref: ${{ steps.pins.outputs.quic_go }}
+          path: _product/quic-go
+          fetch-depth: 0
+      - name: Verify checked-out inputs
+        run: |
+          ./scripts/verify-product-lock.sh release/product.lock.json \
+            _product/client _product/forwardproxy _product/caddy _product/quic-go
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.26.0
+          cache: false
+      - uses: actions/cache@v4
+        with:
+          path: |
+            _product/client/src/third_party/llvm-build/Release+Asserts/
+            _product/client/src/gn/
+          key: product-toolchains-${{ hashFiles('CHROMIUM_VERSION') }}-v1
+      - uses: actions/cache@v4
+        with:
+          path: |
+            _product/client/src/chrome/build/pgo_profiles/
+            _product/client/src/out/sysroot-build/
+          key: product-linux-sysroot-${{ hashFiles('CHROMIUM_VERSION') }}-v1
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build pkg-config ccache bubblewrap openssl lsof ripgrep
+          go install github.com/caddyserver/xcaddy/cmd/xcaddy@v0.4.5
+      - name: Build locked client
+        working-directory: _product/client/src
+        env:
+          EXTRA_FLAGS: 'target_cpu="x64"'
+        run: |
+          ./get-clang.sh
+          rm -f build/linux/sysroot_scripts/keyring.gpg
+          GPG_TTY=/dev/null ./build/linux/sysroot_scripts/generate_keyring.sh
+          ./build.sh
+      - name: Build locked server and run owner tests
+        run: |
+          mkdir -p _product/dist
+          GO_BIN="$(command -v go)" \
+          XCADDY_BIN="$(go env GOPATH)/bin/xcaddy" \
+          CADDY_SOURCE_DIR="$GITHUB_WORKSPACE/_product/caddy" \
+            _product/forwardproxy/scripts/build-m7-caddy.sh \
+            "$GITHUB_WORKSPACE/_product/dist/caddy"
+          cd _product/forwardproxy
+          go test -p 2 -count=1 ./...
+          go test -race -p 2 -count=1 ./...
+      - name: Run CONNECT, TCP, and native UDP product regressions
+        working-directory: _product/client
+        env:
+          M5_FORWARDPROXY_DIR: ${{ github.workspace }}/_product/forwardproxy
+          M5_CADDY_DIR: ${{ github.workspace }}/_product/caddy
+          M5_CADDY_BIN: ${{ github.workspace }}/_product/dist/caddy
+          M5_EXPECTED_CLIENT: ${{ steps.pins.outputs.client }}
+          M5_EXPECTED_FORWARDPROXY: ${{ steps.pins.outputs.forwardproxy }}
+          M5_EXPECTED_CADDY: ${{ steps.pins.outputs.caddy }}
+        run: |
+          set -o pipefail
+          export CCACHE_DIR="$PWD/src/.host_tool_cache"
+          for gate in connect_response fastopen_async_failure masque_g1_smoke \
+            masque_g2_naive_tunnel masque_g3_basic_auth masque_g5_lifecycle \
+            socks5_udp_m2 socks5_udp_m3; do
+            "tests/$gate.sh" 2>&1 | tee -a ../dist/combination.log
+          done
+          python3 tests/basic.py --naive=src/out/Release/naive --server_protocol=https
+          python3 tests/basic.py --naive=src/out/Release/naive --server_protocol=http
+          for gate in g1_cross_repo_echo g2_product_matrix g3_product_security \
+            g4_lifecycle_matrix g5_production_binary; do
+            "tests/m5/$gate.sh" 2>&1 | tee -a ../dist/combination.log
+          done
+          echo PRODUCT_COMBINATION_OK | tee -a ../dist/combination.log
+      - name: Collect redacted evidence
+        if: always()
+        run: |
+          mkdir -p _product/evidence
+          cp release/product.lock.json _product/evidence/
+          sha256sum release/product.lock.json > _product/evidence/product-lock.sha256
+          grep -E '^[A-Z][A-Z0-9_]+_OK( |$)' _product/dist/combination.log \
+            > _product/evidence/markers.txt || true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: product-combination-${{ github.sha }}
+          path: _product/evidence/
+          if-no-files-found: error
