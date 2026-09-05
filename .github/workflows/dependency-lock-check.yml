@@ -25,6 +25,8 @@ jobs:
         run: ./scripts/verify-product-lock.sh
       - name: Confirm pinned commits are published
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           python3 - <<'PY'
           import json
