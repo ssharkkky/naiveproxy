@@ -35,14 +35,14 @@ openssl pkcs8 -topk8 -nocrypt \
   -in "$test_dir/key.pem" -outform DER -out "$test_dir/key.pk8"
 
 env CCACHE_DIR="$src_dir/.host_tool_cache" \
-  ninja -C "$src_dir/out/Release" \
+  ninja -C "${NAIVE_BUILD_DIR:-$src_dir/out/Release}" \
   naive_masque_server naive_masque_probe
 
 python3 -u "$script_dir/masque_udp_echo.py" \
   --host=127.0.0.1 --port="$echo_port" >"$test_dir/echo.log" 2>&1 &
 echo_pid="$!"
 
-"$src_dir/out/Release/naive_masque_server" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_masque_server" \
   --port="$server_port" \
   --server_authority="$authority" \
   --masque_mode=open \
@@ -66,7 +66,7 @@ done
 grep '^READY ' "$test_dir/server.log"
 grep '^READY ' "$test_dir/echo.log"
 
-"$src_dir/out/Release/naive_masque_probe" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_masque_probe" \
   "$uri_template" 127.0.0.1 "$echo_port" g1-connect-udp-echo
 
 grep '^CONNECT_HEADERS ' "$test_dir/server.log"

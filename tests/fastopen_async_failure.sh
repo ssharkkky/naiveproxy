@@ -15,15 +15,15 @@ set -euo pipefail
 #     asynchronously: 502 delivered after a 500 ms delay, without FIN, so
 #     the stream stays open and any client I/O pending across the response
 #     must be completed by the client, not by a stream close.
-#   - runner with the real production NaiveProxyDelegate over a quic://
-#     proxy chain (MockCertVerifier, deterministic test context)
+#   - runner with a test-only NaiveProxyDelegate subclass restoring legacy
+#     Fast Open over quic:// (MockCertVerifier, deterministic test context)
 #
 # Exchange 1: padding not negotiated yet, so the client does not enable Fast
 #   Open. Connect() blocks until the delayed 502 arrives and then fails with
 #   the tunnel error; the delegate parses the CONNECT response and learns the
 #   (absent) padding support.
 #
-# Exchange 2: padding state known, so the client enables Fast Open: Connect()
+# Exchange 2: padding state known, so the test delegate enables Fast Open: Connect()
 #   returns OK before the response arrives and the application I/O (early
 #   data write and/or data read) is pending when the delayed 502 (no FIN)
 #   arrives. The pending I/O must complete with an error within the watchdog
@@ -32,8 +32,9 @@ set -euo pipefail
 script_dir="$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)"
 repo_dir="$(CDPATH= cd -- "$script_dir/.." && pwd)"
 src_dir="$repo_dir/src"
-runner="$src_dir/out/Release/naive_fastopen_fail_runner"
-masque_server="$src_dir/out/Release/naive_masque_server"
+build_dir="${NAIVE_BUILD_DIR:-$src_dir/out/Release}"
+runner="$build_dir/naive_fastopen_fail_runner"
+masque_server="$build_dir/naive_masque_server"
 # Non-loopback target: loopback URLs are implicitly bypassed (DIRECT).
 target_host="10.255.255.1"
 target_port="${FASTOPEN_TARGET_PORT:-19701}"
@@ -61,7 +62,7 @@ openssl pkcs8 -topk8 -nocrypt \
   -in "$test_dir/key.pem" -outform DER -out "$test_dir/key.pk8"
 
 env CCACHE_DIR="$src_dir/.host_tool_cache" \
-  ninja -C "$src_dir/out/Release" \
+  ninja -C "$build_dir" \
   naive_fastopen_fail_runner naive_masque_server
 
 "$masque_server" --port="$server_port" --masque_mode=open \
@@ -106,7 +107,7 @@ if [ "$runner_rc" -ne 0 ]; then
   exit 1
 fi
 
-# Exchange 1: 502 (with FIN) must fail the tunnel (the runner asserts the
+# Exchange 1: 502 (without FIN) must fail the tunnel (the runner asserts the
 # negative error and padding learning), and the delegate must have learned
 # the padding negotiation state.
 grep -q '^EXCHANGE_START n=1' "$test_dir/runner.log"

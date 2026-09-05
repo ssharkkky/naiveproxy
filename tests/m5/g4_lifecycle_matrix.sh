@@ -7,7 +7,7 @@ repo_dir=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 forwardproxy_dir=${M5_FORWARDPROXY_DIR:-/path/to/naive-forwardproxy-m4}
 caddy_dir=${M5_CADDY_DIR:-/path/to/caddy-naive-udp-m4}
 caddy_bin=${M5_CADDY_BIN:-$forwardproxy_dir/build/m4-caddy}
-runner_bin="$repo_dir/src/out/Release/naive_socks5_udp_m3_runner"
+runner_bin="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_m3_runner"
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m5-g4.XXXXXX")
 caddy_pid=
 runner_pid=
@@ -184,7 +184,7 @@ test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
 git -C "$repo_dir" diff --quiet "$expected_client"..HEAD -- src/net
 git -C "$repo_dir" diff --quiet -- src/net
-ninja -C "$repo_dir/src/out/Release" naive_socks5_udp_m3_runner >/dev/null
+ninja -C "${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}" naive_socks5_udp_m3_runner >/dev/null
 test -x "$runner_bin"
 test -x "$caddy_bin"
 export PYTHONDONTWRITEBYTECODE=1

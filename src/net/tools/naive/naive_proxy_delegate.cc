@@ -66,12 +66,11 @@ NaiveProxyDelegate::OnBeforeTunnelRequest(
                           base::as_writable_byte_span(padding));
   extra_headers.SetHeader(kPaddingHeader, padding);
 
-  // Enables Fast Open in H2/H3 proxy client socket once the state of server
-  // padding support is known.
-  if (padding_type_by_server_[proxy_server].has_value()) {
-    extra_headers.SetHeader("fastopen", "1");
-  }
   extra_headers.MergeFrom(extra_headers_);
+  // Cached padding capability does not establish a target TCP connection.
+  // H2/H3 sockets must wait for the CONNECT response, including when a custom
+  // header uses the old internal Fast Open control name.
+  extra_headers.RemoveHeader("fastopen");
 
   return extra_headers;
 }

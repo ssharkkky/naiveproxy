@@ -34,7 +34,7 @@ openssl pkcs8 -topk8 -nocrypt \
   -in "$test_dir/key.pem" -outform DER -out "$test_dir/key.pk8"
 
 env CCACHE_DIR="$src_dir/.host_tool_cache" \
-  ninja -C "$src_dir/out/Release" \
+  ninja -C "${NAIVE_BUILD_DIR:-$src_dir/out/Release}" \
   naive_masque_server naive_connect_udp_runner
 
 python3 -u "$script_dir/masque_udp_echo.py" \
@@ -44,7 +44,7 @@ echo_pid="$!"
 start_server() {
   local log_file="$1"
   shift
-  "$src_dir/out/Release/naive_masque_server" \
+  "${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_masque_server" \
     --port="$server_port" \
     --server_authority="$authority" \
     --masque_mode=open \
@@ -72,7 +72,7 @@ start_server "$test_dir/normal-server.log"
 grep '^READY ' "$test_dir/normal-server.log"
 grep '^READY ' "$test_dir/echo.log"
 
-"$src_dir/out/Release/naive_connect_udp_runner" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_connect_udp_runner" \
   --destroy-with-pending-read \
   --log-net-log="$test_dir/pending-read-netlog.json" \
   localhost "$server_port" 127.0.0.1 "$echo_port" g5-pending-read
@@ -85,7 +85,7 @@ jq -e '
   any(.events[]; ((.params // {}) | tostring | contains("connect-udp")))
 ' "$test_dir/pending-read-netlog.json" >/dev/null
 
-"$src_dir/out/Release/naive_connect_udp_runner" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_connect_udp_runner" \
   --shutdown-session-with-pending-read \
   localhost "$server_port" 127.0.0.1 "$echo_port" g5-session-shutdown
 
@@ -96,7 +96,7 @@ server_pid=""
 start_server "$test_dir/ignored-server.log" --ignore_connect_requests=true
 grep '^READY ' "$test_dir/ignored-server.log"
 
-"$src_dir/out/Release/naive_connect_udp_runner" \
+"${NAIVE_BUILD_DIR:-$src_dir/out/Release}/naive_connect_udp_runner" \
   --destroy-while-connect-pending \
   localhost "$server_port" 127.0.0.1 "$echo_port" g5-connect-pending
 

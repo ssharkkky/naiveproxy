@@ -12,9 +12,9 @@ if [ -x /path/to/naive-m4/go1.25.12/bin/go ]; then
   default_go=/path/to/naive-m4/go1.25.12/bin/go
 fi
 go_bin=${GO_BIN:-$default_go}
-naive_bin="$repo_dir/src/out/Release/naive"
-if [ -x "$repo_dir/src/out/Release/naive.exe" ]; then
-  naive_bin="$repo_dir/src/out/Release/naive.exe"
+naive_bin="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive"
+if [ -x "${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive.exe" ]; then
+  naive_bin="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive.exe"
 fi
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m5-g5.XXXXXX")
 caddy_pid=
@@ -339,7 +339,7 @@ test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
 git -C "$repo_dir" diff --quiet "$expected_client"..HEAD -- src/net
 git -C "$repo_dir" diff --quiet -- src/net
-ninja -C "$repo_dir/src/out/Release" naive >/dev/null
+ninja -C "${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}" naive >/dev/null
 test -x "$naive_bin"
 test -x "$caddy_bin"
 export GOPATH="${M5_GO_CACHE_ROOT:-${TMPDIR:-/tmp}/naive-m5-go}/gopath"

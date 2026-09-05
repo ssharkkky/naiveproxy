@@ -7,8 +7,8 @@ repo_dir=$(CDPATH= cd -- "$script_dir/../.." && pwd)
 forwardproxy_dir=${M5_FORWARDPROXY_DIR:-/path/to/naive-forwardproxy-m4}
 caddy_dir=${M5_CADDY_DIR:-/path/to/caddy-naive-udp-m4}
 caddy_bin=${M5_CADDY_BIN:-$forwardproxy_dir/build/m4-caddy}
-m3_runner="$repo_dir/src/out/Release/naive_socks5_udp_m3_runner"
-m2_runner="$repo_dir/src/out/Release/naive_socks5_udp_runner"
+m3_runner="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_m3_runner"
+m2_runner="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_runner"
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m5-g3.XXXXXX")
 caddy_pid=
 runner_pid=
@@ -75,7 +75,7 @@ test -z "$unexpected_server_changes"
 test "$(git -C "$caddy_dir" rev-parse HEAD)" = "$expected_caddy"
 git -C "$repo_dir" diff --quiet ${M5_EXPECTED_CLIENT:-333b7cb253}..HEAD -- src/net
 git -C "$repo_dir" diff --quiet -- src/net
-ninja -C "$repo_dir/src/out/Release" naive_socks5_udp_m3_runner \
+ninja -C "${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}" naive_socks5_udp_m3_runner \
   naive_socks5_udp_runner >/dev/null
 test -x "$m3_runner"
 test -x "$m2_runner"

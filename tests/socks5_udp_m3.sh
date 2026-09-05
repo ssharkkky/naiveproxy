@@ -6,11 +6,11 @@ script_dir=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 repo_dir=$(CDPATH= cd -- "$script_dir/.." && pwd)
 CCACHE_DIR=${CCACHE_DIR:-"$repo_dir/src/.host_tool_cache"}
 export CCACHE_DIR
-backend_test="$repo_dir/src/out/Release/naive_connect_udp_backend_test"
-association_test="$repo_dir/src/out/Release/naive_socks5_udp_association_test"
-runner="$repo_dir/src/out/Release/naive_socks5_udp_runner"
-m3_runner="$repo_dir/src/out/Release/naive_socks5_udp_m3_runner"
-masque_server="$repo_dir/src/out/Release/naive_masque_server"
+backend_test="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_connect_udp_backend_test"
+association_test="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_association_test"
+runner="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_runner"
+m3_runner="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_socks5_udp_m3_runner"
+masque_server="${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}/naive_masque_server"
 tmp_dir=$(mktemp -d "${TMPDIR:-/tmp}/naive-m3.XXXXXX")
 runner_pid=""
 m3_runner_pid=""
@@ -48,7 +48,7 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-ninja -C "$repo_dir/src/out/Release" naive_connect_udp_backend_test \
+ninja -C "${NAIVE_BUILD_DIR:-$repo_dir/src/out/Release}" naive_connect_udp_backend_test \
   naive_socks5_udp_association_test \
   naive_socks5_udp_runner naive_socks5_udp_m3_runner naive_masque_server naive
 "$backend_test"
