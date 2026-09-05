@@ -1,38 +1,42 @@
 {
   "schema_version": 1,
   "component": "naiveproxy-native-udp-client",
-  "generated_at": "2026-09-04T18:55:00+08:00",
+  "generated_at": "2026-09-05T13:09:01Z",
   "product_lock": {
     "path": "release/product.lock.json",
-    "sha256": "d05aed4b0f048ff16f196982e270e08c3c41cbfe89162550455e11131a366d66",
-    "product_version": "v150.0.7871.63-3-native-udp-m7",
-    "naiveproxy_commit": "742b89aa24131749b62856e5ed9189273a32f26e"
+    "sha256": "fdbaf9c155f9f983ef6d1d7d169a6db793efe4d551a40a3223a43bd05c127c97",
+    "product_version": "v150.0.7871.63-4-native-udp-m7",
+    "naiveproxy_commit": "c86e73859ea1a65eac467378ba3188edc5145a98"
   },
   "build": {
     "repository": "ssharkkky/naiveproxy",
     "workflow": "Build",
-    "run_id": 33860117894,
-    "run_url": "https://github.com/ssharkkky/naiveproxy/actions/runs/33860117894",
-    "workflow_commit": "2e45c5a6e5ff62bb8eb9c713d5e97db72b22c91a",
-    "source_commit": "742b89aa24131749b62856e5ed9189273a32f26e",
-    "release_url": "https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-3-native-udp-m7",
+    "run_id": 33961210543,
+    "run_url": "https://github.com/ssharkkky/naiveproxy/actions/runs/33961210543",
+    "workflow_commit": "1ca173d3f2b6e82af543ee4d6c98dfd332f1c1bb",
+    "source_commit": "c86e73859ea1a65eac467378ba3188edc5145a98",
+    "release_url": "https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-4-native-udp-m7",
     "release_channel": "experimental",
     "result": "success",
-    "result_at_deployment": "required Linux x64 and OpenWrt x86_64 jobs passed before deployment; final workflow result: 50/50 jobs succeeded, zero failures"
+    "result_at_deployment": "50/50 jobs succeeded before deployment; all 46 client packages verified",
+    "combination_run_id": 33962958046,
+    "combination_marker": "PRODUCT_COMBINATION_OK"
   },
   "artifacts": [
     {
       "platform": "linux-x64",
-      "job_id": 100983280418,
-      "archive_sha256": "8651c87d9bb649f112bb230a5393c403fbf4919c14928b7c135bc7730d8fb6e2",
-      "binary_sha256": "31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d",
+      "job_id": 101294868035,
+      "archive_sha256": "c5b4c856a5ae78d79b9c79af2100a48a4d83121bf15736f27b1ad33be7470388",
+      "binary_sha256": "b8a2fdf833397f78437590e0af82f020601c438bea4af5c5441ab31d4696bca9",
       "basic_test": "passed"
     },
     {
       "platform": "openwrt-x86_64",
-      "job_id": 100983280717,
-      "archive_sha256": "6ccfbca4be1903679d282f00d60aa18cfcdec97b0dd45570abe26490f17a5f06",
-      "binary_sha256": "0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3",
+      "job_id": 101294868198,
+      "artifact_id": 9968348574,
+      "release_asset_id": 545728000,
+      "archive_sha256": "d7c3c8de6ac24fa595f83158af3ec1547d95b3d452b6aaf9cdb0966033f056d8",
+      "binary_sha256": "993bdf31785839f0041f1a82ed746f103925c43096daad3bd5fd5ca44f2e5f68",
       "basic_test": "passed"
     }
   ],
@@ -43,14 +47,21 @@
       "platform": "openwrt-x86_64",
       "service": "/etc/init.d/native-udp",
       "binary": "/usr/bin/native-udp",
-      "binary_sha256": "0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3",
+      "binary_sha256": "993bdf31785839f0041f1a82ed746f103925c43096daad3bd5fd5ca44f2e5f68",
+      "product_version": "v150.0.7871.63-4-native-udp-m7",
+      "replacement_started_at": "2026-09-05T12:59:44Z",
       "listen": "socks://127.0.0.1:1080",
       "quic_congestion": "bbr1",
-      "deployment_action": "verified release archive, atomic replacement, service restart",
-      "rollback_binary": "/root/native-udp-deploy/native-udp.pre-release-20260904"
+      "deployment_action": "verified release archive, atomic replacement, service restart; initial attempt automatically rolled back on UDP DNS timeout, second passed",
+      "verification": "Three complete TCP/UDP DNS/bounded-failure probes passed; a further DNS timeout prompted old/new comparison (10/12 vs 9/12 replies), consistent with user-confirmed random link loss; loss location not established",
+      "rollback_binary": "/root/native-udp-deploy/native-udp.pre-release-4-20260905T125944Z",
+      "rollback_binary_sha256": "0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3"
     },
     {
       "host": "lllinya.com",
+      "product_version": "v150.0.7871.63-3-native-udp-m7",
+      "retained_build_run_id": 33860117894,
+      "verification_scope": "retained prior deployment; not replaced or newly verified during release 4 deployment",
       "platform": "linux-x64",
       "service": "native-udp-client.service",
       "binary": "/root/native-udp-deploy/naive",

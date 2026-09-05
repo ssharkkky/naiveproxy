@@ -16,39 +16,70 @@ The current source and deployment authority is intentionally separated from
 the historical milestone evidence below:
 
 - Product lock: [`release/product.lock.json`](../release/product.lock.json),
-  version `v150.0.7871.63-3-native-udp-m7`, channel `experimental`, SHA256
-  `d05aed4b0f048ff16f196982e270e08c3c41cbfe89162550455e11131a366d66`.
-- Locked `master` commits: NaiveProxy `742b89aa24131749b62856e5ed9189273a32f26e`
-  (Fast Open hotfix `c8ebb943bd` plus audit fixes, see below), forwardproxy
-  `4265c663dcaf3981a57f676984d1b0b03615dee0`, Caddy
+  version `v150.0.7871.63-4-native-udp-m7`, channel `experimental`, SHA256
+  `fdbaf9c155f9f983ef6d1d7d169a6db793efe4d551a40a3223a43bd05c127c97`.
+- Locked `master` commits: NaiveProxy `c86e73859ea1a65eac467378ba3188edc5145a98`
+  (includes the CONNECT response fix), forwardproxy
+  `d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab`, Caddy
   `0ea5700f64254ba24e39d57b1febece2fa34927e`, and quic-go
   `c308178d8c77061d5e261ce9df37f2bcc0ab22bf`.
 - Live deployment authority: [`current-deployment.md`](current-deployment.md).
 - Machine-readable evidence: [client manifest](../release/manifests/current-client.json)
   and [server manifest](../release/manifests/current-server.json).
-- Current online SHA256: router client `0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3`,
-  Linux validation client `31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d`,
-  server `fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c`.
+- Current online SHA256: router client `993bdf31785839f0041f1a82ed746f103925c43096daad3bd5fd5ca44f2e5f68`,
+  retained Linux validation client `31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d`
+  (release `-3`, last verified before this deployment),
+  server `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`.
 
-The server SHA now names the local September 5 CONNECT hotfix, not the
-published product lock. Client `b652d34aa5` and forwardproxy `7307332` are
-the new runtime fixes described below. Permanent clients retain the release
-artifacts above; the fixed client was verified in temporary instances.
-
-Product server release run `33860117907` is green. Client Build run
-`33860117894` passed the deployed Linux x64 and OpenWrt x86_64 jobs before
-deployment, then completed successfully with 50/50 jobs green and zero
-failures.
+The router and server now run the matching release `-4`, containing client
+`b652d34aa5` and forwardproxy `7307332`. Both fixes are pushed to their
+owners' `master`. Product server release run `33961210559` and client Build
+`33961210543` passed before deployment; the client completed 50/50 jobs,
+producing all 46 packages. All 47 client/server package digests and contained
+binary hashes were verified. The release includes `release-manifest.json`,
+complete `SHA256SUMS` and server module provenance.
 The deployed server artifact embeds Go 1.26.0, the locked quic-go
 pseudo-version, and `http.handlers.forward_proxy`. The deployment page records
 the exact artifacts, rollback files, validation results, and the fact that all
 CONNECT-UDP metrics are process-local and reset on restart.
 
+Release qualification commands and results:
+
+```bash
+scripts/verify-product-lock.sh
+gh workflow run dependency-lock-check.yml --ref master
+gh workflow run product-combination.yml --ref master
+```
+
+Final lock run `33960919829` and combination run `33962958046` passed. The
+combination checked out the exact locked source commits and emitted
+`PRODUCT_COMBINATION_OK` after CONNECT response/Fast Open regressions, M1-M3,
+56 TCP cases, server normal/race tests and M5 G1-G5, including independent
+HTTP/3 application and default certificate-verifier/trust-cleanup markers.
+The exact downloaded release server also passed `scripts/test-m4-g5-server.sh`
+locally with the explicit hostless certificate fixture, emitting
+`M4_G5_SERVER_INTEROP_OK` after real 125-second idle, restart and privacy tests.
+
+CI corrections: `1ca173d3f2` supplies missing `GH_TOKEN` for pin publication
+checks; `451ab9504a` supplies `GO_BIN=go` so M5-G2 does not use its historical
+placeholder path. Earlier failed runs are not qualification evidence. The
+release tag remains `1ca173d3f2b6e82af543ee4d6c98dfd332f1c1bb`, with no `src/`
+diff from the locked client. `c6a4511fa1` corrects future server checksum path
+prefixes; the current release has a complete basename-only checksum list.
+
+Deployment finished with timestamped rollback binaries and unchanged service
+configuration. The router's first attempt rolled back on single-datagram UDP
+DNS timeout; retry and two subsequent full probes passed. Further old/new
+sampling found DNS timeouts in both versions (10/12 and 9/12 replies),
+consistent with the user's confirmed randomly lossy test link. Loss location
+was not established. Exact online results, rollback paths and cleanup are in
+`current-deployment.md`. No new independent audit or M7-G5 closure is claimed.
+
 All older M7 SHAs, temporary binaries, and benchmark deployments in the
 sections below are historical evidence only. Where they conflict with this
 section, use the product lock and current deployment manifests.
 
-## CONNECT issue fixes (2026-09-05)
+## CONNECT issue fixes (2026-09-05, pre-release validation)
 
 Scope: [NaiveProxy #4](https://github.com/ssharkkky/naiveproxy/issues/4) and
 [forwardproxy #1](https://github.com/ssharkkky/forwardproxy/issues/1).

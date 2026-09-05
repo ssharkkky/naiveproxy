@@ -6,7 +6,87 @@ This page is the authority for currently deployed binaries. Milestone records
 in `native-udp-status.md` are historical verification evidence, not deployment
 provenance.
 
-## Product release
+## Current release and deployment: September 5 release 4
+
+The current matching experimental release is
+[`v150.0.7871.63-4-native-udp-m7`](https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-4-native-udp-m7).
+This section and the current manifests supersede the historical release-3
+record below. The [product lock](../release/product.lock.json) SHA256 is
+`fdbaf9c155f9f983ef6d1d7d169a6db793efe4d551a40a3223a43bd05c127c97`.
+
+| Repository | Locked source commit |
+| --- | --- |
+| NaiveProxy | `c86e73859ea1a65eac467378ba3188edc5145a98` |
+| forwardproxy | `d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab` |
+| Caddy | `0ea5700f64254ba24e39d57b1febece2fa34927e` |
+| quic-go | `c308178d8c77061d5e261ce9df37f2bcc0ab22bf` |
+
+Both CONNECT fixes are pushed to their owners' `master`: client `b652d34aa5`
+and server `7307332`. Release tag commit
+`1ca173d3f2b6e82af543ee4d6c98dfd332f1c1bb` has no `src/` difference from the
+locked client. Subsequent master changes before deployment repair CI only.
+
+- Client release run [33961210543](https://github.com/ssharkkky/naiveproxy/actions/runs/33961210543): 50/50 successful jobs, 46 client packages across Linux, Windows, macOS, Android and OpenWrt.
+- Server release run [33961210559](https://github.com/ssharkkky/naiveproxy/actions/runs/33961210559): successful Linux amd64 package with Go 1.26.0 and verified module provenance.
+- Product combination [33962958046](https://github.com/ssharkkky/naiveproxy/actions/runs/33962958046): `PRODUCT_COMBINATION_OK`, CONNECT, 56 TCP cases, M1-M5, normal/race and default certificate-verifier checks passed.
+- Dependency lock [33960919829](https://github.com/ssharkkky/naiveproxy/actions/runs/33960919829): successful.
+
+All 47 packages were downloaded and checked against GitHub asset digests.
+The release includes `release-manifest.json` with archive/binary hashes and
+run/job/artifact IDs, complete `SHA256SUMS`, `server-go-provenance.txt` and
+`server-modules.txt`. See [client](../release/manifests/current-client.json)
+and [server](../release/manifests/current-server.json) deployment manifests.
+M7 G5 and its independent audit remain deferred; the channel is experimental.
+
+| Role | Running binary SHA256 | Configuration |
+| --- | --- | --- |
+| Router `192.168.2.1`, `/etc/init.d/native-udp` | `993bdf31785839f0041f1a82ed746f103925c43096daad3bd5fd5ca44f2e5f68` | SOCKS5 `127.0.0.1:1080`, `bbr1`, user `nativeudp` |
+| Server `triptrip999.qzz.io`, `native-udp-caddy.service` | `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230` | TCP/UDP `:8443`, `bbr-standard` |
+| Validation client `lllinya.com`, retained release `-3` | `31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d` | Last verified before this deployment; outside replacement scope |
+
+Exact release binaries were installed without rebuilding. Only the two Naive
+services were restarted. Router configuration/init-script and server Caddyfile
+hashes match pre-deployment values. SOCKS and sing-box configuration were not
+changed. Server nginx, hysteria-server, x-ui and singbox-merger PIDs remained
+unchanged.
+
+Server activation: `2026-09-05T12:57:30Z`, active/running, PID `294733`,
+`NRestarts=0`. The bounded 15-second stop completed without SIGKILL. The first
+readiness poll raced startup; the subsequent poll returned expected `407` and
+TCP/UDP listeners passed.
+
+Router successful replacement began at `2026-09-05T12:59:44Z`. The first
+attempt passed TCP but timed out on public UDP DNS and automatically restored
+the old binary. The second passed eight HTTPS requests, four DNS queries and
+bounded target failure in 5.355 seconds. Two follow-up full probes passed
+another 16 HTTPS requests and eight DNS replies, with failed targets exiting
+in 5.169 and 1.521 seconds. A third follow-up passed TCP but timed out on DNS.
+
+An isolated old-release client on temporary SOCKS port `11084`, under the
+same `nativeudp` user and against the same new server, provided a comparison:
+12 independent DNS queries with three-second deadlines and no retransmission
+yielded old client 10 replies/2 timeouts and new client 9 replies/3 timeouts.
+The user confirms the test link has poor quality and random packet loss;
+these observations are consistent with that condition. No packet capture
+identified the loss location, and the sample does not establish statistical
+equivalence. This was not an old-server A/B comparison. Controlled CI
+DNS/HTTP3 and the release binary's complete local M4 suite passed. Temporary
+comparison processes and configuration were cleaned up.
+
+Immediate rollback files (restore atomically and restart only the Naive service):
+
+- Router: `/root/native-udp-deploy/native-udp.pre-release-4-20260905T125944Z`, SHA256 `0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3`.
+- Server: `/root/native-udp-deploy/caddy-naive-udp.pre-release-4-20260905T125728Z`, SHA256 `fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c` (previous local CONNECT hotfix).
+
+Server pre-restart metrics are retained in
+`/root/native-udp-deploy/metrics.pre-release-4-20260905T125728Z.txt`.
+Metrics remain process-local and reset on restart. Earlier rollback files
+remain retained. SOCKS applications may still see EOF/reset for failed targets.
+
+## Historical release 3 and local hotfix
+
+Everything below describes the superseded September 4 release and the earlier
+September 5 hotfix. Use the section above for current deployment facts.
 
 The published release below remains the client baseline. On 2026-09-05 the
 server alone received a locally built CONNECT hotfix from forwardproxy

@@ -11,11 +11,13 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 
 - All four fork development branches are `master`. The immutable current
   product inputs are in [`../release/product.lock.json`](../release/product.lock.json):
-  NaiveProxy `742b89aa`, forwardproxy `4265c663`, Caddy `0ea5700f`, and
+  NaiveProxy `c86e73859e`, forwardproxy `d50ef3f`, Caddy `0ea5700f`, and
   quic-go `c308178d`.
 - The September 5 CONNECT fixes are client `b652d34aa5` and forwardproxy
-  `7307332`. The server hotfix is deployed; permanent clients retain the
-  published release. These changes are outside the existing product lock.
+  `7307332`. Both fixes are on their owners' `master` and included in matching
+  experimental release `v150.0.7871.63-4-native-udp-m7`. All 50 client build
+  jobs, server release and product combination CI passed. The router and
+  server run exact release artifacts; `lllinya.com` retains release `-3`.
   See the issue-fix record in the status ledger and the current deployment
   page for validation, artifacts, and rollback.
 - M7 G4 is complete (`M7_G4_PARITY_OK`); G5 regression/audit qualification is

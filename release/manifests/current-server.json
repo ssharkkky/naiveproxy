@@ -1,26 +1,32 @@
 {
   "schema_version": 1,
   "component": "naiveproxy-native-udp-server",
-  "generated_at": "2026-09-05T18:18:00+08:00",
+  "generated_at": "2026-09-05T13:09:01Z",
   "product_lock": {
     "path": "release/product.lock.json",
-    "sha256": "d05aed4b0f048ff16f196982e270e08c3c41cbfe89162550455e11131a366d66",
-    "product_version": "v150.0.7871.63-3-native-udp-m7",
-    "forwardproxy_commit": "4265c663dcaf3981a57f676984d1b0b03615dee0",
+    "sha256": "fdbaf9c155f9f983ef6d1d7d169a6db793efe4d551a40a3223a43bd05c127c97",
+    "product_version": "v150.0.7871.63-4-native-udp-m7",
+    "forwardproxy_commit": "d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
     "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf",
-    "role": "Baseline release; current server uses the local CONNECT hotfix below"
+    "role": "Exact deployed experimental release inputs"
   },
   "build": {
-    "kind": "local-issue-hotfix",
-    "forwardproxy_commit": "7307332b312f29ce5f5f1cb638e4a5b993e95442",
+    "kind": "github-release",
+    "repository": "ssharkkky/naiveproxy",
+    "workflow": "Product server release",
+    "run_id": 33961210559,
+    "job_id": 101293296366,
+    "artifact_id": 9968021510,
+    "workflow_commit": "1ca173d3f2b6e82af543ee4d6c98dfd332f1c1bb",
+    "forwardproxy_commit": "d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
     "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf",
     "go_version": "go1.26.0",
-    "command": "GO_BIN=<go1.26.0> XCADDY_BIN=<xcaddy> CADDY_SOURCE_DIR=/root/paseo/caddy scripts/build-m7-caddy.sh /tmp/naive-connect-caddy-final",
-    "provenance_note": "Built from the working tree before commit; its source was subsequently committed as 7307332. Caddy and quic-go were unchanged. This is not a newly published release artifact.",
+    "provenance_note": "Downloaded official release package; archive SHA256, bundled locks and Go module provenance verified; exact binary deployed without rebuilding",
+    "bundle_sha256": "fcc047567c669fbc42514aa8fda1b6d1ff21d8469e7358452d60e1318645540e",
     "result": "success",
-    "binary_sha256": "fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c"
+    "binary_sha256": "d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230"
   },
   "previous_release_build": {
     "repository": "ssharkkky/naiveproxy",
@@ -37,12 +43,15 @@
     "host": "triptrip999.qzz.io",
     "service": "native-udp-caddy.service",
     "binary": "/root/native-udp-deploy/caddy-naive-udp",
-    "binary_sha256": "fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c",
+    "binary_sha256": "d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230",
     "listen": ["tcp/:8443", "udp/:8443"],
     "quic_congestion": "bbr-standard",
-    "deployed_at": "2026-09-05T09:44:17Z",
-    "deployment_action": "atomic local hotfix replacement and restart of native-udp-caddy.service only; an initial health check incorrectly rejected expected 407 and rolled back before the successful retry",
-    "rollback_binary": "/root/native-udp-deploy/caddy-naive-udp.pre-connect-20260905",
-    "rollback_binary_sha256": "52a1ca4f5cb2829c97af1a32359914baae7b93ca6548d8bb71a6291cc9860e3d"
+    "deployed_at": "2026-09-05T12:57:30Z",
+    "deployment_action": "atomic release replacement and restart of native-udp-caddy.service only; bounded stop completed without SIGKILL; initial readiness connection refused then expected 407",
+    "service_state": "active/running",
+    "n_restarts": 0,
+    "metrics_snapshot": "/root/native-udp-deploy/metrics.pre-release-4-20260905T125728Z.txt",
+    "rollback_binary": "/root/native-udp-deploy/caddy-naive-udp.pre-release-4-20260905T125728Z",
+    "rollback_binary_sha256": "fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c"
   }
 }
