@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-09-05 (Asia/Shanghai)
+Last updated: 2026-09-07 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Current deployment:
 [`current-deployment.md`](current-deployment.md). M7 milestone record:
@@ -78,6 +78,101 @@ was not established. Exact online results, rollback paths and cleanup are in
 All older M7 SHAs, temporary binaries, and benchmark deployments in the
 sections below are historical evidence only. Where they conflict with this
 section, use the product lock and current deployment manifests.
+
+## Fast Open upstream PR submissions (2026-09-06)
+
+W1's three focused fixes were submitted to `klzgrad/naiveproxy:master` from
+separate worktrees based on upstream
+`769aaa53c39190fbfd6cfb223f17bb9f9cf9d3e6`. All three are open, non-draft PRs;
+submission is complete, upstream review/merge remain pending.
+
+| Fix | Source commit(s) | Submitted commit | Upstream PR |
+| --- | --- | --- | --- |
+| U1: wake buffered body reads after initial headers | `c8ebb943bd` | `69be1a7dc079573f8cf5086dd1afd9c10d66d495` | [#825](https://github.com/klzgrad/naiveproxy/pull/825) |
+| U2: complete pending reads on Fast Open response failure | `eeb2b8ddc1` + `153de92c8e` | `bfdd87ce0856c527e2d57ca2f71730a4411cb725` | [#826](https://github.com/klzgrad/naiveproxy/pull/826) |
+| U3: propagate invalid H2 CONNECT response headers | `afce211960` | `43b74c3e4a5fe57a5197e069d281a765d07f50ab` | [#827](https://github.com/klzgrad/naiveproxy/pull/827) |
+
+Per the user's instruction, existing documented validation was reused rather
+than repeating previous reproductions and full regressions:
+
+- U1's historical deployment record at `5c3a627a2d` reports one timeout in
+  eight old-client downloads, eight of eight fixed-client downloads, then
+  three complete 15,451,894-byte downloads after replacement. This is field
+  comparison evidence, not a deterministic unit-test claim.
+- U2 cites the September 4 delayed-502/no-FIN fixture, three passing runs of
+  `tests/fastopen_async_failure.sh` (`FASTOPEN_ASYNC_FAILURE_OK`), and the
+  subsequent September 5 run retaining a legacy Fast Open test delegate.
+- U3 cites the September 4 source review and full 56-case TCP regression.
+  Its PR explicitly discloses that a dedicated malformed-H2 reproduction was
+  not run. Different duplicate Location values provide a source-level
+  conversion-error trigger; this is not newly executed runtime evidence.
+
+All PRs link immutable historical documentation. U2 also references the
+related closed upstream PR #808 and identifies the exact controlled HTTP 502
+trigger; it does not claim to reproduce that report's transport error.
+
+New verification was limited to extraction and publication checks:
+
+```bash
+# Run in each corresponding upstream worktree.
+git diff --check upstream/master HEAD
+git diff --stat upstream/master HEAD
+# U2: exact final socket source parity with the previously verified fix.
+git diff --exit-code 153de92c8e HEAD -- \
+  src/net/quic/quic_proxy_client_socket.cc \
+  src/net/quic/quic_proxy_client_socket.h
+# U3: exact final source parity with the previously verified fix.
+git diff --exit-code afce211960 HEAD -- \
+  src/net/spdy/spdy_proxy_client_socket.cc
+# U1: run each command in the U1 worktree and compare the patch IDs.
+git show c8ebb943bd --format= -- src/net/quic/quic_chromium_client_stream.cc | git patch-id --stable
+git show HEAD --format= -- src/net/quic/quic_chromium_client_stream.cc | git patch-id --stable
+```
+
+Diff/whitespace checks pass; U2/U3 source comparisons have no differences.
+Both U1 patch IDs are `13c978f75063ba5c84cb2d1de3cc97a8b5712fc6`.
+Each PR contains one commit and only its named runtime file(s), with no UDP,
+BBR, release/deployment, or Fast Open policy-disable changes. GitHub PR
+queries verified the target branch, exact head, file scope, open/non-draft
+state, and empty check rollup at submission. No fresh upstream build/runtime
+test or upstream CI pass is claimed. No new audit verdict, product source
+change, release-lock update, or deployment occurred.
+
+The [follow-up plan](connect-followup-execution-plan.md) now tracks upstream
+review separately; DNS/address-order analysis (W2), Go Happy Eyeballs
+comparison (W3), and the separate CONNECT policy assessment remain pending.
+
+## CONNECT follow-up planning record (2026-09-06)
+
+At the initial planning checkpoint, source and RFC review were complete and
+PR submission was pending. The submission record above supersedes that W1
+state; W2/W3 remain in the [CONNECT follow-up execution plan](connect-followup-execution-plan.md).
+The agreed order is existing correctness fixes upstream first, DNS/address
+ordering analysis and tests second, and a measured comparison with Go's
+built-in Happy Eyeballs third.
+
+Reviewed client fixes: `c8ebb943bd`, `eeb2b8ddc1` + `153de92c8e`, and
+`afce211960`. The corresponding paths were also inspected in
+`klzgrad/naiveproxy` (default-branch HEAD observed as
+`769aaa53c39190fbfd6cfb223f17bb9f9cf9d3e6`); the missing notification and
+error-handling paths remain upstream candidates. The upstream
+`klzgrad/forwardproxy` `naive` source still sends CONNECT success before
+target dialing. These are source observations, not fresh upstream
+before/after reproductions or a claim of security exploitability.
+
+The server scheduler at `7307332` uses Go TCP dials on ACL-approved numeric
+addresses, with its own address interleaving, staggered starts, winner
+selection, and cancellation. It implements RFC 8305 connection-racing
+principles, not the complete Happy Eyeballs v2 algorithm. Resolution waits for
+`LookupIPAddr`; ordering is inherited from the resolver before ACL filtering
+and interleaving. The inspected Go 1.26.0 pure-Go resolver includes RFC 6724
+sorting; its built-in TCP Happy Eyeballs races two serial address-family
+queues. Cross-platform resolver behavior and comparative performance are
+still to be tested.
+
+All four worktrees were checked with `git status -sb` and remain on `master`.
+That initial checkpoint recorded a plan only; it added no runtime change,
+release lock, deployment, upstream PR, test result, or audit verdict.
 
 ## CONNECT issue fixes (2026-09-05, pre-release validation)
 

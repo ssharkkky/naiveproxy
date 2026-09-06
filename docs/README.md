@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-09-05 (Asia/Shanghai)
+Last updated: 2026-09-07 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -29,6 +29,26 @@ operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
   SHA256 values, runtime configuration, metrics semantics, and rollback files.
 - Older commit IDs and deployment hashes below are historical gate evidence.
   They must not be used to infer the current product lock or live deployment.
+
+## Next work priorities
+
+The [CONNECT follow-up execution plan](connect-followup-execution-plan.md)
+records the September 6 decisions and the next work, in order:
+
+1. Fast Open correctness fixes submitted as upstream PRs
+   [#825](https://github.com/klzgrad/naiveproxy/pull/825),
+   [#826](https://github.com/klzgrad/naiveproxy/pull/826), and
+   [#827](https://github.com/klzgrad/naiveproxy/pull/827); review pending.
+   Existing documented validation was reused after extraction checks.
+2. Analyze and test DNS response delays and address ordering before deciding
+   whether either needs optimization.
+3. Compare the current ACL-approved address scheduler with Go's built-in
+   Happy Eyeballs and record an evidence-based retain/replace decision.
+
+W1 submission is complete; W2/W3 remain pending. These tasks do not depend on
+UDP/BBR upstreaming and do not close M7-G5 or start M8. The detailed task
+status and acceptance criteria live in the follow-up plan; verified execution
+results belong in the status ledger.
 
 ## Historical milestone handoff
 
@@ -102,6 +122,7 @@ SOCKS5 UDP / HTTP3 application
 | --- | --- | --- |
 | [`current-deployment.md`](current-deployment.md) | Current live client/server artifacts, manifests, SHA256, configuration, metrics semantics, and rollback | Update after every production artifact replacement |
 | [`native-udp-status.md`](native-udp-status.md) | Operational source of truth: verified state, evidence, commands, markers, and exact commits | Update only after a gate actually passes |
+| [`connect-followup-execution-plan.md`](connect-followup-execution-plan.md) | Fast Open upstream PR tracking, pending DNS/address-order investigation, and Go Happy Eyeballs comparison | Update task progress and decisions; link verified results from the status ledger |
 | [`m6-execution-plan.md`](m6-execution-plan.md) | Completed M6 G0-G6 release-hardening sequence, release blockers, platform matrix, risks, and stop conditions | Historical; factual clarifications only |
 | [`m7-execution-plan.md`](m7-execution-plan.md) | M7 BBR congestion-control sequence; G1-G4 complete and G5 intentionally deferred | Historical plan plus factual G4 closeout |
 | [`m8-execution-plan.md`](m8-execution-plan.md) | Planned M8 H2 datagram-fallback sequence (RFC 9298 stream option over H2): gates, risks, stop conditions | Pending plan; update only after a gate passes |
@@ -144,6 +165,10 @@ were accepted.
 Read M1/M2 audit records when changing their specific Chromium tunnel or
 SOCKS5 ingress boundaries; they are not required for an unrelated test-harness
 change after their constraints are understood.
+
+For CONNECT follow-up work, read
+[`connect-followup-execution-plan.md`](connect-followup-execution-plan.md)
+after the status ledger, then consult the affected owner and audit boundaries.
 
 ## Authority rules
 
