@@ -119,7 +119,7 @@ class LegacyFastOpenDelegate : public net::NaiveProxyDelegate {
 };
 
 std::unique_ptr<net::URLRequestContext> BuildRunnerContext(
-    const net::ProxyChain& proxy_chain, bool standard_connect) {
+    const net::ProxyChain& proxy_chain, bool legacy_fastopen) {
   net::URLRequestContextBuilder builder;
   builder.DisableHttpCache();
   builder.set_net_log(net::NetLog::Get());
@@ -142,11 +142,11 @@ std::unique_ptr<net::URLRequestContext> BuildRunnerContext(
   builder.SetCertVerifier(std::move(cert_verifier));
   const std::vector<net::PaddingType> padding_types{
       net::PaddingType::kVariant1, net::PaddingType::kNone};
-  if (standard_connect) {
-    builder.set_proxy_delegate(std::make_unique<net::NaiveProxyDelegate>(
+  if (legacy_fastopen) {
+    builder.set_proxy_delegate(std::make_unique<LegacyFastOpenDelegate>(
         net::HttpRequestHeaders(), padding_types));
   } else {
-    builder.set_proxy_delegate(std::make_unique<LegacyFastOpenDelegate>(
+    builder.set_proxy_delegate(std::make_unique<net::NaiveProxyDelegate>(
         net::HttpRequestHeaders(), padding_types));
   }
 
@@ -208,10 +208,14 @@ int RunStandardConnect(net::URLRequestContext* context,
     watchdog.Stop();
     const auto elapsed = base::TimeTicks::Now() - started;
     handle.ResetAndCloseSocket();
-    const int expected = expect_success ? net::OK
-                                        : net::ERR_TUNNEL_CONNECTION_FAILED;
-    if (result != expected || callbacks != 1 ||
-        elapsed < base::Milliseconds(400)) {
+    const bool should_early_complete = exchange == 2;
+    const int expected = (expect_success || should_early_complete)
+                             ? net::OK
+                             : net::ERR_TUNNEL_CONNECTION_FAILED;
+    const bool timing_ok = should_early_complete
+                               ? elapsed < base::Milliseconds(400)
+                               : elapsed >= base::Milliseconds(400);
+    if (result != expected || callbacks != 1 || !timing_ok) {
       std::cerr << "STANDARD_CONNECT_FAILED exchange=" << exchange
                 << " error=" << result << " callbacks=" << callbacks
                 << " elapsed_ms=" << elapsed.InMilliseconds() << std::endl;
@@ -460,6 +464,11 @@ int main(int argc, char* argv[]) {
 
   const auto* command_line = base::CommandLine::ForCurrentProcess();
   const bool standard_connect = command_line->HasSwitch("standard-connect");
+  const bool legacy_fastopen = command_line->HasSwitch("legacy-fastopen");
+  if (standard_connect && legacy_fastopen) {
+    std::cerr << "INCOMPATIBLE_MODES" << std::endl;
+    return EXIT_FAILURE;
+  }
   net::ProxyChain proxy_chain = net::ProxyChain::FromSchemeHostAndPort(
       command_line->HasSwitch("https-proxy") ? net::ProxyServer::SCHEME_HTTPS
                                              : net::ProxyServer::SCHEME_QUIC,
@@ -470,9 +479,11 @@ int main(int argc, char* argv[]) {
     return EXIT_FAILURE;
   }
 
-  auto context = BuildRunnerContext(proxy_chain, standard_connect);
+  auto context = BuildRunnerContext(proxy_chain, legacy_fastopen);
   std::cout << "SESSION_READY proxy=" << proxy_chain.ToDebugString()
             << std::endl;
+  std::cout << "DELEGATE_MODE "
+            << (legacy_fastopen ? "legacy" : "production") << std::endl;
 
   if (standard_connect) {
     return RunStandardConnect(context.get(), proxy_chain, args[2], target_port,

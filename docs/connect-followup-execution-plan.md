@@ -2,7 +2,7 @@
 
 Last updated: 2026-09-07 (Asia/Shanghai)
 
-Status: **W1 PRs submitted; upstream review and W2/W3 pending.**
+Status: **W1 PRs submitted; W4 Fast Open re-enablement in progress; W2/W3 pending.**
 
 This plan records the agreed next work after the September 5 CONNECT fixes:
 upstream existing correctness fixes, investigate DNS/address ordering, then
@@ -19,6 +19,7 @@ inputs remain governed by [`README.md`](README.md) and
 | W1 | Submit focused Fast Open correctness PRs upstream | NaiveProxy | Submitted: #825, #826, #827; review pending | Exact base/head SHAs, reused documented validation with limitations, extraction checks, PR URLs in status ledger |
 | W2 | Analyze and test DNS delays and address ordering | forwardproxy; records here | Pending investigation | Reproducible scenario matrix and separate optimize/defer decisions for DNS and sorting |
 | W3 | Compare current scheduling with Go Happy Eyeballs | forwardproxy; records here | Pending comparison | Fair A/B measurements, ACL/lifecycle validation, and retain/replace decision |
+| W4 | Re-enable Fast Open after CONNECT correctness fixes | NaiveProxy client; records here | G0 contract recorded; implementation pending | Production-delegate matrix, owner regressions, candidate soak, and scoped audit reconsideration |
 
 W1 was submitted without waiting for W2/W3 or UDP/BBR upstreaming. Per the
 user's instruction, existing documented validation was reused after checking
@@ -190,7 +191,70 @@ Neither option should be described as complete RFC 8305 merely because it
 uses Go or implements connection racing. Any selected replacement is a
 separate implementation task with its own tests and review.
 
-## 5. Execution and audit boundaries
+## 5. W4: Fast Open re-enablement
+
+W4 restores the existing cached-padding Fast Open request behavior after the
+CONNECT response-order fixes. It does not revert U1-U3, the client resource
+exhaustion fix from upstream PR #819, the server's target-connect/error
+semantics, or any TCP data-path change. In this repository, Fast Open is the
+internal CONNECT policy that permits a learned-padding H2/H3 socket to become
+usable before the proxy response; it is not kernel TCP Fast Open (RFC 7413).
+
+The production `NaiveProxyDelegate` is the qualification subject. The
+test-only `LegacyFastOpenDelegate` remains available only as an independent
+regression mode and must not be used to claim production coverage. The
+deterministic runner must prove both the early second CONNECT completion and a
+pending application read completing with the delayed non-2xx response.
+
+### Gates and contracts
+
+- **G0 — contract (recorded here):** freeze the production delegate path,
+  delayed H2/H3 response fixture, event ordering, timing measurements, and
+  stop conditions. Real deployment endpoints and operator paths remain outside
+  Git.
+- **G1 — implementation:** restore the historical header ordering in the
+  production delegate, update the runner so standard and async-failure cases
+  use that delegate, and keep the Legacy mode explicit. Build the affected
+  Release targets and commit only the green-to-green client/test change.
+- **G2 — qualification:** run the production-delegate H2/H3 matrix for 200,
+  502, and 504 with cold and learned padding; verify early completion,
+  pending-read failure, callback cardinality, cancellation, malformed response
+  handling, U1/U2/U3 regressions, the complete owner matrix, and all 56 TCP
+  cases. Record exact commands and markers.
+- **G3 — candidate and A/B:** freeze a product lock using the current
+  sanitized source identifiers, produce an exact candidate artifact, and
+  compare Fast Open enabled/disabled on the test client under a declared
+  workload. Soak the test client for 24–48 hours before touching the router.
+- **G4 — deployment:** deploy the exact candidate to the test client first,
+  then the router after the soak passes. Keep the current router binary as the
+  rollback artifact. The production server may be restarted or replaced only
+  with an exact candidate server artifact; no production client sing-box
+  process, binary, or configuration may be changed.
+- **G5 — record and audit boundary:** record matrix, A/B, soak, artifact, and
+  deployment evidence separately. Reconsider only the client delegate path's
+  audit boundary; completed M3-M6 audit markers do not automatically extend to
+  this new runtime behavior.
+
+### Acceptance and stop conditions
+
+Acceptance requires the production delegate to pass the deterministic H2/H3
+CONNECT matrix, the full 56-case HTTP/HTTPS TCP owner regressions, and the
+existing native-UDP/product-combination checks. In the async-failure case, the
+second CONNECT must complete before the fixture's delayed response, exactly one
+application read callback must complete with a negative error, and the runner
+must exit without a watchdog timeout. Candidate and live evidence must include
+sample counts, elapsed distributions, and the configured total dial deadline;
+the per-address 5-second dial timeout must not be presented as a universal
+end-to-end failure bound because DNS and the overall dial deadline are separate
+stages.
+
+Stop the experiment on an ACL bypass, a callback/lifetime error, a pending
+operation that does not complete, an unbounded resource increase, a new reset
+or error signature outside the documented CONNECT mapping, an owner-matrix
+regression, or any failure outside the configured deadline. Keep the disabled
+version ready for immediate deployment rollback.
+
+## 6. Execution and audit boundaries
 
 Before editing runtime code, follow the repository handoff reading order and
 check all four repositories with `git status -sb`. Use isolated upstream
