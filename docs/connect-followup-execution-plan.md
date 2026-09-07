@@ -19,7 +19,7 @@ inputs remain governed by [`README.md`](README.md) and
 | W1 | Submit focused Fast Open correctness PRs upstream | NaiveProxy | Submitted: #825, #826, #827; review pending | Exact base/head SHAs, reused documented validation with limitations, extraction checks, PR URLs in status ledger |
 | W2 | Analyze and test DNS delays and address ordering | forwardproxy; records here | Pending investigation | Reproducible scenario matrix and separate optimize/defer decisions for DNS and sorting |
 | W3 | Compare current scheduling with Go Happy Eyeballs | forwardproxy; records here | Pending comparison | Fair A/B measurements, ACL/lifecycle validation, and retain/replace decision |
-| W4 | Re-enable Fast Open after CONNECT correctness fixes | NaiveProxy client; records here | G0 contract recorded; implementation pending | Production-delegate matrix, owner regressions, candidate soak, and scoped audit reconsideration |
+| W4 | Re-enable Fast Open after CONNECT correctness fixes | NaiveProxy client; records here | G1 complete; qualification and deployment pending | Production-delegate matrix, owner regressions, candidate soak, and scoped audit reconsideration |
 
 W1 was submitted without waiting for W2/W3 or UDP/BBR upstreaming. Per the
 user's instruction, existing documented validation was reused after checking
@@ -212,7 +212,7 @@ pending application read completing with the delayed non-2xx response.
   delayed H2/H3 response fixture, event ordering, timing measurements, and
   stop conditions. Real deployment endpoints and operator paths remain outside
   Git.
-- **G1 — implementation:** restore the historical header ordering in the
+- **G1 — implementation (complete, `b0ced3798d`):** restore the historical header ordering in the
   production delegate, update the runner so standard and async-failure cases
   use that delegate, and keep the Legacy mode explicit. Build the affected
   Release targets and commit only the green-to-green client/test change.
