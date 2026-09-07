@@ -11,6 +11,11 @@ This page is the authority for currently deployed binaries. Milestone records
 in `native-udp-status.md` are historical verification evidence, not deployment
 provenance.
 
+The September 7 [privacy cleanup](native-udp-status.md#documentation-privacy-cleanup-2026-09-07)
+rewrote documentation history and release tags. Source SHAs below and in the
+manifests remain the original build provenance; the cleanup record maps the
+release inputs to sanitized revisions. Published binaries were not rebuilt.
+
 ## Current release and deployment: September 5 release 4
 
 The current matching experimental release is

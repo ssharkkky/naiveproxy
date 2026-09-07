@@ -49,7 +49,7 @@ it is not represented as completed by submitting the existing fix.
 - [x] Refresh upstream `klzgrad/naiveproxy` HEAD, contribution requirements,
   and existing issues/PRs; confirm each defect still applies.
 - [x] Create isolated branches/worktrees from exact upstream bases. Extract
-  minimal production changes with attribution and links to historical evidence.
+  minimal production changes with attribution and historical evidence summaries.
 - [x] Produce one focused PR per defect, combining U2's dependent commits.
   Check applicability of U1's stream notification separately from socket fixes.
 - [x] Review concrete triggers and reuse existing documented reproduction and
@@ -57,7 +57,7 @@ it is not represented as completed by submitting the existing fix.
   status trigger, and U3's source-only malformed-header analysis. Do not rely
   on disabling Fast Open to pass its failure tests.
 - [x] Check extraction scope, whitespace, and equivalence to verified source.
-  No fresh upstream build/test or standalone fixture was added; linked fork
+  No fresh upstream build/test or standalone fixture was added; historical fork
   evidence is not presented as a run on the extracted upstream branch.
 - [x] Submit the PRs with the concrete trigger, before/after behavior, source
   commit attribution, and validation. Record URLs and subsequent review state.
@@ -66,6 +66,11 @@ it is not represented as completed by submitting the existing fix.
   [U3 #827](https://github.com/klzgrad/naiveproxy/pull/827). Add focused tests for
   uncovered cases or adaptations when needed; preserve the stated evidence
   boundary instead of relabeling historical runs as fresh qualification.
+
+September 7 privacy correction: historical deployment-document links were
+removed from all three PR bodies; technical evidence summaries and their
+limitations remain. The [status ledger](native-udp-status.md#documentation-privacy-cleanup-2026-09-07)
+tracks the history rewrite and outstanding GitHub cache/PR-reference cleanup.
 
 ### Related changes requiring separate review
 

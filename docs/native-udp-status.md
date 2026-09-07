@@ -79,6 +79,61 @@ All older M7 SHAs, temporary binaries, and benchmark deployments in the
 sections below are historical evidence only. Where they conflict with this
 section, use the product lock and current deployment manifests.
 
+## Documentation privacy cleanup (2026-09-07)
+
+Public deployment records contained real endpoints and operator-specific
+paths. These were replaced with `example.invalid` hosts, documentation-range
+addresses, and generic paths in the current tree and affected history.
+Real deployment inventory and the replacement rules are retained outside Git.
+
+- The rewrite changed 146 commits, preserving unaffected upstream history.
+  An atomic push with an exact lease for each ref updated `master` and the
+  `v150.0.7871.63-{2,3,4}-native-udp-m7` tags. The rewritten master checkpoint
+  is `c30e486ddc8ede6997adda82f4211d90225b4149`.
+- Comparing the old and rewritten master checkpoints found no changes in
+  `src/`, `scripts/`, `tests/`, `.github/`, or `release/product.lock.json`.
+  Published binaries and their hashes were not changed or reissued.
+- Scanning all locally reachable historical blobs under `docs/`,
+  `release/manifests/`, and `AGENTS.md` found zero remaining matches for the
+  identified sensitive values/path patterns, both in the rewritten mirror
+  and the synchronized main checkout. This is a scoped check, not a claim
+  that every historical object or external artifact has been audited.
+- The same identified endpoint values were not found in the other three
+  repositories' current trees, forwardproxy's fork history, or the checked
+  quic-go history. Caddy is a shallow checkout; its successful history check
+  covered documentation/Markdown only, not a complete server-history audit.
+- Upstream PRs #825, #826, and #827 retain the technical validation summaries
+  and limitations, but their bodies no longer link to historical deployment
+  documents. The checked fork issue/release bodies contained no matches for
+  the identified values. All seven published JSON/text/checksum assets found
+  across the four forks' releases also passed that same-value scan.
+
+GitHub cleanup is **incomplete**: a request for an old deployment-document SHA
+still returned the original sensitive content after the force push, and the
+fork's read-only `refs/pull/1/head` and `refs/pull/2/head` still point to old
+history. GitHub must remove the affected PR references and cached commit/file
+views; edited PR-body history and generated source archives also need review.
+A private Support request draft records the affected references. It has not
+been sent. Rewriting branches/tags alone does not establish server-side
+erasure. Existing clones must synchronize to the rewritten refs and must not
+merge or push the old history back.
+
+The source identifiers in existing build manifests, product locks, and
+historical test records remain the original build inputs. The corresponding
+sanitized source revisions are:
+
+| Original NaiveProxy revision | Sanitized revision | Role |
+| --- | --- | --- |
+| `c86e73859ea1a65eac467378ba3188edc5145a98` | `61a81d3f138dc8d24aaaf8505a7fddcc86018af7` | Release 4 locked client source |
+| `1ca173d3f2b6e82af543ee4d6c98dfd332f1c1bb` | `aed6650e61a256191946baf60d1e63907b9f893d` | Release 4 tag target |
+| `742b89aa24131749b62856e5ed9189273a32f26e` | `595a53f34636c9116ffc3f4ae9bf1b194f5ce419` | Release 3 locked client source |
+
+These aliases do not mean existing binaries were built from the new SHAs.
+Future source qualification/release work must use sanitized inputs and issue
+a new lock and provenance record; do not silently relabel old artifacts.
+No runtime regression matrix was repeated for this documentation-only change,
+and no historical audit conclusion or milestone completion was changed.
+
 ## Fast Open upstream PR submissions (2026-09-06)
 
 W1's three focused fixes were submitted to `klzgrad/naiveproxy:master` from
@@ -107,7 +162,9 @@ than repeating previous reproductions and full regressions:
   not run. Different duplicate Location values provide a source-level
   conversion-error trigger; this is not newly executed runtime evidence.
 
-All PRs link immutable historical documentation. U2 also references the
+The PRs originally linked historical documentation; those links were removed
+during the September 7 privacy cleanup above. Their bodies retain the
+historical validation summaries and limitations. U2 also references the
 related closed upstream PR #808 and identifies the exact controlled HTTP 502
 trigger; it does not claim to reproduce that report's transport error.
 

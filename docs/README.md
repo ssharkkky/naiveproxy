@@ -12,6 +12,11 @@ paths. Keep real hosts, addresses, credentials, and private operator inventory
 outside Git. `example.invalid` names and documentation-range IPs are
 placeholders, not deployable endpoint values.
 
+The September 7 privacy cleanup rewrote affected documentation history and
+three release tags. See the [cleanup record](native-udp-status.md#documentation-privacy-cleanup-2026-09-07)
+for source revision aliases and the remaining GitHub cache/PR-reference
+cleanup. Recorded build SHAs still identify the original published builds.
+
 ## Current product and deployment
 
 - All four fork development branches are `master`. The immutable current
