@@ -1,11 +1,11 @@
 {
   "schema_version": 1,
   "product": "naiveproxy-native-udp",
-  "product_version": "v150.0.7871.63-4-native-udp-m7",
+  "product_version": "v150.0.7871.63-5-native-udp-fastopen",
   "release_channel": "experimental",
   "naiveproxy": {
     "repository": "ssharkkky/naiveproxy",
-    "commit": "c86e73859ea1a65eac467378ba3188edc5145a98"
+    "commit": "e183b121b357ce269aecda75fbd4b563fda028b6"
   },
   "server": {
     "forwardproxy_repository": "ssharkkky/forwardproxy",
