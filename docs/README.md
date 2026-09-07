@@ -7,6 +7,11 @@ adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
 normal upstream README describes the released TCP-focused product. Repository
 operating rules for agents are in [`../AGENTS.md`](../AGENTS.md).
 
+Public documentation must use anonymized deployment endpoints and local
+paths. Keep real hosts, addresses, credentials, and private operator inventory
+outside Git. `example.invalid` names and documentation-range IPs are
+placeholders, not deployable endpoint values.
+
 ## Current product and deployment
 
 - All four fork development branches are `master`. The immutable current

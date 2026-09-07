@@ -1,5 +1,10 @@
 # Current Native UDP Deployment
 
+Public record: deployment endpoints and operator-specific paths are
+anonymized. Hosts under `example.invalid` and documentation-range addresses
+are placeholders, not connection instructions. Real inventory belongs in a
+private operations record outside this repository.
+
 Last verified: 2026-09-05 (Asia/Shanghai)
 
 This page is the authority for currently deployed binaries. Milestone records
