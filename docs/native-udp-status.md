@@ -113,10 +113,13 @@ still returned the original sensitive content after the force push, and the
 fork's read-only `refs/pull/1/head` and `refs/pull/2/head` still point to old
 history. GitHub must remove the affected PR references and cached commit/file
 views; edited PR-body history and generated source archives also need review.
-A private Support request draft records the affected references. It has not
-been sent. Rewriting branches/tags alone does not establish server-side
-erasure. Existing clones must synchronize to the rewritten refs and must not
-merge or push the old history back.
+A private GitHub Support request was submitted on September 7. The portal
+confirmed successful submission and an open ticket; the complete submitted
+body was verified against the prepared request. The receipt and ticket URL
+are retained outside Git. Platform cleanup remains pending and must be
+verified after GitHub responds. Rewriting branches/tags alone does not
+establish server-side erasure. Existing clones must synchronize to the
+rewritten refs and must not merge or push the old history back.
 
 The source identifiers in existing build manifests, product locks, and
 historical test records remain the original build inputs. The corresponding
