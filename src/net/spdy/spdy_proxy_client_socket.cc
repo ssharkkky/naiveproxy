@@ -554,6 +554,9 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
   if (result < 0)
     return result;
 
+  // SpdyHeadersToHttpResponse() may have failed to convert the response
+  // headers (e.g. duplicate location values), in which case
+  // response_.headers is null and must not be dereferenced.
   if (!response_.headers)
     return ERR_TUNNEL_CONNECTION_FAILED;
 
@@ -646,7 +649,8 @@ void SpdyProxyClientSocket::OnHeadersReceived(
     return;
 
   // Save the response
-  SpdyHeadersToHttpResponse(response_headers, &response_);
+  const int rv = SpdyHeadersToHttpResponse(response_headers, &response_);
+  DCHECK_NE(rv, ERR_INCOMPLETE_HTTP2_HEADERS);
 
   OnIOComplete(OK);
 }
