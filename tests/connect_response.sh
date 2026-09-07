@@ -48,7 +48,11 @@ for protocol in h3 h2; do
     server_pid=$!
     for _ in $(seq 1 100); do
       if rg -q '^READY ' "$test_dir/server.log"; then break; fi
-      kill -0 "$server_pid"
+      if ! kill -0 "$server_pid" 2>/dev/null; then
+        echo "fixture exited before READY (build_dir=$build_dir protocol=$protocol scenario=$scenario)" >&2
+        cat "$test_dir/server.log" >&2
+        exit 1
+      fi
       sleep 0.05
     done
     rg -q '^READY ' "$test_dir/server.log"
