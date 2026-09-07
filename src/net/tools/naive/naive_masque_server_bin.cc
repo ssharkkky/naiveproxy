@@ -47,6 +47,9 @@ DEFINE_QUICHE_COMMAND_LINE_FLAG(
 DEFINE_QUICHE_COMMAND_LINE_FLAG(
     int32_t, connect_response_status, 502,
     "HTTP response status for the delayed --fail_connects fixture.");
+DEFINE_QUICHE_COMMAND_LINE_FLAG(
+    std::string, connect_response_body, "",
+    "Optional body bytes for the delayed --fail_connects fixture.");
 
 namespace {
 
@@ -76,6 +79,8 @@ class LoggingMasqueServerBackend final : public quic::MasqueServerBackend {
     delayed_connect_response_.set_headers(std::move(headers));
     delayed_connect_response_.set_response_type(
         quic::QuicBackendResponse::INCOMPLETE_RESPONSE);
+    delayed_connect_response_.set_body(quiche::GetQuicheCommandLineFlag(
+        FLAGS_connect_response_body));
     delayed_connect_response_.set_delay(
         quic::QuicTime::Delta::FromMilliseconds(500));
   }

@@ -167,7 +167,8 @@ int RunStandardConnect(net::URLRequestContext* context,
                        const net::ProxyChain& proxy_chain,
                        const std::string& target_host,
                        int target_port,
-                       bool expect_success) {
+                       bool expect_success,
+                       bool body_probe = false) {
   auto* session = context->http_transaction_factory()->GetSession();
   net::ProxyInfo proxy_info;
   proxy_info.UseProxyChain(proxy_chain);
@@ -253,6 +254,42 @@ int RunStandardConnect(net::URLRequestContext* context,
       CHECK_EQ(callbacks, 1);
       std::cout << "FASTOPEN_PENDING_READ_ERROR_OK error=" << read_result
                 << " callbacks=" << read_callbacks << std::endl;
+    }
+    if (should_early_complete && expect_success && body_probe) {
+      CHECK(handle.socket());
+      auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(64);
+      base::RunLoop read_loop;
+      base::OneShotTimer read_watchdog;
+      int read_result = net::ERR_IO_PENDING;
+      int read_callbacks = 0;
+      bool timed_out = false;
+      const int initial_read = handle.socket()->Read(
+          buffer.get(), buffer->size(),
+          base::BindOnce([](int* count, int* result,
+                            base::RepeatingClosure quit, int rv) {
+            ++*count;
+            *result = rv;
+            quit.Run();
+          }, &read_callbacks, &read_result, read_loop.QuitClosure()));
+      read_watchdog.Start(
+          FROM_HERE, kExchangeWatchdog,
+          base::BindOnce([](bool* expired, base::RepeatingClosure quit) {
+            *expired = true;
+            quit.Run();
+          }, &timed_out, read_loop.QuitClosure()));
+      if (initial_read == net::ERR_IO_PENDING)
+        read_loop.Run();
+      else
+        read_result = initial_read;
+      read_watchdog.Stop();
+      if (timed_out || read_callbacks != 1 || read_result <= 0 ||
+          std::string(buffer->data(), read_result) != "body-wakeup") {
+        std::cerr << "FASTOPEN_BODY_WAKEUP_FAILED callbacks="
+                  << read_callbacks << " result=" << read_result << std::endl;
+        return EXIT_FAILURE;
+      }
+      std::cout << "FASTOPEN_BODY_WAKEUP_OK bytes=" << read_result
+                << std::endl;
     }
     handle.ResetAndCloseSocket();
     auto* delegate =
@@ -498,9 +535,14 @@ int main(int argc, char* argv[]) {
 
   const auto* command_line = base::CommandLine::ForCurrentProcess();
   const bool standard_connect = command_line->HasSwitch("standard-connect");
+  const bool body_probe = command_line->HasSwitch("body-probe");
   const bool legacy_fastopen = command_line->HasSwitch("legacy-fastopen");
-  if (standard_connect && legacy_fastopen) {
+  if ((standard_connect || body_probe) && legacy_fastopen) {
     std::cerr << "INCOMPATIBLE_MODES" << std::endl;
+    return EXIT_FAILURE;
+  }
+  if (body_probe && !standard_connect) {
+    std::cerr << "BODY_PROBE_REQUIRES_STANDARD_CONNECT" << std::endl;
     return EXIT_FAILURE;
   }
   net::ProxyChain proxy_chain = net::ProxyChain::FromSchemeHostAndPort(
@@ -521,7 +563,8 @@ int main(int argc, char* argv[]) {
 
   if (standard_connect) {
     return RunStandardConnect(context.get(), proxy_chain, args[2], target_port,
-                              command_line->HasSwitch("expect-success"));
+                              command_line->HasSwitch("expect-success"),
+                              body_probe);
   }
   FastOpenFailRunner runner(context.get(), proxy_chain, args[2], target_port);
   return runner.Run();
