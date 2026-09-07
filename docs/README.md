@@ -1,6 +1,6 @@
 # Native UDP Documentation Index
 
-Last updated: 2026-09-07 (Asia/Shanghai)
+Last updated: 2026-09-08 (Asia/Shanghai)
 
 This directory tracks the design, implementation evidence, and audits for
 adding Chromium-network-stack-driven native UDP proxying to NaiveProxy. The
@@ -21,15 +21,15 @@ cleanup. Recorded build SHAs still identify the original published builds.
 
 - All four fork development branches are `master`. The immutable current
   product inputs are in [`../release/product.lock.json`](../release/product.lock.json):
-  NaiveProxy `c86e73859e`, forwardproxy `d50ef3f`, Caddy `0ea5700f`, and
+  NaiveProxy `4de6443f5a`, forwardproxy `d50ef3f`, Caddy `0ea5700f`, and
   quic-go `c308178d`.
-- The September 5 CONNECT fixes are client `b652d34aa5` and forwardproxy
-  `7307332`. Both fixes are on their owners' `master` and included in matching
-  experimental release `v150.0.7871.63-4-native-udp-m7`. All 50 client build
-  jobs, server release and product combination CI passed. The router and
-  server run exact release artifacts; `endpoint-1.example.invalid` retains release `-3`.
-  See the issue-fix record in the status ledger and the current deployment
-  page for validation, artifacts, and rollback.
+- The September 5 CONNECT fixes and the restored learned-padding Fast Open
+  behavior are included in experimental release
+  `v150.0.7871.63-5-native-udp-fastopen`. All 50 client build jobs, the server
+  release, and product-combination CI passed. The router and validation client
+  run exact release-5 client artifacts; the unchanged production server binary
+  matches the release-5 server artifact. See the W4 record in the status ledger
+  and the current deployment page for validation, artifacts, and rollback.
 - M7 G4 is complete (`M7_G4_PARITY_OK`); G5 regression/audit qualification is
   intentionally deferred. The release channel therefore remains
   `experimental`, not stable.
@@ -55,7 +55,8 @@ records the September 6 decisions and the next work, in order:
 3. Compare the current ACL-approved address scheduler with Go's built-in
    Happy Eyeballs and record an evidence-based retain/replace decision.
 
-W1 submission is complete; W2/W3 remain pending. These tasks do not depend on
+W1 submission and W4 Fast Open re-enablement are complete; W2/W3 remain
+pending. These tasks do not depend on
 UDP/BBR upstreaming and do not close M7-G5 or start M8. The detailed task
 status and acceptance criteria live in the follow-up plan; verified execution
 results belong in the status ledger.

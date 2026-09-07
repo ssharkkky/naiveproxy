@@ -1,8 +1,8 @@
 # CONNECT Follow-up Execution Plan
 
-Last updated: 2026-09-07 (Asia/Shanghai)
+Last updated: 2026-09-08 (Asia/Shanghai)
 
-Status: **W1 PRs submitted; W4 Fast Open re-enablement in progress; W2/W3 pending.**
+Status: **W1 PRs submitted; W4 Fast Open re-enablement complete; W2/W3 pending.**
 
 This plan records the agreed next work after the September 5 CONNECT fixes:
 upstream existing correctness fixes, investigate DNS/address ordering, then
@@ -19,7 +19,7 @@ inputs remain governed by [`README.md`](README.md) and
 | W1 | Submit focused Fast Open correctness PRs upstream | NaiveProxy | Submitted: #825, #826, #827; review pending | Exact base/head SHAs, reused documented validation with limitations, extraction checks, PR URLs in status ledger |
 | W2 | Analyze and test DNS delays and address ordering | forwardproxy; records here | Pending investigation | Reproducible scenario matrix and separate optimize/defer decisions for DNS and sorting |
 | W3 | Compare current scheduling with Go Happy Eyeballs | forwardproxy; records here | Pending comparison | Fair A/B measurements, ACL/lifecycle validation, and retain/replace decision |
-| W4 | Re-enable Fast Open after CONNECT correctness fixes | NaiveProxy client; records here | G1 complete; qualification and deployment pending | Production-delegate matrix, owner regressions, candidate soak, and scoped audit reconsideration |
+| W4 | Re-enable Fast Open after CONNECT correctness fixes | NaiveProxy client; records here | **Complete (G0-G5)** | Production-delegate matrix, owner regressions, candidate artifacts, short A/B soak, deployment records, and scoped audit boundary in status ledger |
 
 W1 was submitted without waiting for W2/W3 or UDP/BBR upstreaming. Per the
 user's instruction, existing documented validation was reused after checking
@@ -216,26 +216,42 @@ pending application read completing with the delayed non-2xx response.
   production delegate, update the runner so standard and async-failure cases
   use that delegate, and keep the Legacy mode explicit. Build the affected
   Release targets and commit only the green-to-green client/test change.
-- **G2 — qualification:** run the production-delegate H2/H3 matrix for 200,
+- **G2 — qualification (complete):** run the production-delegate H2/H3 matrix for 200,
   502, and 504 with cold and learned padding; verify early completion,
   pending-read failure, callback cardinality, cancellation, malformed response
   handling, U1/U2/U3 regressions, the complete owner matrix, and all 56 TCP
   cases. Record exact commands and markers.
-- **G3 — candidate and A/B:** freeze a product lock using the current
+- **G3 — candidate and A/B (complete):** freeze a product lock using the current
   sanitized source identifiers, produce an exact candidate artifact, and
   compare Fast Open enabled/disabled on the test client under a declared
-  workload. Run a controlled 15-minute soak for each side before touching the
+  workload. Run a controlled short alternating sample before touching the
   router; record request count, success/failure counts, latency samples,
-  reconnects, process restarts, and server-side error markers.
-- **G4 — deployment:** deploy the exact candidate to the test client first,
-  then the router after the soak passes. Keep the current router binary as the
-  rollback artifact. The production server may be restarted or replaced only
-  with an exact candidate server artifact; no production client sing-box
-  process, binary, or configuration may be changed.
-- **G5 — record and audit boundary:** record matrix, A/B, soak, artifact, and
-  deployment evidence separately. Reconsider only the client delegate path's
+  process restarts, and server-side error markers.
+- **G4 — deployment (complete):** deploy the exact candidate to the test client first,
+  then the router after the soak passes. Keep the previous router binary as the
+  rollback artifact. The production server was not changed because its running
+  binary already matched the candidate server artifact; no production client
+  sing-box process, binary, or configuration was changed.
+- **G5 — record and audit boundary (complete):** record matrix, A/B, soak, artifact,
+  and deployment evidence separately. Reconsider only the client delegate path's
   audit boundary; completed M3-M6 audit markers do not automatically extend to
   this new runtime behavior.
+
+The approved live comparison used the same Linux validation client and server:
+27 successful HTTPS samples with Fast Open enabled and 29 with it disabled. The
+enabled samples had median/mean/max latency 0.394/0.422/0.547 seconds; the
+disabled samples had 0.381/0.412/1.105 seconds. Every sample returned HTTP 204,
+both client service runs remained at NRestarts=0, and the enabled candidate
+was restored after the comparison. This is controlled A/B smoke evidence, not
+a claim of statistical performance improvement; the longer 24-48 hour soak was
+removed from the acceptance contract.
+
+The exact candidate lock is e8cc010356; combination run 34155408450 emitted
+PRODUCT_COMBINATION_OK. Official release
+v150.0.7871.63-5-native-udp-fastopen supplied the Linux x64 and OpenWrt
+x86_64 client artifacts and the pinned server artifact. Their contained binary
+hashes and deployment records are in native-udp-status.md and the release
+manifests.
 
 ### Acceptance and stop conditions
 

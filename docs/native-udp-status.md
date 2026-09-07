@@ -1,6 +1,6 @@
 # NaiveProxy Native UDP Project Status
 
-Last updated: 2026-09-07 (Asia/Shanghai)
+Last updated: 2026-09-08 (Asia/Shanghai)
 
 Documentation entry point: [`README.md`](README.md). Current deployment:
 [`current-deployment.md`](current-deployment.md). M7 milestone record:
@@ -16,22 +16,59 @@ The current source and deployment authority is intentionally separated from
 the historical milestone evidence below:
 
 - Product lock: [`release/product.lock.json`](../release/product.lock.json),
-  version `v150.0.7871.63-4-native-udp-m7`, channel `experimental`, SHA256
-  `fdbaf9c155f9f983ef6d1d7d169a6db793efe4d551a40a3223a43bd05c127c97`.
-- Locked `master` commits: NaiveProxy `c86e73859ea1a65eac467378ba3188edc5145a98`
-  (includes the CONNECT response fix), forwardproxy
+  version `v150.0.7871.63-5-native-udp-fastopen`, channel `experimental`, SHA256
+  `7eed62b94831b2fef231f37662b1d5047108e3ff771715afb01be187dd567d62`.
+- Locked `master` commits: NaiveProxy `4de6443f5ab3842bfead7f65b544207d83d290e3`
+  (includes the CONNECT response fixes and Fast Open re-enablement), forwardproxy
   `d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab`, Caddy
   `0ea5700f64254ba24e39d57b1febece2fa34927e`, and quic-go
   `c308178d8c77061d5e261ce9df37f2bcc0ab22bf`.
 - Live deployment authority: [`current-deployment.md`](current-deployment.md).
 - Machine-readable evidence: [client manifest](../release/manifests/current-client.json)
   and [server manifest](../release/manifests/current-server.json).
-- Current online SHA256: router client `993bdf31785839f0041f1a82ed746f103925c43096daad3bd5fd5ca44f2e5f68`,
-  retained Linux validation client `31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d`
-  (release `-3`, last verified before this deployment),
+- Current online SHA256: router client `c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145`,
+  Linux validation client `cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df`,
   server `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`.
 
-The router and server now run the matching release `-4`, containing client
+## Fast Open re-enablement W4 closeout (2026-09-08)
+
+W4 G0-G5 is complete. Exact lock `e8cc010356` passed combination run
+`34155408450` with `PRODUCT_COMBINATION_OK`. Official experimental release
+`v150.0.7871.63-5-native-udp-fastopen` supplied the client artifacts and the
+pinned server artifact; the three server pins did not change.
+
+The production-delegate matrix emitted `CONNECT_RESPONSE_MATRIX_OK` and
+`FASTOPEN_ASYNC_FAILURE_OK`, covered the malformed H2 Location path, all 56
+HTTP/HTTPS TCP cases, and native-UDP owner/M5 markers. The changed client
+delegate audit boundary is reopened; historical M3-M6 `AUDIT_PASS` results
+do not extend automatically.
+
+The same Linux validation client and server ran the declared short A/B:
+27/27 HTTP 204 responses with Fast Open enabled (median/mean/max 0.394/0.422/
+0.547 s) and 29/29 with it disabled (0.381/0.412/1.105 s). Both runs stayed at
+`NRestarts=0`. These samples establish bounded operation under the workload,
+not a statistically significant performance difference; the proposed 24-48 hour
+observation was removed from the acceptance contract.
+
+The validation client runs `native-udp-client.service` with binary SHA
+`cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df` and rollback
+`naive.disabled-20260908` (SHA
+`31dddee0a07d89ddb865d0384beec1191fbdd968ac9b7651b14a4bdafb37253d`). The
+router runs `/usr/bin/native-udp` SHA
+`c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145` and rollback
+`/var/lib/proxy-private/native-udp.pre-fastopen-20260908` (SHA
+`993bdf31785839f0041f1a82ed746f103925c43096daad3bd5fd5ca44f2e5f68`). The
+production Caddy binary already matched the candidate server artifact, so it
+was not restarted. No sing-box process, binary, or configuration changed.
+
+Candidate archive SHA256 values are Linux x64
+`94569e6fceca6e1835c623d510a81b9a2a1689bd4043ab201417741cbab636ca`,
+OpenWrt x86_64
+`b8aacca64326a9ae5de7f2eaa7fca4c350725d853bf2e0a15f9a075f1e494ca5`,
+and server
+`6fc8c07c7d8e19b73d6f020fd3dacd87745bbf541beb13564714f179c34a6cea`.
+
+Historical release-4 evidence follows. That release contained client
 `b652d34aa5` and forwardproxy `7307332`. Both fixes are pushed to their
 owners' `master`. Product server release run `33961210559` and client Build
 `33961210543` passed before deployment; the client completed 50/50 jobs,
@@ -316,13 +353,13 @@ All M5 product gates also pass with the fixed client and server. Set the
 environment above plus the following, then run each gate separately:
 
 ```bash
-export M5_FORWARDPROXY_DIR=/root/paseo/forwardproxy
-export M5_CADDY_DIR=/root/paseo/caddy
+export M5_FORWARDPROXY_DIR=/path/to/forwardproxy
+export M5_CADDY_DIR=/path/to/caddy
 export M5_CADDY_BIN=/tmp/naive-connect-caddy-final
 export M5_EXPECTED_FORWARDPROXY=7307332b312f29ce5f5f1cb638e4a5b993e95442
 export M5_EXPECTED_CADDY=0ea5700f64254ba24e39d57b1febece2fa34927e
 export M5_EXPECTED_CLIENT=b652d34aa5b8f5b19cdd20511748b7bcac9f58db
-export GO_BIN=/root/go/pkg/mod/golang.org/toolchain@v0.0.1-go1.26.0.linux-amd64/bin/go
+export GO_BIN=/path/to/go1.26.0/bin/go
 tests/m5/g1_cross_repo_echo.sh
 tests/m5/g2_product_matrix.sh
 tests/m5/g3_product_security.sh
@@ -359,9 +396,9 @@ and the #819 accept-resource backoff remain in the same client. The test-only
 legacy delegate is retained only for historical comparison and is not used by
 the qualification scripts.
 
-The runner and fixtures provide the following current evidence (M7Linux
-Release-compatible build, source at the uncommitted W4 G2 candidate before
-this ledger commit):
+The runner and fixtures provide the following current evidence using the
+`src/out/M7Linux` Release-compatible build at locked client source
+`4de6443f5a`:
 
 - `tests/connect_response.sh` passed `CONNECT_RESPONSE_MATRIX_OK`. H2 and H3
   covered delayed `200`, `502`, and `504` responses; cold exchange 1 waited
@@ -372,11 +409,14 @@ this ledger commit):
   `CONNECT_RESPONSE_h2_duplicate-location_OK`, proving the malformed response
   reaches the production path after padding has been learned. The U3 guard is
   now at `DoReadReplyComplete` immediately before `response_.headers` is
-  dereferenced; `OnHeadersReceived` leaves the upstream-style conversion call
-  without local `rv` propagation.
+  dereferenced; `OnHeadersReceived` retains the upstream-style local `rv` and
+  `DCHECK_NE(rv, ERR_INCOMPLETE_HTTP2_HEADERS)` without propagating `rv` there.
 - `tests/fastopen_async_failure.sh` passed `FASTOPEN_ASYNC_FAILURE_OK` with
   `DELEGATE_MODE production`, delayed non-2xx response, open stream, and the
   pending application read completed exactly once with a negative error.
+- Both focused scripts were rerun after the final U3 alignment on 2026-09-08
+  with `NAIVE_BUILD_DIR=$PWD/src/out/M7Linux`; they again emitted
+  `CONNECT_RESPONSE_MATRIX_OK` and `FASTOPEN_ASYNC_FAILURE_OK`.
 - Serial `python3 tests/basic.py --server_protocol=http` and `https` runs
   both passed their complete 28-case rows (56 total). Native UDP owner scripts
   `masque_g1_smoke.sh`, `masque_g2_naive_tunnel.sh`,
@@ -572,7 +612,7 @@ G4-only closeout.
 
 ### M7 runtime smoke (2026-09-02)
 
-An isolated deployment under `/root/native-udp-m7-test` was run on the
+An isolated deployment under `/var/lib/proxy-private/native-udp-m7-test` was run on the
 authorized client/server hosts and then removed. It used separate ports
 18443/18444 and separate SOCKS listeners 11080/11081; existing Naive 1080,
 web listeners, Hysteria, Xray, frps, and Docker services were not changed.
@@ -586,7 +626,7 @@ web listeners, Hysteria, Xray, frps, and Docker services were not changed.
 - A burst test that sent hundreds of datagrams at once reached the intentional
   per-target queue bound (16); paced testing avoided that bound. No protocol
   failure was inferred from the burst result.
-- Cleanup verified no `/root/native-udp-m7-test` processes or directories
+- Cleanup verified no `/var/lib/proxy-private/native-udp-m7-test` processes or directories
   remained and removed the temporary UFW rules for ports 18443/18444.
 
 ### M7 G4 fixed-loss parity closeout (2026-09-02)
