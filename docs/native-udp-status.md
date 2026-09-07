@@ -420,16 +420,22 @@ The runner and fixtures provide the following current evidence using the
 - The fixture startup diagnostic in `tests/connect_response.sh` is recorded in
   client commit `b80c15106a`; the same rerun now reports an exited fixture's
   log and build/protocol/scenario context instead of a bare `kill` failure.
+- The dedicated H3 body-before-header probe is implemented in client commit
+  `0742e35197` and passes `tests/fastopen_body_wakeup.sh` with
+  `FASTOPEN_BODY_WAKEUP_OK`; the learned-padding second CONNECT reads and
+  verifies the exact `body-wakeup` response body from one pending read.
 - Serial `python3 tests/basic.py --server_protocol=http` and `https` runs
   both passed their complete 28-case rows (56 total). Native UDP owner scripts
   `masque_g1_smoke.sh`, `masque_g2_naive_tunnel.sh`,
   `masque_g3_basic_auth.sh`, `masque_g5_lifecycle.sh`, `socks5_udp_m2.sh`,
   and `socks5_udp_m3.sh` also passed on the same candidate build.
 
-U1's buffered-body notification remains covered by its extracted source patch
-and the existing broad QUIC/TCP regressions; this repository still has no
-separate deterministic U1 fixture that isolates body-before-header ordering.
-That is recorded as a coverage limitation, not a fresh U1 unit-test claim.
+U1's buffered-body notification now has a dedicated deterministic H3 fixture
+(`tests/fastopen_body_wakeup.sh`) that verifies body-before-header delivery
+after Fast Open early completion. Cancellation and callback-destruction paths
+remain covered by the existing M5 lifecycle markers only as indirect evidence;
+no new independent Fast Open destruction or cancellation fixture is claimed
+here.
 Cancellation and callback-destruction paths remain covered by the existing
 M5 lifecycle markers only as indirect evidence; no new independent Fast Open
 destruction or cancellation fixture is claimed here. A scoped read-only review
