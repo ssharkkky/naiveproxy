@@ -417,6 +417,9 @@ The runner and fixtures provide the following current evidence using the
 - Both focused scripts were rerun after the final U3 alignment on 2026-09-08
   with `NAIVE_BUILD_DIR=$PWD/src/out/M7Linux`; they again emitted
   `CONNECT_RESPONSE_MATRIX_OK` and `FASTOPEN_ASYNC_FAILURE_OK`.
+- The fixture startup diagnostic in `tests/connect_response.sh` is recorded in
+  client commit `b80c15106a`; the same rerun now reports an exited fixture's
+  log and build/protocol/scenario context instead of a bare `kill` failure.
 - Serial `python3 tests/basic.py --server_protocol=http` and `https` runs
   both passed their complete 28-case rows (56 total). Native UDP owner scripts
   `masque_g1_smoke.sh`, `masque_g2_naive_tunnel.sh`,
