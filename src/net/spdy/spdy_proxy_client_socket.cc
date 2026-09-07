@@ -554,6 +554,9 @@ int SpdyProxyClientSocket::DoReadReplyComplete(int result) {
   if (result < 0)
     return result;
 
+  if (!response_.headers)
+    return ERR_TUNNEL_CONNECTION_FAILED;
+
   // Require the "HTTP/1.x" status line for SSL CONNECT.
   if (response_.headers->GetHttpVersion() < HttpVersion(1, 0))
     return ERR_TUNNEL_CONNECTION_FAILED;
@@ -643,25 +646,7 @@ void SpdyProxyClientSocket::OnHeadersReceived(
     return;
 
   // Save the response
-  const int rv = SpdyHeadersToHttpResponse(response_headers, &response_);
-  DCHECK_NE(rv, ERR_INCOMPLETE_HTTP2_HEADERS);
-  if (rv != OK) {
-    // Fail closed: a malformed CONNECT response must not leave
-    // response_.headers null for DoReadReplyComplete() to dereference.
-    DLOG(WARNING) << "Invalid CONNECT response headers";
-    if (use_fastopen_ && read_headers_pending_) {
-      // The Fast Open Connect() already completed, so there is no connect
-      // callback to report this to. Cancel the stream; OnClose() completes
-      // any pending data read.
-      read_headers_pending_ = false;
-      next_state_ = STATE_DISCONNECTED;
-      if (spdy_stream_.get())
-        spdy_stream_->Cancel(ERR_ABORTED);
-      return;
-    }
-    OnIOComplete(rv);
-    return;
-  }
+  SpdyHeadersToHttpResponse(response_headers, &response_);
 
   OnIOComplete(OK);
 }

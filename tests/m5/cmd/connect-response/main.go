@@ -7,6 +7,7 @@ import (
 	"log"
 	"net"
 	"net/http"
+	"sync/atomic"
 	"time"
 )
 
@@ -15,11 +16,14 @@ func main() {
 	cert := flag.String("cert", "", "test certificate")
 	key := flag.String("key", "", "test key")
 	status := flag.Int("status", 502, "CONNECT response code")
+	duplicateLocationAfterFirst := flag.Bool("duplicate-location-after-first", false,
+		"send duplicate Location headers after the first CONNECT")
 	flag.Parse()
 	listener, err := net.Listen("tcp", *address)
 	if err != nil {
 		log.Fatal(err)
 	}
+	var requests atomic.Int32
 	server := &http.Server{ReadHeaderTimeout: 5 * time.Second, Handler: http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodConnect || r.ProtoMajor != 2 {
 			w.WriteHeader(http.StatusBadRequest)
@@ -31,6 +35,10 @@ func main() {
 		case <-time.After(500 * time.Millisecond):
 		}
 		w.Header().Set("Padding-Type-Reply", "0")
+		if *duplicateLocationAfterFirst && requests.Add(1) > 1 {
+			w.Header().Add("Location", "https://first.invalid/")
+			w.Header().Add("Location", "https://second.invalid/")
+		}
 		w.WriteHeader(*status)
 		if err := http.NewResponseController(w).Flush(); err != nil {
 			return

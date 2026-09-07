@@ -224,7 +224,9 @@ pending application read completing with the delayed non-2xx response.
 - **G3 — candidate and A/B:** freeze a product lock using the current
   sanitized source identifiers, produce an exact candidate artifact, and
   compare Fast Open enabled/disabled on the test client under a declared
-  workload. Soak the test client for 24–48 hours before touching the router.
+  workload. Run a controlled 15-minute soak for each side before touching the
+  router; record request count, success/failure counts, latency samples,
+  reconnects, process restarts, and server-side error markers.
 - **G4 — deployment:** deploy the exact candidate to the test client first,
   then the router after the soak passes. Keep the current router binary as the
   rollback artifact. The production server may be restarted or replaced only

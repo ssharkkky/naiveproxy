@@ -207,7 +207,6 @@ int RunStandardConnect(net::URLRequestContext* context,
     }
     watchdog.Stop();
     const auto elapsed = base::TimeTicks::Now() - started;
-    handle.ResetAndCloseSocket();
     const bool should_early_complete = exchange == 2;
     const int expected = (expect_success || should_early_complete)
                              ? net::OK
@@ -221,6 +220,41 @@ int RunStandardConnect(net::URLRequestContext* context,
                 << " elapsed_ms=" << elapsed.InMilliseconds() << std::endl;
       return EXIT_FAILURE;
     }
+    if (should_early_complete && !expect_success) {
+      CHECK(handle.socket());
+      auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(1024);
+      base::RunLoop read_loop;
+      base::OneShotTimer read_watchdog;
+      int read_result = net::ERR_IO_PENDING;
+      int read_callbacks = 0;
+      bool timed_out = false;
+      read_watchdog.Start(
+          FROM_HERE, kExchangeWatchdog,
+          base::BindOnce([](bool* expired, base::RepeatingClosure quit) {
+            *expired = true;
+            quit.Run();
+          }, &timed_out, read_loop.QuitClosure()));
+      const int initial_read = handle.socket()->Read(
+          buffer.get(), buffer->size(),
+          base::BindOnce([](int* count, int* result,
+                            base::RepeatingClosure quit, int rv) {
+            ++*count;
+            *result = rv;
+            quit.Run();
+          }, &read_callbacks, &read_result, read_loop.QuitClosure()));
+      CHECK_EQ(initial_read, net::ERR_IO_PENDING);
+      std::cout << "FASTOPEN_READ_PENDING" << std::endl;
+      read_loop.Run();
+      read_watchdog.Stop();
+      CHECK(!timed_out);
+      CHECK_EQ(read_callbacks, 1);
+      CHECK_LT(read_result, 0);
+      CHECK_NE(read_result, net::ERR_IO_PENDING);
+      CHECK_EQ(callbacks, 1);
+      std::cout << "FASTOPEN_PENDING_READ_ERROR_OK error=" << read_result
+                << " callbacks=" << read_callbacks << std::endl;
+    }
+    handle.ResetAndCloseSocket();
     auto* delegate =
         static_cast<net::NaiveProxyDelegate*>(context->proxy_delegate());
     if (!delegate->GetProxyChainPaddingType(proxy_chain).has_value()) {

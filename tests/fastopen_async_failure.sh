@@ -15,15 +15,15 @@ set -euo pipefail
 #     asynchronously: 502 delivered after a 500 ms delay, without FIN, so
 #     the stream stays open and any client I/O pending across the response
 #     must be completed by the client, not by a stream close.
-#   - runner with a test-only NaiveProxyDelegate subclass restoring legacy
-#     Fast Open over quic:// (MockCertVerifier, deterministic test context)
+#   - runner with the production NaiveProxyDelegate over quic://
+#     (MockCertVerifier, deterministic test context)
 #
 # Exchange 1: padding not negotiated yet, so the client does not enable Fast
 #   Open. Connect() blocks until the delayed 502 arrives and then fails with
 #   the tunnel error; the delegate parses the CONNECT response and learns the
 #   (absent) padding support.
 #
-# Exchange 2: padding state known, so the test delegate enables Fast Open: Connect()
+# Exchange 2: padding state known, so the production delegate enables Fast Open: Connect()
 #   returns OK before the response arrives and the application I/O (early
 #   data write and/or data read) is pending when the delayed 502 (no FIN)
 #   arrives. The pending I/O must complete with an error within the watchdog
@@ -111,6 +111,7 @@ fi
 # negative error and padding learning), and the delegate must have learned
 # the padding negotiation state.
 grep -q '^EXCHANGE_START n=1' "$test_dir/runner.log"
+grep -q '^DELEGATE_MODE production$' "$test_dir/runner.log"
 grep -q '^EXCHANGE_COMPLETE n=1 error=-[0-9]*' "$test_dir/runner.log"
 grep -q '^PADDING_LEARNED' "$test_dir/runner.log"
 

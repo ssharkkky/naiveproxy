@@ -25,7 +25,14 @@ openssl req -x509 -newkey rsa:2048 -nodes -days 1 -subj /CN=localhost \
 openssl pkcs8 -topk8 -nocrypt -in "$test_dir/key.pem" -outform DER -out "$test_dir/key.pk8"
 
 for protocol in h3 h2; do
-  for status in 502 504 200; do
+  for scenario in 502 504 200 duplicate-location; do
+    if [ "$scenario" = duplicate-location ] && [ "$protocol" != h2 ]; then continue; fi
+    status=$scenario
+    fixture_args=()
+    if [ "$scenario" = duplicate-location ]; then
+      status=502
+      fixture_args+=(--duplicate-location-after-first)
+    fi
     port=$(python3 -c 'import socket; s=socket.socket(); s.bind(("127.0.0.1",0)); print(s.getsockname()[1]); s.close()')
     args=(--standard-connect)
     if [ "$status" = 200 ]; then args+=(--expect-success); fi
@@ -36,7 +43,7 @@ for protocol in h3 h2; do
     else
       args+=(--https-proxy)
       "$test_dir/h2-response" -listen "127.0.0.1:$port" \
-        -cert "$test_dir/cert.pem" -key "$test_dir/key.pem" -status "$status" >"$test_dir/server.log" 2>&1 &
+        -cert "$test_dir/cert.pem" -key "$test_dir/key.pem" -status "$status" "${fixture_args[@]}" >"$test_dir/server.log" 2>&1 &
     fi
     server_pid=$!
     for _ in $(seq 1 100); do
@@ -54,8 +61,13 @@ for protocol in h3 h2; do
     if [ "$protocol" = h3 ]; then
       test "$(grep -c "^CONNECT_ACTION fail_$status$" "$test_dir/server.log")" = 2
     fi
+    rg -q '^DELEGATE_MODE production$' "$test_dir/runner.log"
+    if [ "$status" != 200 ]; then
+      rg -q '^FASTOPEN_READ_PENDING$' "$test_dir/runner.log"
+      rg '^FASTOPEN_PENDING_READ_ERROR_OK ' "$test_dir/runner.log"
+    fi
     rg '^STANDARD_CONNECT' "$test_dir/runner.log"
-    echo "CONNECT_RESPONSE_${protocol}_${status}_OK"
+    echo "CONNECT_RESPONSE_${protocol}_${scenario}_OK"
     kill "$server_pid"
     wait "$server_pid" 2>/dev/null || true
     server_pid=

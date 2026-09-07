@@ -350,6 +350,48 @@ No new independent audit or cross-platform release qualification is claimed,
 and deferred M7-G5 remains deferred. Live results and the explicit local
 server-build exception to the release lock are in `current-deployment.md`.
 
+## Fast Open re-enablement W4 G2 evidence (2026-09-08)
+
+The production `NaiveProxyDelegate` now restores the learned-padding
+`fastopen: 1` request header. The internal CONNECT policy is enabled only
+after padding capability is learned; the existing U1/U2/U3 correctness fixes
+and the #819 accept-resource backoff remain in the same client. The test-only
+legacy delegate is retained only for historical comparison and is not used by
+the qualification scripts.
+
+The runner and fixtures provide the following current evidence (M7Linux
+Release-compatible build, source at the uncommitted W4 G2 candidate before
+this ledger commit):
+
+- `tests/connect_response.sh` passed `CONNECT_RESPONSE_MATRIX_OK`. H2 and H3
+  covered delayed `200`, `502`, and `504` responses; cold exchange 1 waited
+  about 500 ms, learned-padding exchange 2 completed in about 2–6 ms, and
+  exactly one connect callback was observed. Non-2xx cases emitted
+  `FASTOPEN_PENDING_READ_ERROR_OK error=-111 callbacks=1`.
+- The H2 fixture's `duplicate-location-after-first` scenario passed as
+  `CONNECT_RESPONSE_h2_duplicate-location_OK`, proving the malformed response
+  reaches the production path after padding has been learned. The U3 guard is
+  now at `DoReadReplyComplete` immediately before `response_.headers` is
+  dereferenced; `OnHeadersReceived` leaves the upstream-style conversion call
+  without local `rv` propagation.
+- `tests/fastopen_async_failure.sh` passed `FASTOPEN_ASYNC_FAILURE_OK` with
+  `DELEGATE_MODE production`, delayed non-2xx response, open stream, and the
+  pending application read completed exactly once with a negative error.
+- Serial `python3 tests/basic.py --server_protocol=http` and `https` runs
+  both passed their complete 28-case rows (56 total). Native UDP owner scripts
+  `masque_g1_smoke.sh`, `masque_g2_naive_tunnel.sh`,
+  `masque_g3_basic_auth.sh`, `masque_g5_lifecycle.sh`, `socks5_udp_m2.sh`,
+  and `socks5_udp_m3.sh` also passed on the same candidate build.
+
+U1's buffered-body notification remains covered by its extracted source patch
+and the existing broad QUIC/TCP regressions; this repository still has no
+separate deterministic U1 fixture that isolates body-before-header ordering.
+That is recorded as a coverage limitation, not a fresh U1 unit-test claim.
+Cancellation and callback-destruction paths remain covered by the existing
+M5 lifecycle markers; no new independent Fast Open destruction fixture is
+claimed here. The affected client audit boundary is reopened by W4; the
+historical M3-M6 `AUDIT_PASS` is not extended automatically.
+
 ## Fast Open audit fixes F1/F2 and regression (2026-09-04)
 
 The release audit of the Fast Open response-order hotfix `c8ebb943bd`
