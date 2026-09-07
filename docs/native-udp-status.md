@@ -428,8 +428,10 @@ and the existing broad QUIC/TCP regressions; this repository still has no
 separate deterministic U1 fixture that isolates body-before-header ordering.
 That is recorded as a coverage limitation, not a fresh U1 unit-test claim.
 Cancellation and callback-destruction paths remain covered by the existing
-M5 lifecycle markers; no new independent Fast Open destruction fixture is
-claimed here. The affected client audit boundary is reopened by W4; the
+M5 lifecycle markers only as indirect evidence; no new independent Fast Open
+destruction or cancellation fixture is claimed here. A scoped read-only review
+of the W4 code and evidence found no blocker, high, or medium issue and returned
+`AUDIT_PASS` with this coverage limitation. The affected client audit boundary is reopened by W4; the
 historical M3-M6 `AUDIT_PASS` is not extended automatically.
 
 ## Fast Open audit fixes F1/F2 and regression (2026-09-04)

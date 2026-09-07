@@ -218,9 +218,11 @@ pending application read completing with the delayed non-2xx response.
   Release targets and commit only the green-to-green client/test change.
 - **G2 — qualification (complete):** run the production-delegate H2/H3 matrix for 200,
   502, and 504 with cold and learned padding; verify early completion,
-  pending-read failure, callback cardinality, cancellation, malformed response
-  handling, U1/U2/U3 regressions, the complete owner matrix, and all 56 TCP
-  cases. Record exact commands and markers.
+  pending-read failure, callback cardinality, and malformed response handling;
+  reuse the existing lifecycle evidence for cancellation and destruction,
+  explicitly recording that no Fast Open-specific destruction fixture is
+  claimed. Regress U1/U2/U3, the complete owner matrix, and all 56 TCP cases.
+  Record exact commands and markers.
 - **G3 — candidate and A/B (complete):** freeze a product lock using the current
   sanitized source identifiers, produce an exact candidate artifact, and
   compare Fast Open enabled/disabled on the test client under a declared
@@ -257,7 +259,9 @@ manifests.
 
 Acceptance requires the production delegate to pass the deterministic H2/H3
 CONNECT matrix, the full 56-case HTTP/HTTPS TCP owner regressions, and the
-existing native-UDP/product-combination checks. In the async-failure case, the
+existing native-UDP/product-combination checks. Existing lifecycle markers are
+indirect evidence for cancellation and destruction; this W4 gate does not claim
+a separate Fast Open-specific fixture for those paths. In the async-failure case, the
 second CONNECT must complete before the fixture's delayed response, exactly one
 application read callback must complete with a negative error, and the runner
 must exit without a watchdog timeout. Candidate and live evidence must include
