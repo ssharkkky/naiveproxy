@@ -157,12 +157,13 @@ than repeating previous reproductions and full regressions:
   eight old-client downloads, eight of eight fixed-client downloads, then
   three complete 15,451,894-byte downloads after replacement. This is field
   comparison evidence, not a deterministic unit-test claim.
-- U2 cites the September 4 delayed-502/no-FIN fixture, three passing runs of
+- U2's evidence includes the September 4 delayed-502/no-FIN fixture, three passing runs of
   `tests/fastopen_async_failure.sh` (`FASTOPEN_ASYNC_FAILURE_OK`), and the
   subsequent September 5 run retaining a legacy Fast Open test delegate.
 - U3 cites the September 4 source review and full 56-case TCP regression.
-  Its PR explicitly discloses that a dedicated malformed-H2 reproduction was
-  not run. Different duplicate Location values provide a source-level
+  Its PR identifies source inspection as the basis for the duplicate-Location
+  trigger. A dedicated malformed-H2 reproduction was not run.
+  Different duplicate Location values provide a source-level
   conversion-error trigger; this is not newly executed runtime evidence.
 
 The PRs originally linked historical documentation; those links were removed
@@ -170,6 +171,15 @@ during the September 7 privacy cleanup above. Their bodies retain the
 historical validation summaries and limitations. U2 also references the
 related closed upstream PR #808 and identifies the exact controlled HTTP 502
 trigger; it does not claim to reproduce that report's transport error.
+
+On September 7, all three PR bodies were updated to the user-approved text
+centered on the defect, fix, and validation results. They retain the 1/8
+timeout versus 8/8 completion comparison, three controlled failure-test
+passes, 56-case TCP results, #808 reference, and U3's source-inspection basis.
+Extraction details and repeated no-rerun statements were removed from the PR
+bodies; the historical verification boundary remains recorded here. API
+readback matched each approved body exactly and confirmed unchanged PR heads
+and no identified sensitive values or historical deployment-document links.
 
 New verification was limited to extraction and publication checks:
 

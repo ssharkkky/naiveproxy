@@ -42,9 +42,10 @@ observed defects without claiming unverified security impact.
 
 U2's dependent commits were combined into one submitted patch. U1/U2 cite
 existing reproduction records. U3 reuses source inspection and broad
-regressions, with the missing dedicated malformed-header reproduction
-explicitly disclosed in its PR. Such a test remains a coverage follow-up;
-it is not represented as completed by submitting the existing fix.
+regressions; its PR attributes the duplicate-Location trigger to inspection
+of both conversion implementations. A dedicated malformed-header reproduction
+remains a coverage follow-up; it is not represented as completed by submitting
+the existing fix.
 
 - [x] Refresh upstream `klzgrad/naiveproxy` HEAD, contribution requirements,
   and existing issues/PRs; confirm each defect still applies.
