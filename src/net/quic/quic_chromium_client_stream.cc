@@ -869,11 +869,14 @@ int QuicChromiumClientStream::DeliverInitialHeaders(
     return ERR_INVALID_RESPONSE;
   }
 
-  // Body data can arrive before the initial headers are delivered to the
-  // handle (notably when the proxy socket uses Fast Open). OnBodyAvailable()
-  // intentionally buffers that notification while headers_delivered_ is
-  // false. Re-check the stream now that the headers are visible so a pending
-  // ReadBody() is woken up instead of waiting indefinitely.
+  // During proxy Fast Open, HEADERS and DATA may be received back to back.
+  // OnInitialHeadersComplete() posts DeliverInitialHeaders(), which returns to
+  // QuicHttpStream::OnReadResponseHeadersComplete(). That task may run after
+  // OnBodyAvailable() processes the DATA frame, so the latter sees that
+  // initial headers have not been delivered and does not post
+  // OnDataAvailable(). Re-check after delivering the initial headers so a
+  // pending ReadBody() is woken when body data or completed trailers are
+  // already buffered.
   if (handle_ && (HasBytesToRead() || FinishedReadingTrailers()))
     NotifyHandleOfDataAvailableLater();
 
