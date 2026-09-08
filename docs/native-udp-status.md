@@ -176,10 +176,35 @@ and no historical audit conclusion or milestone completion was changed.
 
 ## Fast Open upstream PR submissions (2026-09-06)
 
+### U3 Chromium submission update (2026-09-08)
+
+The SPDY CONNECT invalid-response-header null dereference fix was submitted as
+[Chromium CL 8368721](https://chromium-review.googlesource.com/c/chromium/src/+/8368721),
+Change-Id `Ic373d1597b8762635652d85fd15b10b21c640d80`. Gerrit readback reports
+status `NEW` (awaiting review/merge), current revision
+`d66a811998e6906207b7e3dc4f8423b584bf8929`. The submitter reports that its
+six-line null guard before dereferencing headers in `DoReadReplyComplete`
+matches the fork/PR patch byte for byte; fork `master` already contains the
+equivalent fix at `4de6443f5a`.
+
+[NaiveProxy PR #827](https://github.com/klzgrad/naiveproxy/pull/827) was closed
+after the maintainer reply linking the Chromium CL. GitHub readback confirms
+`CLOSED`, no merge, closed at `2026-09-08T01:58:18Z`. Upstream NaiveProxy is
+expected to receive the fix through a future Chromium import after CL merge;
+neither merge nor import is claimed complete. Track both before removing the
+fork patch.
+
+This update records upstream submission status only. W4 G4/G5 remain complete;
+no runtime source, product lock, deployment, or audit result changed, and no
+regression rerun is claimed. Public records omit deployment endpoints,
+credentials, and private operator paths.
+
+### Original submission evidence
+
 W1's three focused fixes were submitted to `klzgrad/naiveproxy:master` from
 separate worktrees based on upstream
-`769aaa53c39190fbfd6cfb223f17bb9f9cf9d3e6`. All three are open, non-draft PRs;
-submission is complete, upstream review/merge remain pending.
+`769aaa53c39190fbfd6cfb223f17bb9f9cf9d3e6`. All three were open, non-draft PRs
+at submission; the September 8 U3 update below supersedes #827's review status.
 
 | Fix | Source commit(s) | Submitted commit | Upstream PR |
 | --- | --- | --- | --- |

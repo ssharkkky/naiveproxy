@@ -47,8 +47,11 @@ records the September 6 decisions and the next work, in order:
 
 1. Fast Open correctness fixes submitted as upstream PRs
    [#825](https://github.com/klzgrad/naiveproxy/pull/825),
-   [#826](https://github.com/klzgrad/naiveproxy/pull/826), and
-   [#827](https://github.com/klzgrad/naiveproxy/pull/827); review pending.
+   [#826](https://github.com/klzgrad/naiveproxy/pull/826); review pending.
+   U3 [#827](https://github.com/klzgrad/naiveproxy/pull/827) is closed;
+   [Chromium CL 8368721](https://chromium-review.googlesource.com/c/chromium/src/+/8368721)
+   carries the null-header guard and awaits review/merge before a later Chromium
+   import can bring it into upstream NaiveProxy. The fork already has the fix.
    Existing documented validation was reused after extraction checks.
 2. Analyze and test DNS response delays and address ordering before deciding
    whether either needs optimization.

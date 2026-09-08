@@ -16,7 +16,7 @@ inputs remain governed by [`README.md`](README.md) and
 
 | Order | Work | Owner | Status | Completion evidence |
 | --- | --- | --- | --- | --- |
-| W1 | Submit focused Fast Open correctness PRs upstream | NaiveProxy | Submitted: #825, #826, #827; review pending | Exact base/head SHAs, reused documented validation with limitations, extraction checks, PR URLs in status ledger |
+| W1 | Submit focused Fast Open correctness PRs upstream | NaiveProxy | #825/#826 review pending; #827 closed in favor of Chromium CL 8368721, awaiting review/merge | Exact base/head SHAs, documented validation, extraction checks, and upstream links in status ledger |
 | W2 | Analyze and test DNS delays and address ordering | forwardproxy; records here | Pending investigation | Reproducible scenario matrix and separate optimize/defer decisions for DNS and sorting |
 | W3 | Compare current scheduling with Go Happy Eyeballs | forwardproxy; records here | Pending comparison | Fair A/B measurements, ACL/lifecycle validation, and retain/replace decision |
 | W4 | Re-enable Fast Open after CONNECT correctness fixes | NaiveProxy client; records here | **Complete (G0-G5)** | Production-delegate matrix, owner regressions, candidate artifacts, short A/B soak, deployment records, and scoped audit boundary in status ledger |
@@ -43,10 +43,10 @@ observed defects without claiming unverified security impact.
 
 U2's dependent commits were combined into one submitted patch. U1/U2 cite
 existing reproduction records. U3 reuses source inspection and broad
-regressions; its PR attributes the duplicate-Location trigger to inspection
-of both conversion implementations. A dedicated malformed-header reproduction
-remains a coverage follow-up; it is not represented as completed by submitting
-the existing fix.
+regressions; its original PR attributed the duplicate-Location trigger to
+inspection of both conversion implementations. The later W4 matrix covers the
+malformed H2 response after learned padding; see the September 8 status ledger
+for that separate runtime evidence.
 
 - [x] Refresh upstream `klzgrad/naiveproxy` HEAD, contribution requirements,
   and existing issues/PRs; confirm each defect still applies.
@@ -65,9 +65,17 @@ the existing fix.
   commit attribution, and validation. Record URLs and subsequent review state.
 - [ ] Track upstream review/merge for [U1 #825](https://github.com/klzgrad/naiveproxy/pull/825),
   [U2 #826](https://github.com/klzgrad/naiveproxy/pull/826), and
-  [U3 #827](https://github.com/klzgrad/naiveproxy/pull/827). Add focused tests for
+  [U3 Chromium CL 8368721](https://chromium-review.googlesource.com/c/chromium/src/+/8368721).
+  After the CL merges, track its arrival through upstream NaiveProxy's Chromium
+  import before dropping the equivalent fork patch. Add focused tests for
   uncovered cases or adaptations when needed; preserve the stated evidence
   boundary instead of relabeling historical runs as fresh qualification.
+
+September 8 U3 update: PR #827 was closed after linking the Chromium CL.
+The CL remains open for review/merge and adds the six-line null-header guard
+at `DoReadReplyComplete`; fork `master` already contains the equivalent fix
+at `4de6443f5a`. This upstream routing change does not reopen completed W4
+G4/G5 gates or change the current release/deployment.
 
 September 7 privacy correction: historical deployment-document links were
 removed from all three PR bodies; technical evidence summaries and their
