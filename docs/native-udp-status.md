@@ -30,6 +30,19 @@ the historical milestone evidence below:
   Linux validation client `cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df`,
   server `3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa`.
 
+Release-6 provenance recheck (2026-09-08): downloaded artifact `10051577336`
+has archive SHA256 `9c39c0caa3ea9922f4d681959178222e5b88fca9cbf2fa199faa710a9ddd5845`;
+its `caddy` binary SHA256 is
+`3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa`.
+`go version -m` reports `go1.26.0`, an embedded replacement of
+`github.com/caddyserver/forwardproxy` by `_product/forwardproxy`, and the
+locked Caddy/quic-go replacements; `caddy list-modules` reports
+`http.handlers.forward_proxy`. The checked-out forwardproxy `cad30c35` contains
+`25b4cd60` and its production constants are exactly 512 total and 128 per
+client/source. The explicit-value contract assertion is covered by
+forwardproxy test commit `eb7c78e` (`GOTOOLCHAIN=go1.26.0 go test ./...` passed).
+No release or deployment replacement is required by this recheck.
+
 ## Incremental DNS acceptance and release 6 deployment (2026-09-08)
 
 Forwardproxy `0d4e10f` was reviewed before release. Independent deterministic

@@ -57,6 +57,14 @@ performed. Server configuration validation, process SHA verification, and the
 expected unauthenticated CONNECT `407` check passed; `NRestarts=0` after the
 manual restart does not imply that no restart occurred.
 
+Release-6 provenance recheck: the artifact binary SHA256 matches the deployed
+process; `go version -m` shows the `_product/forwardproxy` replacement and
+`caddy list-modules` includes `http.handlers.forward_proxy`. Pinned forwardproxy
+`cad30c35` contains the 512-total/128-per-client constants from `25b4cd60`,
+and the workflow passes that checkout to `build-m7-caddy.sh`. Historical peak
+samples do not establish a cap; active/peak values are process-local metrics
+and require a live pressure run.
+
 After the server replacement, the existing client passed 96/96 TCP and 4/4 UDP
 DNS requests; a failed target completed in 5.205 s. After the client replacement,
 three batches each passed 96/96 TCP and 4/4 UDP DNS; failed-target samples completed
