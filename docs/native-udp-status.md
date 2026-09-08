@@ -94,7 +94,10 @@ The new Release archive was nevertheless installed atomically and only the
 Naive service restarted at 2026-09-08 10:44:37 UTC. Naive configuration hash
 was unchanged. No sing-box operation was performed. The separate validation
 client was not replaced. Other client platform builds were still running at
-router deployment time; final release completion is recorded separately below.
+router deployment time. At deployment closeout, 49/50 platform/toolchain jobs
+had succeeded; only macOS x64 was still building and no completed job failed.
+The remaining platform's final result must be checked in run `34215280733`;
+this deployment record does not claim all 50 jobs passed.
 
 The bounded deployment probe talks directly to the Naive SOCKS5 listener.
 It emits counts and timings without deployment endpoints, target addresses,
@@ -127,7 +130,11 @@ a statistical latency improvement or absence of packet loss.
 Three post-client batches total 288/288 TCP and 12/12 UDP DNS. The router
 service remained running with the expected executable hash; the server stayed
 active/running with `NRestarts=0`. This is a short qualification observation,
-not a 24-48 hour soak.
+not a 24-48 hour soak. Read-only verification at 11:24:24 UTC (router) and
+11:24:27 UTC (server) confirmed the same process hashes, running services, and
+both timestamped rollback binaries. That is approximately 40 minutes after
+client replacement and 54 minutes after server replacement. Temporary router
+installation files and the probe were removed; rollback binaries remain.
 
 Deployment markers: `RELEASE6_CONFIG_OK`, `RELEASE6_SERVER_DEPLOY_OK`,
 `RELEASE6_CLIENT_DEPLOY_OK`. Exact rollback paths, archive/job IDs, and current

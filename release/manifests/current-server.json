@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "component": "naiveproxy-native-udp-server",
-  "generated_at": "2026-09-08T10:44:37Z",
+  "generated_at": "2026-09-08T11:24:27Z",
   "product_lock": {
     "path": "release/product.lock.json",
     "sha256": "df54c246c590368ebc5559a0ecd6a508274b2c5248fad6f492f5146cd1c929d2",
@@ -18,6 +18,7 @@
     "run_id": 34215280766,
     "job_id": 102025466714,
     "artifact_id": 10051577336,
+    "release_asset_id": 550297004,
     "workflow_commit": "93b47bc5c394cbac460b0aaa9c6d04771f5abb49",
     "forwardproxy_commit": "cad30c35a736bd856789b3c7318a571d5c6d26ae",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
@@ -49,6 +50,7 @@
     "listen": ["tcp/:8443", "udp/:8443"],
     "quic_congestion": "bbr-standard",
     "deployed_at": "2026-09-08T10:30:53Z",
+    "verified_at": "2026-09-08T11:24:27Z",
     "deployment_action": "Release-6 binary validated with existing configuration, backed up and atomically installed; only native-udp-caddy.service restarted. Running process SHA verified; 96/96 TCP and 4/4 UDP DNS passed through the existing router client.",
     "service_state": "active/running",
     "n_restarts": 0,

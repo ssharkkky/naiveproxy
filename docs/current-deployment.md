@@ -37,6 +37,10 @@ deployment descriptions below.
   passed its OpenWrt x86_64 job before router deployment; other platform jobs
   were still running at deployment time.
 
+At deployment closeout, 49/50 client platform/toolchain jobs had succeeded;
+only macOS x64 was still building, with no completed failures. The release
+remains experimental; this record does not claim the remaining job passed.
+
 | Role | Running binary SHA256 | Deployment |
 | --- | --- | --- |
 | Server `endpoint-3.example.invalid`, `native-udp-caddy.service` | `3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa` | Release 6, 2026-09-08 10:30:53 UTC |
@@ -60,6 +64,12 @@ in 5.381 s, 5.180 s, and 5.177 s. One successful request in the first batch took
 Before either replacement, UDP samples included 2/4 and 3/4 results as well as
 a 4/4 batch; all are retained in the ledger rather than omitted. These bounded
 samples do not establish a statistical latency improvement or zero packet loss.
+
+Read-only checks at 11:24:24/27 UTC confirmed the router still running and the
+server active/running with `NRestarts=0`; both process hashes matched and both
+rollback files were present. This was about 40 minutes after client replacement
+and 54 minutes after server replacement. Temporary router installation files
+and the deployment probe were removed; rollback binaries were retained.
 
 Immediate rollback, restoring only the named binary and restarting its service:
 

@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "component": "naiveproxy-native-udp-client",
-  "generated_at": "2026-09-08T10:44:37Z",
+  "generated_at": "2026-09-08T11:24:24Z",
   "product_lock": {
     "path": "release/product.lock.json",
     "sha256": "df54c246c590368ebc5559a0ecd6a508274b2c5248fad6f492f5146cd1c929d2",
@@ -18,6 +18,7 @@
     "release_url": "https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-6-native-udp-fastopen-dns",
     "release_channel": "experimental",
     "result": "in_progress",
+    "release_progress_at_closeout": "49/50 jobs succeeded; only mac-x64 (x64) remained in progress. No completed job failed. The deployed OpenWrt x86_64 job and its basic tests succeeded.",
     "result_at_deployment": "OpenWrt x86_64 job succeeded; Release archive matches GitHub asset digest and CI archive; binary matches CI SHA256. Other platform builds were still running.",
     "combination_run_id": 34210375332,
     "combination_marker": "PRODUCT_COMBINATION_OK"
@@ -52,7 +53,7 @@
       "binary_sha256": "c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145",
       "product_version": "v150.0.7871.63-6-native-udp-fastopen-dns",
       "deployed_at": "2026-09-08T10:44:37Z",
-      "verified_at": "2026-09-08T10:44:37Z",
+      "verified_at": "2026-09-08T11:24:24Z",
       "listen": "socks://127.0.0.1:1080",
       "quic_congestion": "bbr1",
       "deployment_action": "Verified Release-6 archive and CI digest, timestamped backup, atomic binary replacement, and restart of native-udp only. Binary is byte-identical to release 5; configuration hash unchanged. No sing-box operation.",
