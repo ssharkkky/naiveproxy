@@ -1,12 +1,12 @@
 {
   "schema_version": 1,
   "component": "naiveproxy-native-udp-server",
-  "generated_at": "2026-09-07T23:01:34Z",
+  "generated_at": "2026-09-08T10:44:37Z",
   "product_lock": {
     "path": "release/product.lock.json",
-    "sha256": "7eed62b94831b2fef231f37662b1d5047108e3ff771715afb01be187dd567d62",
-    "product_version": "v150.0.7871.63-5-native-udp-fastopen",
-    "forwardproxy_commit": "d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab",
+    "sha256": "df54c246c590368ebc5559a0ecd6a508274b2c5248fad6f492f5146cd1c929d2",
+    "product_version": "v150.0.7871.63-6-native-udp-fastopen-dns",
+    "forwardproxy_commit": "cad30c35a736bd856789b3c7318a571d5c6d26ae",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
     "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf",
     "role": "Exact deployed experimental release inputs"
@@ -15,18 +15,20 @@
     "kind": "github-release",
     "repository": "ssharkkky/naiveproxy",
     "workflow": "Product server release",
-    "run_id": 34159149063,
-    "job_id": 101857133824,
-    "artifact_id": 10032049762,
-    "workflow_commit": "e8cc010356a82c1db586bd84e251f8c374225470",
-    "forwardproxy_commit": "d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab",
+    "run_id": 34215280766,
+    "job_id": 102025466714,
+    "artifact_id": 10051577336,
+    "workflow_commit": "93b47bc5c394cbac460b0aaa9c6d04771f5abb49",
+    "forwardproxy_commit": "cad30c35a736bd856789b3c7318a571d5c6d26ae",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
     "quic_go_commit": "c308178d8c77061d5e261ce9df37f2bcc0ab22bf",
     "go_version": "go1.26.0",
     "provenance_note": "Downloaded official release package; archive SHA256, bundled locks and Go module provenance verified; exact binary deployed without rebuilding",
-    "bundle_sha256": "6fc8c07c7d8e19b73d6f020fd3dacd87745bbf541beb13564714f179c34a6cea",
+    "bundle_sha256": "9c39c0caa3ea9922f4d681959178222e5b88fca9cbf2fa199faa710a9ddd5845",
     "result": "success",
-    "binary_sha256": "d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230"
+    "binary_sha256": "3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa",
+    "combination_run_id": 34210375332,
+    "combination_marker": "PRODUCT_COMBINATION_OK"
   },
   "previous_release_build": {
     "repository": "ssharkkky/naiveproxy",
@@ -43,15 +45,15 @@
     "host": "endpoint-3.example.invalid",
     "service": "native-udp-caddy.service",
     "binary": "/var/lib/proxy-private/caddy-naive-udp",
-    "binary_sha256": "d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230",
+    "binary_sha256": "3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa",
     "listen": ["tcp/:8443", "udp/:8443"],
     "quic_congestion": "bbr-standard",
-    "deployed_at": "2026-09-05T12:57:30Z",
-    "deployment_action": "server was not replaced for release 5; read-only verification confirmed the running binary matches the release-5 server artifact and service is active with NRestarts=0",
+    "deployed_at": "2026-09-08T10:30:53Z",
+    "deployment_action": "Release-6 binary validated with existing configuration, backed up and atomically installed; only native-udp-caddy.service restarted. Running process SHA verified; 96/96 TCP and 4/4 UDP DNS passed through the existing router client.",
     "service_state": "active/running",
     "n_restarts": 0,
-    "metrics_snapshot": "/var/lib/proxy-private/metrics.pre-release-4-20260905T125728Z.txt",
-    "rollback_binary": "/var/lib/proxy-private/caddy-naive-udp.pre-release-4-20260905T125728Z",
-    "rollback_binary_sha256": "fe98dd3d5e7bef3544ec02337dfe7b647b283a00608064b2b523f91c66195a8c"
+    "metrics_snapshot": "/var/lib/proxy-private/metrics.pre-release-6-20260908T103051Z.txt",
+    "rollback_binary": "/var/lib/proxy-private/caddy-naive-udp.pre-release-6-20260908T103051Z",
+    "rollback_binary_sha256": "d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230"
   }
 }

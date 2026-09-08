@@ -178,13 +178,13 @@ they do not prove that current deployment latency is caused by DNS.
 
 ### W2 resolution (2026-09-08, owner change)
 
-The deferred owner change is implemented as Route B on forwardproxy branch
+The deferred owner change was implemented as Route B on forwardproxy branch
 `codex/w2-dns-incremental-dial` (commits `0d4e10f` implementation, `6416ca0`
 scheduling timing fix, `53c3a0d` experiment delivery): ip4/ip6 resolve in
 parallel under the request context; each family's completion (success or
 failure) admits its ACL-filtered, deduplicated addresses into the dial race
-immediately; the late family merges at the tail of the start queue only
-while no winner exists and the total deadline has not passed; a winner,
+immediately; late candidates join their family's queue and are selected by
+lazy family alternation, with a context check before each new dial; a winner,
 deadline expiry, or request cancellation cancels the other family's
 in-flight lookup. The audited `connect_dial.go` (`7307332`) is byte-for-byte
 untouched, and the new incremental dialer reuses its 250 ms/100 ms/5 s
@@ -201,6 +201,16 @@ from the branch. Exact commands, the re-derived W2 D1-D11 matrix plus warm
 control and N scenarios, deterministic synctest coverage, and regression
 evidence are recorded in the status ledger's "CONNECT follow-up W2: DNS
 incremental implementation" section (2026-09-08).
+
+Release acceptance is complete: the reviewed branch was merged into
+forwardproxy `master` at `cad30c35`, and product combination run `34210375332`
+passed against the committed four-repository lock. Experimental release 6
+was published and its exact server and OpenWrt router artifacts deployed.
+The router binary remains byte-identical to release 5; only the server TCP
+DNS scheduling runtime changed. The validation client was not replaced.
+The newer "Incremental DNS acceptance and release 6 deployment" ledger section
+supersedes the earlier development-branch state and records the scoped review,
+full combination evidence, rollback, and short live observations.
 
 ## 4. W3: Go Happy Eyeballs comparison
 

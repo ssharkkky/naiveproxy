@@ -16,11 +16,11 @@ The current source and deployment authority is intentionally separated from
 the historical milestone evidence below:
 
 - Product lock: [`release/product.lock.json`](../release/product.lock.json),
-  version `v150.0.7871.63-5-native-udp-fastopen`, channel `experimental`, SHA256
-  `7eed62b94831b2fef231f37662b1d5047108e3ff771715afb01be187dd567d62`.
+  version `v150.0.7871.63-6-native-udp-fastopen-dns`, channel `experimental`, SHA256
+  `df54c246c590368ebc5559a0ecd6a508274b2c5248fad6f492f5146cd1c929d2`.
 - Locked `master` commits: NaiveProxy `4de6443f5ab3842bfead7f65b544207d83d290e3`
   (includes the CONNECT response fixes and Fast Open re-enablement), forwardproxy
-  `d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab`, Caddy
+  `cad30c35a736bd856789b3c7318a571d5c6d26ae`, Caddy
   `0ea5700f64254ba24e39d57b1febece2fa34927e`, and quic-go
   `c308178d8c77061d5e261ce9df37f2bcc0ab22bf`.
 - Live deployment authority: [`current-deployment.md`](current-deployment.md).
@@ -28,7 +28,112 @@ the historical milestone evidence below:
   and [server manifest](../release/manifests/current-server.json).
 - Current online SHA256: router client `c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145`,
   Linux validation client `cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df`,
-  server `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`.
+  server `3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa`.
+
+## Incremental DNS acceptance and release 6 deployment (2026-09-08)
+
+Forwardproxy `0d4e10f` was reviewed before release. Independent deterministic
+tests reproduced a DNS-wakeup timing defect: an answer or NODATA arriving at
+150 ms started the next candidate before the promised 250 ms normal stagger.
+Fix `6416ca0` tracks `nextReadyAt`; only actual dial failures shorten the
+window. The original review reproductions now pass with `-race`, including
+NODATA with another same-family address already queued, and exhausted initial
+candidates followed by late successful DNS. Reproducible experimental sources
+and synthetic results are committed in `53c3a0d` (22 Route B scenarios).
+
+The reviewed branch was merged to forwardproxy `master` as
+`cad30c35a736bd856789b3c7318a571d5c6d26ae`. Product-lock commit
+`93b47bc5c394cbac460b0aaa9c6d04771f5abb49` pins that server and the unchanged
+client/Caddy/quic-go inputs above. Release tag
+`v150.0.7871.63-6-native-udp-fastopen-dns` points to that lock commit.
+
+Fresh acceptance:
+
+```bash
+# Forwardproxy repository; Go 1.26.0.
+GOTOOLCHAIN=go1.26.0 go build ./...
+GOTOOLCHAIN=go1.26.0 go test -race -count=1 ./...  # passed, 7.922 s
+# Independent review worktree, at the repaired candidate.
+GOTOOLCHAIN=go1.26.0 GOMAXPROCS=4 go test -race -run '^TestReview' -count=1 .  # passed
+# NaiveProxy repository.
+./scripts/verify-product-lock.sh  # PRODUCT_LOCK_OK
+gh workflow run 'Product combination' --ref master
+```
+
+Product combination [34210375332](https://github.com/ssharkkky/naiveproxy/actions/runs/34210375332)
+passed with `PRODUCT_COMBINATION_OK`. Downloaded evidence contains the identical
+product lock and the CONNECT, Fast Open, M1-M5, and default certificate-verifier
+markers. Its log contains all 56 TCP `TEST PASS` results. Locked server normal
+and race tests passed in the same run. The dynamic scheduler is a new server
+runtime boundary, reviewed with the defect and fix above and qualified by this
+fresh combination; historical M3-M6 `AUDIT_PASS` records do not automatically
+extend to it. This is scoped acceptance, not a new independent `AUDIT_PASS` or
+completion of deferred M7-G5.
+
+Server Release run `34215280766`, job `102025466714`, artifact `10051577336`
+passed. The downloaded archive SHA256 is
+`9c39c0caa3ea9922f4d681959178222e5b88fca9cbf2fa199faa710a9ddd5845`, matching
+the published `SHA256SUMS`. Its product lock is byte-identical; Go provenance
+shows Go 1.26.0, the CI checkouts of Caddy/forwardproxy, and quic-go
+`v0.62.1-0.20260902185508-c308178d8c77`. Module `http.handlers.forward_proxy`
+is present. The exact binary was installed without rebuilding at
+2026-09-08 10:30:53 UTC, after validating the existing config, backing up the
+old binary and metrics, and bounding service stop. Running process SHA256 is
+`3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa`.
+Service is active/running, `NRestarts=0`, and unauthenticated CONNECT returns
+the expected `407`.
+
+Client Release run `34215280733` passed its OpenWrt x86_64 job `102025866208`
+before deployment. Release asset `550308415` and CI artifact `10051902303`
+contain the same archive, SHA256
+`bdf2b28b79cf89ff806c10556722b04146bc8c5fafeed130815c6ba8ab9c76d5`; the
+archive also matches the GitHub asset digest. The Naive executable SHA256
+`c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145` matches
+CI and is byte-identical to release 5, consistent with unchanged client runtime.
+The new Release archive was nevertheless installed atomically and only the
+Naive service restarted at 2026-09-08 10:44:37 UTC. Naive configuration hash
+was unchanged. No sing-box operation was performed. The separate validation
+client was not replaced. Other client platform builds were still running at
+router deployment time; final release completion is recorded separately below.
+
+The bounded deployment probe talks directly to the Naive SOCKS5 listener.
+It emits counts and timings without deployment endpoints, target addresses,
+credentials, or raw connection errors:
+
+```bash
+# Build in tests/m5; copy the static probe to the router's temporary directory.
+CGO_ENABLED=0 GOTOOLCHAIN=go1.26.0 go build -o /tmp/release-smoke ./cmd/release-smoke
+# Run on the router, using its unchanged local SOCKS listener.
+/tmp/release-smoke -samples 96 -concurrency 8 -failure
+```
+
+| Stage | TCP | UDP DNS | TCP median / p95 / max (ms) | Failed-target duration (ms) |
+| --- | --- | --- | --- | --- |
+| Before replacement | 96/96 | 2/4 | 535.241 / 1018.370 / 1430.121 | 5148.431 |
+| After server replacement, old client | 96/96 | 4/4 | 534.468 / 838.032 / 1170.252 | 5204.671 |
+| After both replacements, first batch | 96/96 | 4/4 | 467.058 / 1069.745 / 6349.762 | 5381.241 |
+| After both replacements, second batch | 96/96 | 4/4 | 485.705 / 799.117 / 1202.064 | 5180.063 |
+| After both replacements, third batch | 96/96 | 4/4 | 490.973 / 711.733 / 952.941 | 5177.385 |
+
+Before replacement, follow-up TCP/UDP batches also returned 8/8 + 4/4 and
+8/8 + 3/4; the latter used an alternate public DNS resolver and recorded one
+query timeout. These failures are retained, not excluded from the record.
+The first post-client batch includes a successful request taking 6.350 s;
+the failed-target bound does not imply every successful application request
+finishes within 6 s. HTTP 403/421 responses are completed TLS/HTTP exchanges,
+not application-content success. Small samples on public targets do not prove
+a statistical latency improvement or absence of packet loss.
+
+Three post-client batches total 288/288 TCP and 12/12 UDP DNS. The router
+service remained running with the expected executable hash; the server stayed
+active/running with `NRestarts=0`. This is a short qualification observation,
+not a 24-48 hour soak.
+
+Deployment markers: `RELEASE6_CONFIG_OK`, `RELEASE6_SERVER_DEPLOY_OK`,
+`RELEASE6_CLIENT_DEPLOY_OK`. Exact rollback paths, archive/job IDs, and current
+hashes are in the deployment page and manifests. The older implementation
+record below describes pre-release branch state and is superseded by this
+acceptance and deployment record.
 
 ## CONNECT follow-up W2: DNS incremental implementation (2026-09-08)
 
@@ -53,9 +158,8 @@ performed (session constraint); deployment follows the W4 pattern
   ACL-filtered, deduplicated (shared seen set, cross-family) addresses into
   the start queue in per-family resolver order; the first-arriving family
   dials immediately. No Resolution Delay.
-- A late family merges at the tail of the start queue only while no winner
-  exists and the total deadline has not passed; otherwise its addresses are
-  discarded without dialing. A winner, deadline expiry, or request
+- A late family joins its own queue; the scheduler alternates families lazily
+  and checks context before each new dial. A winner, deadline expiry, or request
   cancellation cancels the other family's in-flight lookup; no goroutine
   leaks (matrix leak budget + untagged leak check green).
 - The lazy interleave pop reproduces the audited static

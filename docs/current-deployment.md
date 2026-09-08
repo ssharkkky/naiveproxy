@@ -16,7 +16,66 @@ rewrote documentation history and release tags. Source SHAs below and in the
 manifests remain the original build provenance; the cleanup record maps the
 release inputs to sanitized revisions. Published binaries were not rebuilt.
 
-## Current release and deployment: September 8 release 5 (Fast Open)
+## Current release and deployment: September 8 release 6 (incremental DNS)
+
+Experimental release
+[`v150.0.7871.63-6-native-udp-fastopen-dns`](https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-6-native-udp-fastopen-dns)
+is deployed on the server and router. The validation client retains release 5
+and was not replaced in this deployment. This section supersedes older
+deployment descriptions below.
+
+- Product lock SHA256: `df54c246c590368ebc5559a0ecd6a508274b2c5248fad6f492f5146cd1c929d2`.
+- Source: NaiveProxy `4de6443f5ab3842bfead7f65b544207d83d290e3`, forwardproxy
+  `cad30c35a736bd856789b3c7318a571d5c6d26ae`, Caddy
+  `0ea5700f64254ba24e39d57b1febece2fa34927e`, quic-go
+  `c308178d8c77061d5e261ce9df37f2bcc0ab22bf`.
+- Product combination [34210375332](https://github.com/ssharkkky/naiveproxy/actions/runs/34210375332)
+  passed with `PRODUCT_COMBINATION_OK`, 56 TCP cases, CONNECT/Fast Open, M1-M5,
+  server normal/race, and default certificate-verifier checks.
+- Server release [34215280766](https://github.com/ssharkkky/naiveproxy/actions/runs/34215280766)
+  passed. Client release [34215280733](https://github.com/ssharkkky/naiveproxy/actions/runs/34215280733)
+  passed its OpenWrt x86_64 job before router deployment; other platform jobs
+  were still running at deployment time.
+
+| Role | Running binary SHA256 | Deployment |
+| --- | --- | --- |
+| Server `endpoint-3.example.invalid`, `native-udp-caddy.service` | `3a5b1aa0e467415d93f3c8a13ffb71fcff47e65452a0a178db01be75e4c00daa` | Release 6, 2026-09-08 10:30:53 UTC |
+| Router `192.0.2.2`, `/etc/init.d/native-udp` | `c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145` | Release 6, 2026-09-08 10:44:37 UTC |
+| Validation client `endpoint-1.example.invalid` | `cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df` | Retained release 5; not changed in this deployment |
+
+The server now admits ACL-approved A/AAAA candidates as each family completes.
+The normal 250 ms stagger, failure-accelerated 100 ms minimum interval, 5 s
+per-address timeout, and cancellation policy remain. The client runtime is
+unchanged: the new OpenWrt archive contains the same Naive binary as release 5.
+The exact new archive was verified and installed, with only the Naive service
+restarted and its configuration hash unchanged. No sing-box operations were
+performed. Server configuration validation, process SHA verification, and the
+expected unauthenticated CONNECT `407` check passed; `NRestarts=0` after the
+manual restart does not imply that no restart occurred.
+
+After the server replacement, the existing client passed 96/96 TCP and 4/4 UDP
+DNS requests; a failed target completed in 5.205 s. After the client replacement,
+three batches each passed 96/96 TCP and 4/4 UDP DNS; failed-target samples completed
+in 5.381 s, 5.180 s, and 5.177 s. One successful request in the first batch took 6.350 s.
+Before either replacement, UDP samples included 2/4 and 3/4 results as well as
+a 4/4 batch; all are retained in the ledger rather than omitted. These bounded
+samples do not establish a statistical latency improvement or zero packet loss.
+
+Immediate rollback, restoring only the named binary and restarting its service:
+
+- Server: `/var/lib/proxy-private/caddy-naive-udp.pre-release-6-20260908T103051Z`,
+  SHA256 `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`.
+- Router: `/usr/bin/native-udp.pre-release-6-20260908T104434Z`,
+  SHA256 `c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145`.
+- Pre-restart server metrics:
+  `/var/lib/proxy-private/metrics.pre-release-6-20260908T103051Z.txt`.
+
+Exact job/artifact IDs and archive hashes are recorded in the current
+[client](../release/manifests/current-client.json) and
+[server](../release/manifests/current-server.json) manifests. Historical
+deployment hashes below describe their named releases only.
+
+## Historical release 5 (Fast Open)
 
 The current matching experimental release is
 [`v150.0.7871.63-5-native-udp-fastopen`](https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-5-native-udp-fastopen).

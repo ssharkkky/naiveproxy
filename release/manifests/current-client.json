@@ -1,30 +1,32 @@
 {
   "schema_version": 1,
   "component": "naiveproxy-native-udp-client",
-  "generated_at": "2026-09-07T23:01:34Z",
+  "generated_at": "2026-09-08T10:44:37Z",
   "product_lock": {
     "path": "release/product.lock.json",
-    "sha256": "7eed62b94831b2fef231f37662b1d5047108e3ff771715afb01be187dd567d62",
-    "product_version": "v150.0.7871.63-5-native-udp-fastopen",
+    "sha256": "df54c246c590368ebc5559a0ecd6a508274b2c5248fad6f492f5146cd1c929d2",
+    "product_version": "v150.0.7871.63-6-native-udp-fastopen-dns",
     "naiveproxy_commit": "4de6443f5ab3842bfead7f65b544207d83d290e3"
   },
   "build": {
     "repository": "ssharkkky/naiveproxy",
     "workflow": "Build",
-    "run_id": 34159149117,
-    "run_url": "https://github.com/ssharkkky/naiveproxy/actions/runs/34159149117",
-    "workflow_commit": "e8cc010356a82c1db586bd84e251f8c374225470",
+    "run_id": 34215280733,
+    "run_url": "https://github.com/ssharkkky/naiveproxy/actions/runs/34215280733",
+    "workflow_commit": "93b47bc5c394cbac460b0aaa9c6d04771f5abb49",
     "source_commit": "4de6443f5ab3842bfead7f65b544207d83d290e3",
-    "release_url": "https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-5-native-udp-fastopen",
+    "release_url": "https://github.com/ssharkkky/naiveproxy/releases/tag/v150.0.7871.63-6-native-udp-fastopen-dns",
     "release_channel": "experimental",
-    "result": "success",
-    "result_at_deployment": "50/50 platform and toolchain jobs succeeded; release assets and contained binaries verified",
-    "combination_run_id": 34155408450,
+    "result": "in_progress",
+    "result_at_deployment": "OpenWrt x86_64 job succeeded; Release archive matches GitHub asset digest and CI archive; binary matches CI SHA256. Other platform builds were still running.",
+    "combination_run_id": 34210375332,
     "combination_marker": "PRODUCT_COMBINATION_OK"
   },
   "artifacts": [
     {
       "platform": "linux-x64",
+      "retained_release": "v150.0.7871.63-5-native-udp-fastopen",
+      "retained_build_run_id": 34159149117,
       "job_id": 101857309297,
       "archive_sha256": "94569e6fceca6e1835c623d510a81b9a2a1689bd4043ab201417741cbab636ca",
       "binary_sha256": "cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df",
@@ -32,9 +34,10 @@
     },
     {
       "platform": "openwrt-x86_64",
-      "job_id": 101857309407,
-      "release_asset_id": 549365998,
-      "archive_sha256": "b8aacca64326a9ae5de7f2eaa7fca4c350725d853bf2e0a15f9a075f1e494ca5",
+      "job_id": 102025866208,
+      "artifact_id": 10051902303,
+      "release_asset_id": 550308415,
+      "archive_sha256": "bdf2b28b79cf89ff806c10556722b04146bc8c5fafeed130815c6ba8ab9c76d5",
       "binary_sha256": "c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145",
       "basic_test": "passed"
     }
@@ -47,14 +50,15 @@
       "service": "/etc/init.d/native-udp",
       "binary": "/usr/bin/native-udp",
       "binary_sha256": "c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145",
-      "product_version": "v150.0.7871.63-5-native-udp-fastopen",
-      "verified_at": "2026-09-07T23:01:35Z",
+      "product_version": "v150.0.7871.63-6-native-udp-fastopen-dns",
+      "deployed_at": "2026-09-08T10:44:37Z",
+      "verified_at": "2026-09-08T10:44:37Z",
       "listen": "socks://127.0.0.1:1080",
       "quic_congestion": "bbr1",
-      "deployment_action": "verified release archive, atomic replacement, service restart; read-only verification confirmed the release-5 OpenWrt binary and running service",
-      "verification": "Read-only verification confirmed the release-5 OpenWrt binary and running service; W4 A/B and product-combination evidence is recorded in native-udp-status.md",
-      "rollback_binary": "/var/lib/proxy-private/native-udp.pre-release-4-20260905T125944Z",
-      "rollback_binary_sha256": "0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3"
+      "deployment_action": "Verified Release-6 archive and CI digest, timestamped backup, atomic binary replacement, and restart of native-udp only. Binary is byte-identical to release 5; configuration hash unchanged. No sing-box operation.",
+      "verification": "Running process SHA matched; three batches totaled 288/288 TCP and 12/12 UDP DNS; failed targets completed in 5.177-5.381 seconds. Full observations, including a 6.350-second successful request, are recorded in native-udp-status.md.",
+      "rollback_binary": "/usr/bin/native-udp.pre-release-6-20260908T104434Z",
+      "rollback_binary_sha256": "c9b2f8411b03f64bada9c13846177392104fd9656e4fca3fe0445cda8ce6c145"
     },
     {
       "host": "endpoint-1.example.invalid",

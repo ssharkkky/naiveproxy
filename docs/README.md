@@ -21,15 +21,16 @@ cleanup. Recorded build SHAs still identify the original published builds.
 
 - All four fork development branches are `master`. The immutable current
   product inputs are in [`../release/product.lock.json`](../release/product.lock.json):
-  NaiveProxy `4de6443f5a`, forwardproxy `d50ef3f`, Caddy `0ea5700f`, and
+  NaiveProxy `4de6443f5a`, forwardproxy `cad30c35`, Caddy `0ea5700f`, and
   quic-go `c308178d`.
 - The September 5 CONNECT fixes and the restored learned-padding Fast Open
   behavior are included in experimental release
-  `v150.0.7871.63-5-native-udp-fastopen`. All 50 client build jobs, the server
-  release, and product-combination CI passed. The router and validation client
-  run exact release-5 client artifacts; the unchanged production server binary
-  matches the release-5 server artifact. See the W4 record in the status ledger
-  and the current deployment page for validation, artifacts, and rollback.
+  `v150.0.7871.63-6-native-udp-fastopen-dns`, now also including incremental
+  A/AAAA TCP dialing. Product-combination CI, the server release, and the
+  OpenWrt x86_64 release job passed. The server and router run exact release-6
+  artifacts; the router binary is byte-identical to release 5. The validation
+  client retains release 5. See the status ledger and current deployment page
+  for release-build completion, validation, artifacts, and rollback.
 - M7 G4 is complete (`M7_G4_PARITY_OK`); G5 regression/audit qualification is
   intentionally deferred. The release channel therefore remains
   `experimental`, not stable.
@@ -56,13 +57,14 @@ records the September 6 decisions and the next work, in order:
    The separate server CONNECT response/cancellation fix is submitted as
    [forwardproxy #12](https://github.com/klzgrad/forwardproxy/pull/12), with
    fresh upstream-base regression coverage; review pending.
-2. Analyze and test DNS response delays and address ordering before deciding
-   whether either needs optimization.
-3. Compare the current ACL-approved address scheduler with Go's built-in
-   Happy Eyeballs and record an evidence-based retain/replace decision.
+2. DNS analysis and incremental A/AAAA implementation are complete and deployed
+   in release 6; track further live observations separately from the bounded
+   qualification samples.
+3. Happy Eyeballs evaluation is complete: retain the existing 250/100 ms
+   strategy, now implemented with dynamic candidate admission.
 
-W1 submission and W4 Fast Open re-enablement are complete; W2/W3 remain
-pending. These tasks do not depend on
+W1 submission, W4 Fast Open re-enablement, and W2/W3 are complete.
+These tasks do not depend on
 UDP/BBR upstreaming and do not close M7-G5 or start M8. The detailed task
 status and acceptance criteria live in the follow-up plan; verified execution
 results belong in the status ledger.
