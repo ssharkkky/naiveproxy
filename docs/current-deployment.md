@@ -57,6 +57,15 @@ performed. Server configuration validation, process SHA verification, and the
 expected unauthenticated CONNECT `407` check passed; `NRestarts=0` after the
 manual restart does not imply that no restart occurred.
 
+Runtime limit reconciliation (2026-09-08): the deployed release-6 Caddy
+binary is still using the earlier CONNECT-UDP limits of 256 total associations
+and 32 per client/source. forwardproxy master contains the later limit change
+(`25b4cd60`, 512 total and 128 per client/source), but that change was not
+present in the release-6 server binary. The 32-association peak observed in
+live sampling therefore reflects the deployed binary, not the current
+forwardproxy source. A replacement server artifact must be built and deployed
+before the 512/128 limits can be claimed as live.
+
 After the server replacement, the existing client passed 96/96 TCP and 4/4 UDP
 DNS requests; a failed target completed in 5.205 s. After the client replacement,
 three batches each passed 96/96 TCP and 4/4 UDP DNS; failed-target samples completed
