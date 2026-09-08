@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "product": "naiveproxy-native-udp",
-  "product_version": "v150.0.7871.63-5-native-udp-fastopen",
+  "product_version": "v150.0.7871.63-6-native-udp-fastopen-dns",
   "release_channel": "experimental",
   "naiveproxy": {
     "repository": "ssharkkky/naiveproxy",
@@ -9,7 +9,7 @@
   },
   "server": {
     "forwardproxy_repository": "ssharkkky/forwardproxy",
-    "forwardproxy_commit": "d50ef3ff5c92164ff88e8e7f0a1ff2d342b7ecab",
+    "forwardproxy_commit": "cad30c35a736bd856789b3c7318a571d5c6d26ae",
     "forwardproxy_runtime_base": "7307332b312f29ce5f5f1cb638e4a5b993e95442",
     "caddy_repository": "ssharkkky/caddy",
     "caddy_commit": "0ea5700f64254ba24e39d57b1febece2fa34927e",
