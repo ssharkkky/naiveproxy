@@ -30,6 +30,353 @@ the historical milestone evidence below:
   Linux validation client `cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df`,
   server `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`.
 
+## CONNECT follow-up W2: DNS and address-order investigation (2026-09-08)
+
+W2 is complete (investigation only; no forwardproxy runtime change). All
+experiments are untracked in `/root/paseo/forwardproxy` (master `d50ef3f`) and
+behind the `//go:build w2w3` tag: the four `experiments_w2w3_*_test.go`
+files sit at the package root because they must be in `package forwardproxy`
+to reach the unexported handler/dial APIs; all experiment data lives under
+`experiments/w2w3/results/*.jsonl`. Untagged `go build ./...` and
+`go test ./...` are unaffected and pass; `git diff --check` is clean.
+
+### Resolver/toolchain inventory
+
+The currently deployed server binary (SHA256
+`d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`, matching
+the online hash in the product lock above) embeds:
+
+```text
+$ GOTOOLCHAIN=go1.26.0 go version -m <server binary> | head -1
+<server binary>: go1.26.0
+build   CGO_ENABLED=0
+build   GOOS=linux
+build   GOARCH=amd64
+build   -tags=nobadger,nomysql,nopgx
+build   -trimpath=true
+```
+
+The release server therefore uses the Go 1.26.0 **pure-Go (netgo) resolver**;
+the cgo/system resolver path is not compiled into the release artifact. The
+build is xcaddy v0.4.5 on GitHub ubuntu-22.04 with `go-version: 1.26.0`
+(`.github/workflows/m7-server-build.yml`; `M7_TOOLCHAIN.lock`
+`GO_VERSION=1.26.0`). The probe host is Linux with the systemd-resolved stub
+`/etc/resolv.conf` (`nameserver 127.0.0.53`, `options edns0 trust-ad`,
+`search .`) and a standard `/etc/hosts`; the deployment host's resolv.conf
+specifics are not in Git, so live-host nameserver/search/ndots behavior
+remains unverified.
+
+Verified pure-Go path behavior (Go 1.26.0 source inspection plus the
+real-resolver probe below): `/etc/hosts` is consulted before DNS; A and AAAA
+sub-queries run in parallel and `LookupIPAddr` **waits for both** before
+returning; if any family returns addresses the merged addresses are returned
+and per-family errors surface only when every family failed; a dropped
+exchange times out after 5 s (default) and is retried once (attempts=2), so a
+silently dropped family costs up to 10 s; SERVFAIL and NODATA return
+immediately; request-context cancellation aborts in-flight exchanges; results
+are ordered by `sortByRFC6724` (RFC 6724/3484) — on the probe host a
+dual-stack answer came back IPv6 first. There is no resolver-level cache: each
+`LookupIPAddr` is a fresh query.
+
+Verified: linux/amd64 pure-Go (release mode). Untested: cgo/system resolver
+(not compiled into the release), deployment-host resolver configuration,
+non-Linux server artifacts (none exist).
+
+### Controlled DNS fixture matrix
+
+`TestW2W3DNSMatrix` injects `h.lookupIP` with per-family delay/behavior
+fixtures (answer/nodata/error/drop) and drives the full `ServeHTTP` CONNECT
+path; the first candidate blackholes until the winner is chosen (250 ms
+stagger, 5 s per-attempt timeout, total deadline includes DNS). 30 repeats per
+scenario; each run records status, attempt order, winner, and separate
+t_dns/t_first/t_conn/t_resp (`experiments/w2w3/results/w2_dns_matrix.jsonl`).
+"drop" is modeled as a 2 s resolver timeout to bound runtime; the true cost
+of a dropped exchange is measured by the real-resolver probe below.
+
+| Scenario (30 runs each) | Fixture | Status | t_dns p50 | t_conn p50 |
+| --- | --- | --- | --- | --- |
+| D1_dual_fast_blackhole | both answer 10 ms | 30/30 200 | 10.4 ms | 261.0 ms |
+| D2_v4_fast_v6_slow | v4 10 ms / v6 500 ms | 30/30 200 | 501.0 ms | 501.1 ms |
+| D3_v6_fast_v4_slow | v6 10 ms / v4 500 ms | 30/30 200 | 501.1 ms | 501.1 ms |
+| D4_v4_only | v4 answer / v6 NODATA | 30/30 200 | 10.2 ms | 10.3 ms |
+| D5_v6_only | v6 answer / v4 NODATA | 30/30 200 | 10.3 ms | 10.3 ms |
+| D6_v4_drop_v6_ok | v4 drop (2 s) / v6 10 ms | 30/30 200 | 2000.7 ms | 2000.8 ms |
+| D7_v6_drop_v4_ok | v6 drop (2 s) / v4 10 ms | 30/30 200 | 2000.7 ms | 2000.8 ms |
+| D8_v4_servfail_v6_ok | v4 SERVFAIL / v6 answer | 30/30 200 | 10.3 ms | 10.3 ms |
+| D9_both_slow | 300/400 ms | 30/30 200 | 400.9 ms | 401.0 ms |
+| D10_all_dropped | both drop (2 s) | 30/30 504 | 2000.6 ms | no dial |
+| D11_total_cancel | both 500 ms, cancel at 100 ms | 30/30 502 | aborted | no dial |
+| D2w_warm (control) | lookup 0 ms | 30/30 200 | 2.3 ms | 2.3 ms |
+
+Every run matched the per-scenario status/attempt/winner invariants (the test
+asserts per run). D2/D3 show the first TCP attempt is gated on the full
+A+AAAA lookup; D6/D7 show a dropped family gates the dial even when the other
+family already answered; D10/D11 confirm the 504/502 mapping and that total
+cancellation aborts the lookup before any dial. The warm control (D2w, 0 ms
+lookup) bounds non-DNS overhead at about 2 ms.
+
+### Ordering, ACL, and family isolation
+
+`TestW2W3OrderPreservation` + `TestW2W3NumericPassthrough` (all pass,
+`ok 2.367s`) assert the exact attempt order per run with every dial refused:
+
+- O1a deny-middle + dedup: resolver order survives the ACL filter and dedup.
+- O1b v6-first + deny-v4: per-family order survives; interleave emits
+  `v6a, v4a, v6b, v4b` (first-family count one, then alternate).
+- O2a/O2b/O2c multi-candidate per family (3×v4, 3×v6, mixed): per-family
+  relative order survives interleaving.
+- O3a/O3b/O3c `tcp4`/`tcp6` isolation: `tcp4` dials only v4 even when v6 is
+  resolver-first; `tcp6` only v6; `tcp4` with no v4 answer returns 502.
+- O4a/O4b ACL removes the preferred family: falls back to the other family
+  in resolver order.
+- O5 combined deny + dedup + multi-candidate: exact order asserted.
+- Numeric passthrough: numeric v4/v6 dial directly; a denied numeric is
+  rejected before any dial (502).
+
+### Incremental-candidates prototype (isolated)
+
+`TestW2W3IncrementalComparison` runs the current path and an isolated
+incremental-candidates prototype (per-family batch stream; ACL check before
+dial; dedup; same 250 ms stagger / 5 s per-attempt / total deadline; cancel
+on winner) against identical fixtures, 30 repeats each
+(`experiments/w2w3/results/w2_incremental.jsonl`):
+
+| Scenario | Current t_conn p50 | Incremental t_conn p50 | Δ p50 |
+| --- | --- | --- | --- |
+| C1 both fast (winner second) | 260.9 ms | 260.8 ms | ≈ 0 |
+| C2 v4 fast / v6 500 ms slow (winner v4) | 500.3 ms | 10.3 ms | +490 ms |
+| C3 v4 drop (2 s) / v6 fast (winner v6) | 2001.0 ms | 10.3 ms | +1991 ms |
+| C4 v6 drop (2 s) / v4 fast (winner v4) | 2000.8 ms | 10.3 ms | +1991 ms |
+
+Both modes return the same winner with 30/30 HTTP 200 in every scenario. The
+partial/incremental benefit is zero when unskewed and equals the slow family's
+full cost when skewed or dropped.
+
+### Real-resolver probe (mechanism validation)
+
+`experiments/w2w3/realprobe` points `net.Resolver{Dial: ...}` (the same
+pure-Go DNS implementation the release server uses) at a local UDP DNS
+fixture with scenario-controlled delays/behaviors, Go 1.26.0, `go build
+-race` clean (0 data races):
+
+| Scenario (repeats) | Fixture | p50 | Result |
+| --- | --- | --- | --- |
+| P1 dual fast (5) | A/AAAA answer at 20 ms | 21.0 ms | 2 addrs, v6 first (RFC 6724) |
+| P2 A fast / AAAA slow (5) | 20 ms / 700 ms | 701.3 ms | waits for the slow family |
+| P3 A slow / AAAA fast (5) | 700 ms / 20 ms | 701.4 ms | waits for the slow family |
+| P4 AAAA dropped (3) | A 20 ms / no AAAA reply | 10005.6 ms | A still returned (partial) |
+| P5 A dropped (3) | no A reply / AAAA 20 ms | 10005.8 ms | AAAA still returned (partial) |
+| P6 AAAA NODATA (5) | A 20 ms / empty AAAA | 20.7 ms | fast empty answer is free |
+| P7 both dropped (2) | no replies | 10001.9 ms | `i/o timeout` error |
+| P8 both SERVFAIL (5) | 20 ms | 21.0 ms | `no such host` error |
+| P9 cancel (3) | both 700 ms, cancel at 100 ms | 100.9 ms | `operation was canceled` |
+
+A dropped query costs one 5 s per-attempt timeout plus one retry (10 s per
+family), distinct from a delayed answer (costs only the delay) and from
+SERVFAIL/NODATA (immediate).
+
+### W2 conclusions
+
+**DNS: defer the runtime change (a separate owner change is justified).**
+Measured mechanism: `LookupIPAddr` gates the first TCP attempt on the full
+A+AAAA lookup, so a slow family adds its full delay (701 ms for a 700 ms
+AAAA) and a dropped family adds up to 10 s before any dial starts, even when
+the other family answered in milliseconds. Incremental candidates recover
+exactly that skew (C2 +490 ms; C3/C4 +1991 ms under the 2 s drop model; ≈ 0
+when unskewed). This justifies a separate owner change — incremental A/AAAA
+or dialing the first-arriving family, or a per-family DNS timeout — with its
+own owner-matrix regression and audit reconsideration; W2 implements no
+runtime change. Synthetic delays prove the mechanism only; they do not
+establish that current deployment latency is DNS-caused.
+
+**Ordering: retain resolver sorting.** RFC 6724 order (verified IPv6-first on
+the probe host) survives ACL filtering + dedup, per-family relative order
+survives interleaving, `tcp4`/`tcp6` never dial the other family, ACL
+preferred-family removal falls back correctly, and multi-candidate families
+are handled. No gap was demonstrated on the supported pure-Go path, so no
+re-sorting is introduced.
+
+### Commands and results
+
+```bash
+cd /root/paseo/forwardproxy
+git status -sb    # master d50ef3f, clean
+GOTOOLCHAIN=go1.26.0 go version -m <release server binary> | head -1    # go1.26.0, CGO_ENABLED=0, linux/amd64
+GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW2W3DNSMatrix' -count=1 .    # ok 234.103s
+GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW2W3OrderPreservation|TestW2W3NumericPassthrough' -count=1 .  # ok 2.367s
+GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW2W3IncrementalComparison' -count=1 .  # ok 151.23s
+cd experiments/w2w3/realprobe
+CGO_ENABLED=1 GOTOOLCHAIN=go1.26.0 go build -race -o /tmp/w2w3-realprobe-race . && /tmp/w2w3-realprobe-race results/w2_real_resolver_race.jsonl   # 0 data races
+cd /root/paseo/forwardproxy
+GOTOOLCHAIN=go1.26.0 go build ./... && GOTOOLCHAIN=go1.26.0 go test -count=1 ./...   # ok (untagged build/tests unaffected)
+git diff --check    # clean
+```
+
+The untagged forwardproxy owner suite (`go test ./...`) passes unchanged; the
+56-case Naive TCP matrix lives in the untouched NaiveProxy repository and was
+not affected by this investigation. W3 (Go Happy Eyeballs comparison) is
+complete; see the next section.
+
+## Go Happy Eyeballs comparison (W3) — complete
+
+Baseline: forwardproxy `master` `d50ef3f` (custom scheduler `7307332`),
+Go 1.26.0 via `GOTOOLCHAIN=go1.26.0`. Both paths ran with the same 12 s total
+deadline, the same candidate addresses (loopback placeholders on port 443:
+`127.0.0.11-14`, `2001:db8:30::11-14`), and the same per-candidate behavior
+(realized by the kernel for accept/refuse and by a pre-connect hook for
+delay/loss/blackhole, inside the dial call so both schedulers observe
+identical "attempt pending N ms then success/failure" dynamics). Blackhole
+is a pre-connect block until the dial context dies —
+scheduler-indistinguishable from a kernel SYN drop. The current path is the
+production `dialContextCheckACL` (resolve → ACL pre-filter →
+`dialTCPAddresses`) with the W2 lookup fixture; the HE path is an isolated
+`net.Dialer{FallbackDelay: 250ms, ControlContext: ACL gate on the actual
+numeric destination, Resolver: loopback UDP DNS fixture}` (pure-Go resolver
+path, as in the release server), with `tcpDialError` semantics mirrored
+(timeout → 504, else 502). Primary comparison uses `FallbackDelay=250ms`
+(matching the current scheduler's stagger); Go's 300 ms default is reported
+separately (H1/H2/H3/H4/H7/H9 × 10 repeats, path `he300`).
+
+Seeds and budgets were fixed before the matrix: RTT delay 100 ms ± 20 ms
+(seed base `2026090881`), flaky loss seed base `2026090882` (per
+(scenario, run, candidate) seed, identical on both paths so the same
+candidate wins on both); repeat counts per scenario (H4 15, H10 10, H11
+10×20 parallel, H18 5×10 parallel, H21 3, all others 20-30 as in the plan);
+B1 — on healthy dual-stack scenarios (H1, H5, H6, H8, H16, H17, H20) HE p95
+t_conn must lead the current path's p95 by ≤ 100 ms; B4 — post-batch leaks:
+0 active target connections, fd/goroutine peaks within baseline + 2, and no
+kernel-ESTABLISHED connections to the candidate addresses. Per-run
+invariants (status, winner, attempt list, timing bands, ACL-denied counts)
+are asserted inside `TestW3Matrix`; `git diff --check` stayed clean in both
+repositories and the tracked forwardproxy tree was untouched (experiment
+files are untracked, `//go:build w2w3`).
+
+### Matrix results (22 scenarios × both paths; all per-run invariants pass)
+
+t_conn p50/p95 in ms (per-run rows in
+`experiments/w2w3/results/w3_matrix.jsonl`, aggregates in
+`w3_summary.jsonl`):
+
+| ID | n | status cur/HE | cur p50 | HE p50 | cur p95 | HE p95 | layout |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| H1 | 30 | 200/200 | 0.1 | 0.4 | 0.2 | 0.4 | v6-first dual healthy; winner v6a both |
+| H2 | 30 | 200/200 | 0.1 | 0.4 | 0.2 | 0.4 | dual healthy v6-first, extra candidates; winner v6a both |
+| H3 | 30 | 200/200 | 250.9 | 251.3 | 251.4 | 251.8 | v6 blackhole; v4 wins at the stagger/fallback window |
+| H4 | 15 | 200/200 | 501.2 | 6001.1 | 502.2 | 6001.6 | first primary candidate blackhole; v6b (second same-family) is the only healthy target |
+| H5 | 30 | 200/200 | 0.2 | 0.4 | 0.2 | 0.4 | v4-only single candidate; winner v4a |
+| H6 | 30 | 200/200 | 0.2 | 0.4 | 0.2 | 0.4 | v6-only single candidate; winner v6a |
+| H7 | 30 | 502/502 | 100.6 | 0.6 | 101.3 | 0.8 | both refuse; failure pacing |
+| H8 | 30 | 200/200 | 109.0 | 109.2 | 119.8 | 120.6 | both delayed 100-119 ms (seeded RTT); winner v6a both |
+| H9 | 30 | 200/200 | 38.6 | 39.3 | 289.3 | 289.5 | flaky first candidates (seeded, same seed both paths); winner matches per run |
+| H10 | 10 | 504/504 | 5251.2 | 12000.2 | 5251.7 | 12000.7 | both blackhole; per-attempt cap vs full-deadline slices |
+| H11 | 10×20 | 200/200 | 501.5 | 6001.1 | 502.3 | 6001.8 | H4 layout under 20 parallel × 10 rounds |
+| H12 | 30 | 502/502 | 100.9 | 0.7 | 101.4 | 0.9 | v4b ACL-denied; pre-filter vs dial-time gate |
+| H13 | 20 | 200/200 | 0.1 | 0.4 | 0.2 | 0.5 | DNS change between requests; no stale dials |
+| H14 | 30 | 502/502 | 0.0 | 0.2 | 0.0 | 0.2 | both families NODATA; 0 attempts |
+| H15 | 10 | 502/502 | 1000.5 | 1000.4 | 1001.2 | 1001.0 | request cancel at 1 s |
+| H16 | 20 | 200/200 | 280.7 | 280.9 | 281.2 | 281.2 | v6 refuse, v4 ok at stagger; winner v4a |
+| H17 | 10 | 200/200 | 310.7 | 310.8 | 311.1 | 311.1 | both refuse-then-ok at 500 ms targeted; winner v6a |
+| H18 | 5×10 | 502/502 | 200.5 | 200.4 | 200.5 | 200.5 | 10 parallel, cancel at 200 ms |
+| H19 | 10 | 502/502 | 0.0 | 0.2 | 0.0 | 0.2 | `tcp4` with v6-only answer; 0 attempts, no v6 connection |
+| H20 | 20 | 200/200 | 500.9 | 501.1 | 501.3 | 501.8 | v4 answer delayed 500 ms in DNS; winner v6a at ~1 ms |
+| H21 | 3 | 504/200 | 12000.7 | 10001.9 | 12000.7 | 10001.9 | A sub-query dropped, AAAA answered (as-implemented divergence) |
+| H22 | 10 | 502/502 | 0.0 | 0.3 | 0.1 | 0.3 | both families dropped; 502 fast, 0 dials |
+
+### As-implemented differences
+
+1. **H4/H11 (headline gap)**: when the first-listed family's first candidate
+   is blackholed and its second candidate is the only healthy target, the
+   current scheduler reaches it at 250 + 251 ms (~501 ms p50) while HE waits
+   out the primary family's full slice before falling back (~6001 ms p50) —
+   a 5.5 s gap on the same winner (v6b), identical under 20-way concurrency
+   (H11).
+2. **H10 (all blackhole)**: current surfaces 504 at ~5.25 s (250 ms stagger,
+   then the 5 s per-attempt cap on the second candidate, attempts run in
+   parallel); HE's candidate slices span the full 12 s deadline (504 at
+   ~12 s). Current gives 2.3× faster failure feedback.
+3. **H7 (all refuse)**: HE advances immediately after definitive failures
+   (~0.8 ms); current retains the 100 ms minimum spacing (~100.9 ms). A
+   ~100 ms difference on an all-refuse failure path.
+4. **H21 (dropped A sub-query, AAAA answered)**: current path — the
+   W2-validated wait-for-both lookup model blocks until the 12 s deadline,
+   leaving no time to dial (504 at ~12 s). HE path — Go 1.26's resolver
+   exhausts two 5 s attempts on the dropped A query, then returns the
+   partial AAAA answer at ~10 s and the dial succeeds (200 at ~10 s). This
+   divergence is resolver-layer semantics (the production path keeps the
+   pre-lookup ACL check and the W2 deadline-timeout mapping), not a
+   scheduler property.
+5. **H12 (ACL)**: current pre-filters the approved set before any dial (0
+   dials to the denied v4b); HE dials the denied candidate once and the
+   `ControlContext` gate rejects it before connect (1 denied dial per
+   request). Both paths: 0 established connections to the denied candidate.
+
+### Budgets, concurrency, and lifecycle
+
+- B1 passed on all seven healthy dual-stack scenarios: HE p95 leads current
+  p95 by at most 0.8 ms (H8); H1/H5/H6 by 0.2 ms; H16/H17 by 0.0 ms; H20 by
+  0.5 ms. The ≤ 1 ms absolute differences are the resolver path overhead in
+  the HE prototype, within the pre-declared 100 ms headroom.
+- Concurrency (H11 20 parallel × 10 rounds; H18 10 parallel with cancel at
+  200 ms): peak in-flight dials stayed within budget, per-round status
+  invariants held (20/20 and 10/10), and no post-batch leaks.
+- Post-batch B4 checks (0 active target connections, fd/goroutine within
+  baseline + 2, no kernel-ESTABLISHED to candidates) passed for all 22
+  matrix scenarios and the he300 subset. H19 verified `tcp4` family
+  isolation end to end (no v6 connection ever accepted).
+
+### HE-300 (Go default FallbackDelay)
+
+H1/H2 winners v6a at ~0.4-0.5 ms; H3 winner v4a at 301.3 ms p50 (the 300 ms
+fallback window plus connect, vs 251 ms at 250 ms); H7 502 at ~0.5 ms; H9
+winners vary per run (per-run seed, 200/10). H4's slice-semantics gap is
+unchanged at 6001.1 ms p50: the 250 → 300 ms delay does not affect the
+dominating full-deadline slice wait.
+
+### Decision: retain the current scheduler (`7307332`)
+
+Marker: `W3_RETAIN_SCHEDULER_OK`.
+
+- Happy-path equivalence: on all healthy scenarios the two schedulers
+  produce the same winner and t_conn within 1 ms (B1 passed with ≤ 0.8 ms
+  p95 headroom used of 100 ms). Replacement buys no latency.
+- Failure feedback favors the current scheduler: all-blackhole 5.25 s vs
+  12 s (H10), and first-candidate-blackholed same-family recovery 501 ms vs
+  6001 ms (H4/H11). Under a 12 s CONNECT budget, HE's per-family slice can
+  wait up to the full deadline on the first family before trying the second;
+  the current stagger + 5 s per-attempt cap bounds every total-failure path
+  to ~5.5 s.
+- ACL integration is simpler as implemented: the pre-filter dials zero
+  unapproved addresses, while the HE prototype needs a `ControlContext`
+  gate on the actual numeric destination (one denied dial per request and a
+  wider audit surface) for the same outcome.
+- HE's only advantage — immediate advance after definitive refusal (~100 ms
+  on all-refuse paths, H7) — does not offset the failure-feedback and ACL
+  surface costs. H21's divergence belongs to the resolver layer, where the
+  W2-validated wait-for-both + deadline semantics remain in force.
+- Maintenance/upstream-review cost: the current scheduler is ~90 lines of
+  reviewed, audited code with a small test surface (`connect_dial.go` +
+  `connect_dial_test.go`); replacing it with `net.Dialer` would move the
+  race into the standard library but push ACL enforcement into a
+  `ControlContext` gate plus resolver injection, adding review surface for
+  no measured gain. Retaining it keeps the audited boundary unchanged.
+- Neither scheduler is a complete RFC 8305 implementation; the current one
+  retains its documented 250 ms stagger, 100 ms minimum spacing, and 5 s
+  per-attempt cap. Any future scheduler change is a separate owner change
+  with its own owner-matrix regression and audit reconsideration.
+
+### Commands and results
+
+```bash
+cd /root/paseo/forwardproxy    # master d50ef3f; tracked tree unchanged (experiment files untracked, //go:build w2w3)
+GOTOOLCHAIN=go1.26.0 go vet -tags w2w3 .                                  # clean
+GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW3Smoke' -count=1 .     # ok (HE path end-to-end)
+GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW3Matrix' -count=1 .    # ok, 22/22 scenarios (510.7 s)
+GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW3HE300' -count=1 .     # ok (6 scenarios x 10, 66.7 s)
+GOTOOLCHAIN=go1.26.0 go build ./... && GOTOOLCHAIN=go1.26.0 go test -count=1 ./...   # ok (untagged owner suite unaffected)
+git diff --check                                                         # clean
+cd /root/paseo/naiveproxy && git diff --check                            # clean (docs only)
+```
+
 ## Fast Open re-enablement W4 closeout (2026-09-08)
 
 W4 G0-G5 is complete. Exact lock `e8cc010356` passed combination run

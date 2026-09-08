@@ -2,7 +2,9 @@
 
 Last updated: 2026-09-08 (Asia/Shanghai)
 
-Status: **W1 PRs submitted; W4 Fast Open re-enablement complete; W2/W3 pending.**
+Status: **W1 PRs submitted; W4 Fast Open re-enablement complete; W2 and W3
+complete (records in the status ledger, 2026-09-08; W3 retains the current
+scheduler, `W3_RETAIN_SCHEDULER_OK`).**
 
 This plan records the agreed next work after the September 5 CONNECT fixes:
 upstream existing correctness fixes, investigate DNS/address ordering, then
@@ -17,8 +19,8 @@ inputs remain governed by [`README.md`](README.md) and
 | Order | Work | Owner | Status | Completion evidence |
 | --- | --- | --- | --- | --- |
 | W1 | Submit focused Fast Open correctness PRs upstream | NaiveProxy | #825/#826 review pending; #827 closed in favor of Chromium CL 8368721, awaiting review/merge | Exact base/head SHAs, documented validation, extraction checks, and upstream links in status ledger |
-| W2 | Analyze and test DNS delays and address ordering | forwardproxy; records here | Pending investigation | Reproducible scenario matrix and separate optimize/defer decisions for DNS and sorting |
-| W3 | Compare current scheduling with Go Happy Eyeballs | forwardproxy; records here | Pending comparison | Fair A/B measurements, ACL/lifecycle validation, and retain/replace decision |
+| W2 | Analyze and test DNS delays and address ordering | forwardproxy; records here | **Complete (2026-09-08; records in the status ledger)** | Reproducible scenario matrix and separate optimize/defer decisions for DNS and sorting |
+| W3 | Compare current scheduling with Go Happy Eyeballs | forwardproxy; records here | **Complete (retain; 2026-09-08; records in the status ledger)** | 22-scenario A/B matrix (`TestW3Matrix`, 22/22 pass) + HE-300 subset, ACL/lifecycle validation, B1/B4 budgets, and the retain decision `W3_RETAIN_SCHEDULER_OK` |
 | W4 | Re-enable Fast Open after CONNECT correctness fixes | NaiveProxy client; records here | **Complete (G0-G5)** | Production-delegate matrix, owner regressions, candidate artifacts, short A/B soak, deployment records, and scoped audit boundary in status ledger |
 
 W1 was submitted without waiting for W2/W3 or UDP/BBR upstreaming. Per the
@@ -126,26 +128,45 @@ it does not establish identical behavior on all supported resolver paths.
 
 ### Investigation tasks
 
-- [ ] Inventory resolver/toolchain modes actually used by released servers:
+- [x] Inventory resolver/toolchain modes actually used by released servers:
   pure Go, applicable cgo/system paths, OS, cache, hosts-file and search-domain
   behavior. Record which platforms are tested and which remain unverified.
-- [ ] Add a controlled DNS fixture for fast A/slow AAAA, the reverse, one-family
+  (Complete: release server verified as Go 1.26.0, CGO_ENABLED=0, linux/amd64,
+  pure-Go resolver via `go version -m` on the online SHA-matched binary;
+  cgo path not compiled; deployment-host resolv.conf and non-Linux artifacts
+  unverified.)
+- [x] Add a controlled DNS fixture for fast A/slow AAAA, the reverse, one-family
   no-data/error/timeout, both slow, and successful single/dual-stack answers.
   Distinguish a dropped query from a delayed answer and test total cancellation.
-- [ ] Measure DNS completion, first TCP attempt, target connection, and CONNECT
+  (Complete: D1-D11 + warm control, 30 repeats each, all invariants green;
+  drop vs delayed answer vs SERVFAIL/NODATA distinguished by the matrix and the
+  real-resolver probe.)
+- [x] Measure DNS completion, first TCP attempt, target connection, and CONNECT
   response separately. Test warm/cold conditions where applicable; retain only
   aggregate/redacted timings for real traffic, never targets or payloads.
-- [ ] Verify that resolver sorting survives ACL filtering and deduplication,
+  (Complete: per-run t_dns/t_first/t_conn/t_resp in JSONL; warm/cold covered by
+  D2w control vs cold scenarios; all names are RFC 2606 placeholders, aggregate
+  timings only.)
+- [x] Verify that resolver sorting survives ACL filtering and deduplication,
   each family's relative order survives interleaving, and `tcp4`/`tcp6` never
   dial the other family. Include preferred-family removal by ACL and multiple
   candidates per family, not only one IPv4/IPv6 pair.
-- [ ] Determine whether partial DNS results would materially reduce observed
+  (Complete: O1a/O1b/O2a-c/O3a-c/O4a-b/O5 + numeric passthrough all pass with
+  exact attempt-order assertions.)
+- [x] Determine whether partial DNS results would materially reduce observed
   latency. If warranted, prototype incremental candidates in an isolated
   experiment: ACL-check every new IP before dialing, deduplicate, honor the
   total deadline, and cancel outstanding work after a winner.
-- [ ] Record separate DNS and sorting decisions. Keep resolver sorting unless
+  (Complete: isolated incremental prototype C1-C4 — Δ≈0 unskewed, +490 ms slow
+  family, +1991 ms dropped family (2 s model); real-resolver probe confirms a
+  dropped family costs up to 10 s. Decision: defer; separate owner change
+  justified by the measurements.)
+- [x] Record separate DNS and sorting decisions. Keep resolver sorting unless
   a supported path demonstrates a gap. Implement an optimization only in a
   separate owner change justified by measured benefit and regression evidence.
+  (Complete: DNS = defer runtime change, separate owner change justified;
+  ordering = retain resolver sorting, no gap demonstrated on the supported
+  pure-Go path. Recorded in the status ledger, 2026-09-08 section.)
 
 Exit evidence: commands, fixture settings, toolchain/resolver modes, repeated
 measurements, and optimize/defer conclusions. A decision to retain current
@@ -170,25 +191,25 @@ hostname/port policy and error semantics. Resolver injection through a DNS
 transport is another possible design, not a free list-injection API. Reject
 any alternative that can dial an unapproved address.
 
-- [ ] Build an isolated standard-library prototype with explicit ACL handling,
+- [x] Build an isolated standard-library prototype with explicit ACL handling,
   request cancellation, upstream-proxy context lifetime, and 502/504 mapping.
-- [ ] Compare built-in `FallbackDelay=250ms` against the current 250 ms value;
+- [x] Compare built-in `FallbackDelay=250ms` against the current 250 ms value;
   report Go's 300 ms default separately. Align total deadlines and disclose
   the differing per-address timeout policies rather than attributing all
   differences to the scheduling algorithm.
-- [ ] Cover healthy dual stack; either family blackholed; the first candidate
+- [x] Cover healthy dual stack; either family blackholed; the first candidate
   in each family blackholed with a later reachable same-family address; same-family
   only; immediate refusal; high RTT/loss; all candidates failing; and many
   candidates under concurrent requests. Reuse W2's DNS scenarios.
-- [ ] Cover ACL-denied candidates, changed DNS answers, cancellation during
+- [x] Cover ACL-denied candidates, changed DNS answers, cancellation during
   DNS/dial, simultaneous successes, late successful losers, and teardown.
   Verify actual destinations before connect and absence of connection leaks.
-- [ ] Record success/error counts, first-attempt and connection latency
+- [x] Record success/error counts, first-attempt and connection latency
   distributions (including p50/p95/p99 with sample counts), attempt count,
   peak active dials/file descriptors/goroutines, and post-cancel cleanup.
   Fix scenario seeds, repeat counts, and acceptable resource/latency budgets
   before comparing; explain uncertainty and platform coverage.
-- [ ] Compare maintenance and upstream-review cost alongside measurements.
+- [x] Compare maintenance and upstream-review cost alongside measurements.
   Publish a retain/replace decision and the scenarios that justify it.
 
 Replacement requires equivalent ACL and lifecycle correctness, acceptable
