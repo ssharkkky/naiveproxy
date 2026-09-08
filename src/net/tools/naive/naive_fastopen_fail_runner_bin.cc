@@ -306,6 +306,173 @@ int RunStandardConnect(net::URLRequestContext* context,
   return EXIT_SUCCESS;
 }
 
+class ReadCallbackOwner {
+ public:
+  explicit ReadCallbackOwner(int* callbacks) : callbacks_(callbacks) {}
+
+  void OnRead(int /*result*/) { ++*callbacks_; }
+
+ private:
+  raw_ptr<int> callbacks_;
+};
+
+void RunCancelSettleWindow() {
+  base::RunLoop loop;
+  base::OneShotTimer timer;
+  timer.Start(FROM_HERE, base::Seconds(1), loop.QuitClosure());
+  loop.Run();
+}
+
+int InitProbeSocket(net::URLRequestContext* context,
+                    const net::ProxyChain& proxy_chain,
+                    const std::string& target_host,
+                    int target_port,
+                    net::ClientSocketHandle* handle,
+                    base::TimeDelta* elapsed) {
+  auto* session = context->http_transaction_factory()->GetSession();
+  net::ProxyInfo proxy_info;
+  proxy_info.UseProxyChain(proxy_chain);
+  base::RunLoop loop;
+  base::OneShotTimer watchdog;
+  int result = net::ERR_IO_PENDING;
+  int callbacks = 0;
+  bool timed_out = false;
+  watchdog.Start(
+      FROM_HERE, kExchangeWatchdog,
+      base::BindOnce(
+          [](bool* timed_out, base::RepeatingClosure quit) {
+            *timed_out = true;
+            quit.Run();
+          },
+          &timed_out, loop.QuitClosure()));
+  const auto started = base::TimeTicks::Now();
+  result = net::InitSocketHandleForHttpRequest(
+      url::SchemeHostPort("http", target_host, target_port),
+      net::LOAD_IGNORE_LIMITS, net::MAXIMUM_PRIORITY, session, proxy_info, {},
+      net::PRIVACY_MODE_DISABLED,
+      net::NetworkAnonymizationKey::CreateTransient(),
+      net::SecureDnsPolicy::kDisable, net::SocketTag(),
+      net::handles::kInvalidNetworkHandle, net::NetLogWithSource(), handle,
+      base::BindOnce(
+          [](int* callbacks, int* result, base::RepeatingClosure quit,
+             int rv) {
+            ++*callbacks;
+            *result = rv;
+            quit.Run();
+          },
+          &callbacks, &result, loop.QuitClosure()),
+      net::ClientSocketPool::ProxyAuthCallback());
+  if (result == net::ERR_IO_PENDING)
+    loop.Run();
+  watchdog.Stop();
+  *elapsed = base::TimeTicks::Now() - started;
+  if (timed_out || callbacks != 1)
+    return net::ERR_TIMED_OUT;
+  return result;
+}
+
+int RunFastOpenCancelProbe(net::URLRequestContext* context,
+                           const net::ProxyChain& proxy_chain,
+                           const std::string& target_host,
+                           int target_port) {
+  // The first delayed 200 response teaches the production delegate the
+  // server's padding capability. The second CONNECT must complete early.
+  net::ClientSocketHandle cold_handle;
+  base::TimeDelta cold_elapsed;
+  const int cold_result = InitProbeSocket(
+      context, proxy_chain, target_host, target_port, &cold_handle,
+      &cold_elapsed);
+  if (cold_result != net::OK || cold_elapsed < base::Milliseconds(400)) {
+    std::cerr << "FASTOPEN_CANCEL_COLD_FAILED error=" << cold_result
+              << " elapsed_ms=" << cold_elapsed.InMilliseconds() << std::endl;
+    return EXIT_FAILURE;
+  }
+  auto* delegate =
+      static_cast<net::NaiveProxyDelegate*>(context->proxy_delegate());
+  if (!delegate ||
+      !delegate->GetProxyChainPaddingType(proxy_chain).has_value()) {
+    std::cerr << "FASTOPEN_CANCEL_PADDING_NOT_LEARNED" << std::endl;
+    return EXIT_FAILURE;
+  }
+  cold_handle.ResetAndCloseSocket();
+  std::cout << "FASTOPEN_CANCEL_PADDING_LEARNED" << std::endl;
+
+  // Keep the read callback owner alive while closing the socket. Disconnect
+  // must cancel the pending read without invoking this callback.
+  {
+    net::ClientSocketHandle handle;
+    base::TimeDelta elapsed;
+    const int result = InitProbeSocket(context, proxy_chain, target_host,
+                                       target_port, &handle, &elapsed);
+    if (result != net::OK || elapsed >= base::Milliseconds(400) ||
+        !handle.socket()) {
+      std::cerr << "FASTOPEN_CANCEL_ACTIVE_CONNECT_FAILED error=" << result
+                << " elapsed_ms=" << elapsed.InMilliseconds() << std::endl;
+      return EXIT_FAILURE;
+    }
+    int callbacks = 0;
+    ReadCallbackOwner owner(&callbacks);
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(1024);
+    const int read_result = handle.socket()->Read(
+        buffer.get(), buffer->size(),
+        base::BindOnce(&ReadCallbackOwner::OnRead, base::Unretained(&owner)));
+    if (read_result != net::ERR_IO_PENDING) {
+      std::cerr << "FASTOPEN_CANCEL_ACTIVE_READ_NOT_PENDING result="
+                << read_result << std::endl;
+      return EXIT_FAILURE;
+    }
+    std::cout << "FASTOPEN_CANCEL_READ_PENDING owner=active" << std::endl;
+    handle.ResetAndCloseSocket();
+    RunCancelSettleWindow();
+    if (callbacks != 0) {
+      std::cerr << "FASTOPEN_CANCEL_ACTIVE_CALLBACK_INVOKED callbacks="
+                << callbacks << std::endl;
+      return EXIT_FAILURE;
+    }
+    std::cout << "FASTOPEN_CANCEL_ACTIVE_OWNER_OK callbacks=0" << std::endl;
+  }
+
+  // Destroy the callback owner before closing the socket. A callback here
+  // would be a use-after-free; the socket contract requires cancellation.
+  {
+    net::ClientSocketHandle handle;
+    base::TimeDelta elapsed;
+    const int result = InitProbeSocket(context, proxy_chain, target_host,
+                                       target_port, &handle, &elapsed);
+    if (result != net::OK || elapsed >= base::Milliseconds(400) ||
+        !handle.socket()) {
+      std::cerr << "FASTOPEN_CANCEL_DESTROY_CONNECT_FAILED error=" << result
+                << " elapsed_ms=" << elapsed.InMilliseconds() << std::endl;
+      return EXIT_FAILURE;
+    }
+    int callbacks = 0;
+    auto owner = std::make_unique<ReadCallbackOwner>(&callbacks);
+    auto buffer = base::MakeRefCounted<net::IOBufferWithSize>(1024);
+    const int read_result = handle.socket()->Read(
+        buffer.get(), buffer->size(),
+        base::BindOnce(&ReadCallbackOwner::OnRead,
+                       base::Unretained(owner.get())));
+    if (read_result != net::ERR_IO_PENDING) {
+      std::cerr << "FASTOPEN_CANCEL_DESTROY_READ_NOT_PENDING result="
+                << read_result << std::endl;
+      return EXIT_FAILURE;
+    }
+    std::cout << "FASTOPEN_CANCEL_READ_PENDING owner=destroyed" << std::endl;
+    owner.reset();
+    handle.ResetAndCloseSocket();
+    RunCancelSettleWindow();
+    if (callbacks != 0) {
+      std::cerr << "FASTOPEN_CANCEL_DESTROY_CALLBACK_INVOKED callbacks="
+                << callbacks << std::endl;
+      return EXIT_FAILURE;
+    }
+    std::cout << "FASTOPEN_CANCEL_DESTROYED_OWNER_OK callbacks=0" << std::endl;
+  }
+
+  std::cout << "FASTOPEN_CANCEL_OK" << std::endl;
+  return EXIT_SUCCESS;
+}
+
 class FastOpenFailRunner;
 
 class ExchangeDelegate : public net::URLRequest::Delegate {
@@ -536,13 +703,18 @@ int main(int argc, char* argv[]) {
   const auto* command_line = base::CommandLine::ForCurrentProcess();
   const bool standard_connect = command_line->HasSwitch("standard-connect");
   const bool body_probe = command_line->HasSwitch("body-probe");
+  const bool cancel_probe = command_line->HasSwitch("cancel-probe");
   const bool legacy_fastopen = command_line->HasSwitch("legacy-fastopen");
-  if ((standard_connect || body_probe) && legacy_fastopen) {
+  if ((standard_connect || body_probe || cancel_probe) && legacy_fastopen) {
     std::cerr << "INCOMPATIBLE_MODES" << std::endl;
     return EXIT_FAILURE;
   }
   if (body_probe && !standard_connect) {
     std::cerr << "BODY_PROBE_REQUIRES_STANDARD_CONNECT" << std::endl;
+    return EXIT_FAILURE;
+  }
+  if (cancel_probe && (standard_connect || body_probe)) {
+    std::cerr << "INCOMPATIBLE_MODES" << std::endl;
     return EXIT_FAILURE;
   }
   net::ProxyChain proxy_chain = net::ProxyChain::FromSchemeHostAndPort(
@@ -565,6 +737,10 @@ int main(int argc, char* argv[]) {
     return RunStandardConnect(context.get(), proxy_chain, args[2], target_port,
                               command_line->HasSwitch("expect-success"),
                               body_probe);
+  }
+  if (cancel_probe) {
+    return RunFastOpenCancelProbe(context.get(), proxy_chain, args[2],
+                                  target_port);
   }
   FastOpenFailRunner runner(context.get(), proxy_chain, args[2], target_port);
   return runner.Run();

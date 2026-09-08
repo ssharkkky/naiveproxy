@@ -429,18 +429,17 @@ The runner and fixtures provide the following current evidence using the
   `masque_g1_smoke.sh`, `masque_g2_naive_tunnel.sh`,
   `masque_g3_basic_auth.sh`, `masque_g5_lifecycle.sh`, `socks5_udp_m2.sh`,
   and `socks5_udp_m3.sh` also passed on the same candidate build.
+- The dedicated `tests/fastopen_cancel.sh` probe passed `FASTOPEN_CANCEL_OK`.
+  After a cold delayed 200 response learned padding, two hot CONNECTs completed
+  before the delayed response; pending reads were canceled with the active
+  callback owner and with the callback owner destroyed before socket close,
+  with zero callbacks observed in both cases.
 
 U1's buffered-body notification now has a dedicated deterministic H3 fixture
 (`tests/fastopen_body_wakeup.sh`) that verifies body-before-header delivery
-after Fast Open early completion. Cancellation and callback-destruction paths
-remain covered by the existing M5 lifecycle markers only as indirect evidence;
-no new independent Fast Open destruction or cancellation fixture is claimed
-here.
-Cancellation and callback-destruction paths remain covered by the existing
-M5 lifecycle markers only as indirect evidence; no new independent Fast Open
-destruction or cancellation fixture is claimed here. A scoped read-only review
-of the W4 code and evidence found no blocker, high, or medium issue and returned
-`AUDIT_PASS` with this coverage limitation. The affected client audit boundary is reopened by W4; the
+after Fast Open early completion. A scoped read-only review of the W4 code and
+evidence found no blocker, high, or medium issue and returned `AUDIT_PASS`.
+The affected client audit boundary is reopened by W4; the
 historical M3-M6 `AUDIT_PASS` is not extended automatically.
 
 ## Fast Open audit fixes F1/F2 and regression (2026-09-04)
