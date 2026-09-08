@@ -30,6 +30,134 @@ the historical milestone evidence below:
   Linux validation client `cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df`,
   server `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`.
 
+## CONNECT follow-up W2: DNS incremental implementation (2026-09-08)
+
+The deferred W2 owner change (investigated the same day, decision "DNS =
+defer; separate owner change justified by the measurements") is implemented
+as Route B in `/root/paseo/forwardproxy` on branch
+`codex/w2-dns-incremental-dial`, base `master` `d50ef3f`, implementation
+commit `0d4e10f` (5 files, +860/-31). No merge to `master` was performed
+(session constraint); deployment follows the W4 pattern (candidate lock +
+A/B soak + rollback) and is pending owner start.
+
+### Design (verified invariants)
+
+- `dialContextCheckACL` now resolves `ip4` and `ip6` in parallel through an
+  injected `lookupIPFamily`; the production default
+  (`lookupIPFamilyDefault`) is `net.DefaultResolver.LookupIP` per family.
+  Both lookups share the request context, which carries the total deadline
+  (DNS included) and request cancellation.
+- Each family's completion (success or failure) immediately admits its
+  ACL-filtered, deduplicated (shared seen set, cross-family) addresses into
+  the start queue in per-family resolver order; the first-arriving family
+  dials immediately. No Resolution Delay.
+- A late family merges at the tail of the start queue only while no winner
+  exists and the total deadline has not passed; otherwise its addresses are
+  discarded without dialing. A winner, deadline expiry, or request
+  cancellation cancels the other family's in-flight lookup; no goroutine
+  leaks (matrix leak budget + untagged leak check green).
+- The lazy interleave pop reproduces the audited static
+  `interleaveTCPAddresses` order (first-family count one, then strict
+  alternation, same-family continuation). A simultaneous first-arrival tie
+  breaks to v6, matching the RFC 6724 order observed from the Go 1.26.0
+  pure-Go resolver on the verified probe host (W2 P1).
+- Scheduler core unchanged (`7307332`, `connect_dial.go` not in the diff):
+  250 ms stagger, 100 ms minimum spacing after failures, 5 s per-attempt
+  cap, single winner. Explicit `tcp4`/`tcp6` never dial the other family.
+- Error mapping unchanged: both families failed -> 502 (504 when the cause
+  is a deadline/timeout), all ACL-denied -> 403, addresses passed ACL but
+  none matched the requested family -> 502, dials started and failed ->
+  502/504 via `tcpDialError`.
+- `prepareTargetPolicy` extracts the shared pre-resolution checks (split,
+  port policy, domain ACL). The CONNECT-UDP path keeps the merged
+  `resolveTargetCheckACL` and its sequential UDP dials, unchanged.
+- The W3 scheduler conclusion (`W3_RETAIN_SCHEDULER_OK`) stands: the
+  scheduler core is byte-for-byte unchanged.
+
+### Step 1 — experiment (w2w3-tagged Route B matrix, Go 1.26.0)
+
+```bash
+cd /root/paseo/forwardproxy
+GOTOOLCHAIN=go1.26.0 go test -race -tags w2w3 -run 'TestW2W3RouteBMatrix' -count=1 -v .   # ok, 21/21 scenarios, 147.4 s
+```
+
+21 scenarios: re-derived W2 D1-D11, warm control D2w, and new
+N1_late_after_winner, N2a/N2b_denied_early/late, N3_both_servfail,
+N4_cancel_inflight, N6/N6b_tcp4/tcp6_dual, N7_all_denied, N8_tcp6_v4only,
+N9_multi_order. 30 real-port runs per scenario per pass; the JSONL holds
+60 runs per scenario across two green passes (pre- and post-production),
+all invariants green (per-run attempt order, status, timing bands, zero
+ACL-denied dials, per-family cancellation observation, final goroutine-leak
+budget). Data: `experiments/w2w3/results/w2_routeb_matrix.jsonl`. Medians
+(`t_conn` = target connect; "old" = 2026-09-08 merged-lookup matrix above):
+
+| scenario | result | new median | old median |
+| --- | --- | --- | --- |
+| D1_dual_fast_blackhole | 200, 1 attempt, v6a (tie-break) | 10.5 ms | 261.0 ms (2 attempts) |
+| D2_v4_fast_v6_slow | 200, 1 attempt, v4a | 10.5 ms | 501.0 ms (2 attempts) |
+| D3_v6_fast_v4_slow | 200, 1 attempt, v6a | 10.5 ms | 501.1 ms (2 attempts) |
+| D4_v4_only / D5_v6_only | 200, 1 attempt | 10.5 ms | 10.2/10.3 ms (unchanged) |
+| D6_v4_drop_v6_ok / D7_v6_drop_v4_ok | 200, 1 attempt, dropped family canceled | 10.5 ms | 2000.7 ms |
+| D8_v4_servfail_v6_ok | 200, 1 attempt | 10.5 ms | 10.3 ms (unchanged) |
+| D9_both_slow (300/400 ms) | 200, 1 attempt, v4a (first-completing family wins) | 300.7 ms | 400.9 ms |
+| D10_all_dropped | 504, 0 dials | unchanged | unchanged |
+| D11_total_cancel | 502, 0 dials, both lookups canceled | unchanged | unchanged |
+| D2w_warm (v6-first control) | 200, 2 attempts [v6a, v4a], v4a at the stagger | 253.3 ms | 2.3 ms (old warm control won first attempt) |
+| N1_late_after_winner | 200, 1 attempt, late v6 never dialed, canceled | 10.5 ms | n/a |
+| N2a/N2b denied early/late | 200, 1 attempt, 0 denied dials | 25.9/10.5 ms | n/a |
+| N3_both_servfail | 502, 0 dials | unchanged | unchanged |
+| N4_cancel_inflight | 502, 0 dials, both lookups canceled | ~100 ms | n/a |
+| N6/N6b family isolation | 200, own-family dials only | 25.8/10.5 ms | n/a |
+| N7_all_denied | 403, 0 dials | unchanged | unchanged |
+| N8_tcp6_v4only | 502, 0 dials | unchanged | unchanged |
+| N9_multi_order | 200, [v6a, v4a, v6b] at the audited stagger | 511.9 ms | n/a |
+
+Superseded W2/W3 production-path drivers (`TestW2W3DNSMatrix`,
+`TestW2W3IncrementalComparison`, `TestW2W3OrderPreservation`,
+`TestW3Matrix`, `TestW3Smoke`, `TestW3HE300`) now skip with a pointer to
+the Route B matrix; `TestW2W3NumericPassthrough` still passes (verified
+Go 1.26.0 numeric behavior: `LookupIP("ip4","192.0.2.9")` returns the
+address; the mismatched family returns a `no suitable address found`
+DNSError, no external query).
+
+### Step 3 — regression (Go 1.26.0, forwardproxy owner suite)
+
+```bash
+cd /root/paseo/forwardproxy
+GOTOOLCHAIN=go1.26.0 go build ./...              # ok
+GOTOOLCHAIN=go1.26.0 go test -count=1 ./...      # ok (3.6 s)
+GOTOOLCHAIN=go1.26.0 go test -race -count=1 ./...   # ok (7.7 s)
+GOTOOLCHAIN=go1.26.0 go test -race -tags w2w3 -count=1 .   # ok, incl. 21/21 Route B (147.4 s)
+cd /root/paseo/forwardproxy && git diff --check  # clean
+cd /root/paseo/naiveproxy && git diff --check    # clean
+```
+
+The untagged suite gains `connect_dial_incremental_test.go` (13 new test
+functions: skew both directions, dropped family, all-dropped, all-fail,
+all-denied, tcp4/tcp6 isolation, late denied, late-after-winner with
+goroutine-leak check, cancel-in-flight, interleave order, per-family
+order, dedup, pop-rule unit test). Existing Happy Eyeballs tests retain
+their exact expected values; dual-stack cases pin the first-arrival family
+with a 10 ms virtual `synctest` delay (the legacy merged fixture modeled
+this implicitly with list order). The Caddy fork and quic-go fork are not
+modified by this change, so their M4 evidence stands; the NaiveProxy
+client is unchanged, so the 56-case TCP owner matrix and all M1-M6 markers
+stand.
+
+### Audit boundary
+
+Forwardproxy server-runtime change limited to the TCP CONNECT
+establishment policy. No NaiveProxy client change, no `NaiveConnection`
+TCP data path or padding change, no Caddy/quic-go fork change, no M1-M6
+marker change. Deployment not performed (W4 pattern, pending owner start).
+
+### Untracked experiment artifacts
+
+`experiments_w2w3_routeb_test.go` and the updated W2/W3 harness files
+remain untracked in `/root/paseo/forwardproxy` (consistent with the W2/W3
+precedent); `experiments/w2w3/results/w2_routeb_{matrix,summary}.jsonl`
+hold the matrix data.
+
 ## Server CONNECT upstream submission (2026-09-08)
 
 [klzgrad/forwardproxy PR #12](https://github.com/klzgrad/forwardproxy/pull/12)

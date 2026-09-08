@@ -176,6 +176,21 @@ measurements, and optimize/defer conclusions. A decision to retain current
 behavior is a valid result. Synthetic DNS delays demonstrate a mechanism;
 they do not prove that current deployment latency is caused by DNS.
 
+### W2 resolution (2026-09-08, owner change)
+
+The deferred owner change is implemented as Route B on forwardproxy branch
+`codex/w2-dns-incremental-dial` (commit `0d4e10f`): ip4/ip6 resolve in
+parallel under the request context; each family's completion (success or
+failure) admits its ACL-filtered, deduplicated addresses into the dial race
+immediately; the late family merges at the tail of the start queue only
+while no winner exists and the total deadline has not passed; a winner,
+deadline expiry, or request cancellation cancels the other family's
+in-flight lookup. The scheduler core (`7307332`), the 250 ms/100 ms/5 s
+policies, the tcp4/tcp6 family isolation, and the 502/504/403 error mapping
+are unchanged. Exact commands, the re-derived W2 D1-D11 matrix plus new N
+scenarios, and regression evidence are recorded in the status ledger's
+"CONNECT follow-up W2: DNS incremental implementation" section (2026-09-08).
+
 ## 4. W3: Go Happy Eyeballs comparison
 
 The comparison baseline is the release's Go 1.26.0, whose `net.Dialer`
