@@ -86,17 +86,20 @@ tracks the history rewrite and outstanding GitHub cache/PR-reference cleanup.
 
 ### Related changes requiring separate review
 
-Client `b652d34aa5` stops enabling Fast Open from cached padding capability.
-Server `7307332` waits for a successful target connection before returning
-200 and propagates cancellation and 502/504 failures. These have correctness
-motivation, but change the existing early-success policy and its latency
-tradeoff; they are not prerequisites for U1-U3.
+Client `b652d34aa5` disabled learned-padding Fast Open; W4 restored the
+upstream client behavior, so that policy-disable patch is not an upstream
+candidate. Server `7307332` waits for a successful target connection before
+returning 200 and propagates cancellation and 502/504 failures. Its response
+and cancellation changes were adapted separately from address racing as
+[forwardproxy PR #12](https://github.com/klzgrad/forwardproxy/pull/12).
 
-- [ ] Prepare a separate upstreamability assessment for the CONNECT response
-  policy changes, including establishment latency and failure propagation.
-- [ ] For `klzgrad/forwardproxy` (observed target branch `naive`), separate
-  response/error semantics from address racing in `7307332`. Adapt any shared
-  ACL helper dependencies to upstream; do not cherry-pick the mixed commit.
+- [x] Assess the CONNECT response policy change and disclose that clients
+  waiting for the response now wait for target connection establishment.
+- [x] Adapt response/error semantics and request cancellation onto upstream
+  `naive` in two focused commits, retaining upstream ACL, padding, address
+  selection, and timeout settings. Add upstream-compatible regression tests.
+- [ ] Track review/merge of forwardproxy PR #12. Exact commits and fresh
+  build/test evidence are recorded in the September 8 status ledger.
 
 Address racing belongs to W2/W3's evidence and its own prospective PR. Keep
 changes to the CONNECT establishment policy distinct from changes to

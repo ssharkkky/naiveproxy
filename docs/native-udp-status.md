@@ -30,6 +30,53 @@ the historical milestone evidence below:
   Linux validation client `cdcff06ca5ecaabf839e298b9c1f298482af763c9c7e1f8c8828b83c218e49df`,
   server `d8d886126fee26a2777248b9081566cb79618d407258a690af8ec3c48749d230`.
 
+## Server CONNECT upstream submission (2026-09-08)
+
+[klzgrad/forwardproxy PR #12](https://github.com/klzgrad/forwardproxy/pull/12)
+submits two focused fixes against upstream `naive` base
+`d62c80d3dd2c706b6b87579844d2397bddd18317`:
+
+- `2d704e94264c912c743b872b8ff75576bb0372ab`: send and flush CONNECT 200
+  only after target dialing succeeds; return 502 for connection failures and
+  504 for timeouts, retaining 403 for ACL denials and padding on errors.
+- `69cdb98b12dca24c082801086c7545fc4d199bfd`: propagate the request context
+  through lookup and dialing, close connections returned after cancellation,
+  and preserve the upstream tunnel context after dialing returns.
+
+Branch: `ssharkkky/forwardproxy:upstream/fix-connect-response`. The PR is open
+for review; submission does not mean upstream merge or CI qualification.
+It changes only `forwardproxy.go` and two focused test files. It carries no
+address-racing scheduler, incremental DNS implementation, native UDP, BBR,
+dependency update, product-lock change, or deployment. The single combined
+DNS lookup now accepts the request context; its candidate model is unchanged.
+
+Fresh verification used Go 1.22.2 and the upstream dependency graph:
+
+```bash
+GOTOOLCHAIN=go1.22.2 GOMAXPROCS=4 go build ./...
+GOTOOLCHAIN=go1.22.2 GOMAXPROCS=4 go test -count=1 -timeout=120s ./...
+GOTOOLCHAIN=go1.22.2 GOMAXPROCS=4 go test -race -count=1 -timeout=180s ./...
+git diff --check d62c80d HEAD
+```
+
+All passed. The original upstream full suite passed before editing. New
+response regressions failed before the first fix; request-cancellation,
+late-success, and expired-DNS-deadline cases failed before the second fix.
+The focused tests cover H1/H2/H3 handler behavior; the inherited suite supplies
+the existing H1/H2 integration, ACL, authentication, and probe-resistance
+coverage. No new H3 wire-level integration result is claimed.
+
+An initial race run was inconclusive; a diagnostic repeat hit TLS failures
+while a separate development test process occupied the same fixed fixture
+ports. The final full race run passed in an isolated Linux network namespace
+with loopback enabled and a Unix-socket DNS relay to the host resolver. No
+test-source overlay or changes to the concurrent developer's process were
+needed. The relay was stopped after verification.
+
+PR text, tests, and this record contain only synthetic/documentation targets;
+known private endpoint and operator-path scans of the submitted changes passed.
+Existing deployed artifacts and historical audit conclusions are unchanged.
+
 ## CONNECT follow-up W2: DNS and address-order investigation (2026-09-08)
 
 W2 is complete (investigation only; no forwardproxy runtime change). All

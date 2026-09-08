@@ -53,6 +53,9 @@ records the September 6 decisions and the next work, in order:
    carries the null-header guard and awaits review/merge before a later Chromium
    import can bring it into upstream NaiveProxy. The fork already has the fix.
    Existing documented validation was reused after extraction checks.
+   The separate server CONNECT response/cancellation fix is submitted as
+   [forwardproxy #12](https://github.com/klzgrad/forwardproxy/pull/12), with
+   fresh upstream-base regression coverage; review pending.
 2. Analyze and test DNS response delays and address ordering before deciding
    whether either needs optimization.
 3. Compare the current ACL-approved address scheduler with Go's built-in
