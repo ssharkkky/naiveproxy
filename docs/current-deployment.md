@@ -73,6 +73,14 @@ The A/B and matrix evidence, including its limits, is recorded in
 `native-udp-status.md`. The sample is controlled smoke evidence rather than a
 statistical performance claim.
 
+A subsequent September 8 recheck confirmed all three process/binary hashes
+against the same release. Each client's existing SOCKS5 listener passed 8/8
+TCP requests and 4/4 UDP DNS queries. Unreachable CONNECT samples completed
+in 5.153 s on the production client and 5.143 s on the validation client.
+The server and validation service were active with `NRestarts=0`; the router's
+Naive service was running. This recheck required no binary replacement or
+service restart. See the W4 status ledger for markers and evidence limits.
+
 Immediate rollback files (restore atomically and restart only the affected Naive service):
 
 - Router: `/var/lib/proxy-private/native-udp.pre-release-4-20260905T125944Z`, SHA256 `0bec3c3b2204a56611a1a990511d98df58fa2c5f946640e2b55c22b8ab80cab3`.

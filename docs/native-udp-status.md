@@ -326,8 +326,6 @@ tests/socks5_udp_m2.sh
 tests/socks5_udp_m3.sh
 python3 tests/basic.py --naive="$NAIVE_BUILD_DIR/naive" --server_protocol=https
 python3 tests/basic.py --naive="$NAIVE_BUILD_DIR/naive" --server_protocol=http
-tests/fastopen_body_wakeup.sh
-tests/fastopen_cancel.sh
 ```
 
 All pass. `CONNECT_RESPONSE_MATRIX_OK` covers delayed H2/H3 responses
@@ -399,8 +397,8 @@ legacy delegate is retained only for historical comparison and is not used by
 the qualification scripts.
 
 The runner and fixtures provide the following current evidence using the
-`src/out/M7Linux` Release-compatible build at locked client source
-`4de6443f5a`:
+`src/out/M7Linux` Release-compatible build. Production source remains at
+locked client `4de6443f5a`; later test-only commits are identified below:
 
 - `tests/connect_response.sh` passed `CONNECT_RESPONSE_MATRIX_OK`. H2 and H3
   covered delayed `200`, `502`, and `504` responses; cold exchange 1 waited
@@ -422,7 +420,7 @@ The runner and fixtures provide the following current evidence using the
 - The fixture startup diagnostic in `tests/connect_response.sh` is recorded in
   client commit `b80c15106a`; the same rerun now reports an exited fixture's
   log and build/protocol/scenario context instead of a bare `kill` failure.
-- The dedicated H3 body-before-header probe is implemented in client commit
+- The dedicated H3 body wakeup probe is implemented in client commit
   `0742e35197` and passes `tests/fastopen_body_wakeup.sh` with
   `FASTOPEN_BODY_WAKEUP_OK`; the learned-padding second CONNECT reads and
   verifies the exact `body-wakeup` response body from one pending read.
@@ -437,12 +435,63 @@ The runner and fixtures provide the following current evidence using the
   callback owner and with the callback owner destroyed before socket close,
   with zero callbacks observed in both cases.
 
-U1's buffered-body notification now has a dedicated deterministic H3 fixture
-(`tests/fastopen_body_wakeup.sh`) that verifies body-before-header delivery
-after Fast Open early completion. A scoped read-only review of the W4 code and
-evidence found no blocker, high, or medium issue and returned `AUDIT_PASS`.
-The affected client audit boundary is reopened by W4; the
-historical M3-M6 `AUDIT_PASS` is not extended automatically.
+September 8 supplemental commands (not part of the September 4/5 runs):
+
+```bash
+NAIVE_BUILD_DIR="$PWD/src/out/M7Linux" tests/fastopen_body_wakeup.sh
+NAIVE_BUILD_DIR="$PWD/src/out/M7Linux" tests/fastopen_cancel.sh
+```
+
+The H3 body fixture verifies delivery of the expected body after early CONNECT
+completion and a pending read. It does not independently assert the internal
+body-before-header callback order. The H3 cancellation fixture does not cover
+destruction from inside an executing error callback.
+
+Independent scoped review of cancellation-test commit `6b25de1439` returned
+`AUDIT_PASS`, with no blocker/high/medium findings. The reviewer independently
+built the runner and ran the cancellation command above, observing
+`FASTOPEN_CANCEL_OK`. Its non-blocking observation was possible parallel-test
+contention on fixed fixture ports. This conclusion is limited to the reviewed
+test change; historical M3-M6 `AUDIT_PASS` does not extend automatically to W4.
+
+### Release deployment recheck (2026-09-08)
+
+Before publication, the unpublished W4 commits were sanitized to remove local
+operator paths. Their production source and test code are unchanged. The
+evidence above retains the original review identifiers; public equivalents are:
+
+| Original local revision | Sanitized revision | Evidence |
+| --- | --- | --- |
+| `b80c15106a` | `1c7825c51b` | Fixture startup diagnostics |
+| `0742e35197` | `953dd5c6c2` | Body wakeup probe |
+| `6b25de1439` | `2a094af9ab` | Cancellation probe and scoped review |
+| `853e745fb4` | `efb0a3fda7` | Supplemental test ledger |
+
+The unpublished history passed a scan for known real deployment endpoints
+and local operator paths. The published release tag and product lock were
+not rewritten.
+
+The published release-5 client build `34159149117`, server build `34159149063`,
+and product combination `34155408450` were rechecked as successful. Both live
+clients and the server process executable match the binary SHA256 values in
+the current manifests. The eight post-release commits through `853e745fb4`
+change only tests, fixtures, and documentation; no production source update
+requires another release or replacement of the identical binaries.
+
+The existing independent deployment probe ran through each client's actual
+SOCKS5 listener, with the default production certificate verifier retained:
+
+| Role | TCP requests | UDP DNS queries | Unreachable CONNECT elapsed |
+| --- | --- | --- | --- |
+| Production client | 8/8 | 4/4 | 5.153 s |
+| Validation client | 8/8 | 4/4 | 5.143 s |
+
+Both runs emitted `DEPLOYMENT_TCP_OK`, `DEPLOYMENT_UDP_DNS_OK`, and
+`DEPLOYMENT_CONNECT_FAILURE_BOUNDED_OK`. These are individual smoke samples,
+not a universal failure-time bound. The validation client also passed four
+HTTPS checks (two HTTP 204 and two HTTP 200). No service restart or sing-box
+operation was performed during this recheck. Real endpoints and private
+operator paths are excluded from this record.
 
 ## Fast Open audit fixes F1/F2 and regression (2026-09-04)
 
@@ -508,9 +557,6 @@ Result: GREEN, 3 consecutive runs (`FASTOPEN_ASYNC_FAILURE_OK`).
 - `tests/socks5_udp_m2.sh`: GREEN (`SOCKS5_UDP_M2_OK`).
 - `tests/socks5_udp_m3.sh`: GREEN (`SOCKS5_UDP_M3_OK`).
 - `tests/fastopen_async_failure.sh`: GREEN (new, above).
-- `tests/fastopen_body_wakeup.sh`: GREEN (`FASTOPEN_BODY_WAKEUP_OK`).
-- `tests/fastopen_cancel.sh`: GREEN (`FASTOPEN_CANCEL_OK`), covering active
-  and destroyed pending-read callback owners after Fast Open early completion.
 - `naive_quic_congestion_test`: GREEN (`M7_G1_CUBIC_NO_TAG_PRESERVED_OK`,
   `M7_G1_QUIC_CONGESTION_PARSER_OK`, `M7_G1_CLIENT_BBR_OK`).
 - Unit binaries: `naive_socks5_udp_test`,
