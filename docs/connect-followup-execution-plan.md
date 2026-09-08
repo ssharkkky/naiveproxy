@@ -179,17 +179,28 @@ they do not prove that current deployment latency is caused by DNS.
 ### W2 resolution (2026-09-08, owner change)
 
 The deferred owner change is implemented as Route B on forwardproxy branch
-`codex/w2-dns-incremental-dial` (commit `0d4e10f`): ip4/ip6 resolve in
+`codex/w2-dns-incremental-dial` (commits `0d4e10f` implementation, `6416ca0`
+scheduling timing fix, `53c3a0d` experiment delivery): ip4/ip6 resolve in
 parallel under the request context; each family's completion (success or
 failure) admits its ACL-filtered, deduplicated addresses into the dial race
 immediately; the late family merges at the tail of the start queue only
 while no winner exists and the total deadline has not passed; a winner,
 deadline expiry, or request cancellation cancels the other family's
-in-flight lookup. The scheduler core (`7307332`), the 250 ms/100 ms/5 s
-policies, the tcp4/tcp6 family isolation, and the 502/504/403 error mapping
-are unchanged. Exact commands, the re-derived W2 D1-D11 matrix plus new N
-scenarios, and regression evidence are recorded in the status ledger's
-"CONNECT follow-up W2: DNS incremental implementation" section (2026-09-08).
+in-flight lookup. The audited `connect_dial.go` (`7307332`) is byte-for-byte
+untouched, and the new incremental dialer reuses its 250 ms/100 ms/5 s
+window policy and single-winner rule; the dynamic-admission wake path is
+new scheduling code - `6416ca0` fixed a defect where a DNS wake (late
+family completing, including NODATA/failure) at 150 ms shortened the second
+dial to the 100 ms failure interval instead of the 250 ms stagger; a wake
+now only re-checks availability/termination, a late success keeps racing,
+and only an actual dial failure may accelerate to the 100 ms interval.
+The tcp4/tcp6 family isolation and the 502/504/403 error mapping are
+unchanged. The 22-scenario matrix harness and evidence are committed in
+`53c3a0d` and reproducible via `go test -tags w2w3 -run TestW2W3RouteBMatrix`
+from the branch. Exact commands, the re-derived W2 D1-D11 matrix plus warm
+control and N scenarios, deterministic synctest coverage, and regression
+evidence are recorded in the status ledger's "CONNECT follow-up W2: DNS
+incremental implementation" section (2026-09-08).
 
 ## 4. W3: Go Happy Eyeballs comparison
 

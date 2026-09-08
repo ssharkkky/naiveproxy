@@ -34,11 +34,13 @@ the historical milestone evidence below:
 
 The deferred W2 owner change (investigated the same day, decision "DNS =
 defer; separate owner change justified by the measurements") is implemented
-as Route B in `/root/paseo/forwardproxy` on branch
-`codex/w2-dns-incremental-dial`, base `master` `d50ef3f`, implementation
-commit `0d4e10f` (5 files, +860/-31). No merge to `master` was performed
-(session constraint); deployment follows the W4 pattern (candidate lock +
-A/B soak + rollback) and is pending owner start.
+as Route B in the forwardproxy repository on branch
+`codex/w2-dns-incremental-dial`, base `master` `d50ef3f`, as three commits:
+`0d4e10f` (Route B implementation, 5 files, +860/-31), `6416ca0` (scheduling
+timing fix found in review, see "Rework" below), and `53c3a0d` (w2w3
+experiment harness + matrix evidence, 21 files). No merge to `master` was
+performed (session constraint); deployment follows the W4 pattern
+(candidate lock + A/B soak + rollback) and is pending owner start.
 
 ### Design (verified invariants)
 
@@ -61,9 +63,16 @@ A/B soak + rollback) and is pending owner start.
   alternation, same-family continuation). A simultaneous first-arrival tie
   breaks to v6, matching the RFC 6724 order observed from the Go 1.26.0
   pure-Go resolver on the verified probe host (W2 P1).
-- Scheduler core unchanged (`7307332`, `connect_dial.go` not in the diff):
-  250 ms stagger, 100 ms minimum spacing after failures, 5 s per-attempt
-  cap, single winner. Explicit `tcp4`/`tcp6` never dial the other family.
+- The audited `connect_dial.go` (`7307332`) is byte-for-byte unchanged;
+  the new incremental dialer reuses its window policy - 250 ms stagger,
+  100 ms minimum spacing after an actual dial failure, 5 s per-attempt cap,
+  single winner. The dynamic-admission wake path is new scheduling code
+  (not covered by the 7307332 audit): a DNS wake (late family completing,
+  including NODATA/failure, or the feed closing) only re-checks candidate
+  availability and termination and never starts a dial before the window
+  measured from the last start has elapsed. One timing defect in that new
+  code was found and fixed in `6416ca0` (see "Rework" below). Explicit
+  `tcp4`/`tcp6` never dial the other family.
 - Error mapping unchanged: both families failed -> 502 (504 when the cause
   is a deadline/timeout), all ACL-denied -> 403, addresses passed ACL but
   none matched the requested family -> 502, dials started and failed ->
@@ -77,18 +86,22 @@ A/B soak + rollback) and is pending owner start.
 ### Step 1 — experiment (w2w3-tagged Route B matrix, Go 1.26.0)
 
 ```bash
-cd /root/paseo/forwardproxy
-GOTOOLCHAIN=go1.26.0 go test -race -tags w2w3 -run 'TestW2W3RouteBMatrix' -count=1 -v .   # ok, 21/21 scenarios, 147.4 s
+# run at the root of the forwardproxy checkout, branch codex/w2-dns-incremental-dial
+GOTOOLCHAIN=go1.26.0 go test -race -tags w2w3 -run 'TestW2W3RouteBMatrix' -count=1 -v .   # ok, 22/22 scenarios, 147.3 s
 ```
 
-21 scenarios: re-derived W2 D1-D11, warm control D2w, and new
+22 scenarios: re-derived W2 D1-D11 plus warm control D2w (12), and
 N1_late_after_winner, N2a/N2b_denied_early/late, N3_both_servfail,
 N4_cancel_inflight, N6/N6b_tcp4/tcp6_dual, N7_all_denied, N8_tcp6_v4only,
-N9_multi_order. 30 real-port runs per scenario per pass; the JSONL holds
-60 runs per scenario across two green passes (pre- and post-production),
-all invariants green (per-run attempt order, status, timing bands, zero
-ACL-denied dials, per-family cancellation observation, final goroutine-leak
-budget). Data: `experiments/w2w3/results/w2_routeb_matrix.jsonl`. Medians
+N9_multi_order (10). 30 real-port runs per scenario (20 for the three 2 s
+drop scenarios); all invariants asserted per run (attempt order, status,
+timing bands, zero ACL-denied dials, per-family cancellation observation,
+final goroutine-leak budget). The harness (`experiments_w2w3_*.go`,
+`//go:build w2w3`) and the evidence
+(`experiments/w2w3/results/w2_routeb_matrix.jsonl`, 630 rows - one fresh
+green run of the committed production code after `6416ca0`, plus
+`w2_routeb_summary.jsonl`) are committed in `53c3a0d`, so the matrix is
+reproducible from the branch. Medians
 (`t_conn` = target connect; "old" = 2026-09-08 merged-lookup matrix above):
 
 | scenario | result | new median | old median |
@@ -114,29 +127,55 @@ budget). Data: `experiments/w2w3/results/w2_routeb_matrix.jsonl`. Medians
 
 Superseded W2/W3 production-path drivers (`TestW2W3DNSMatrix`,
 `TestW2W3IncrementalComparison`, `TestW2W3OrderPreservation`,
-`TestW3Matrix`, `TestW3Smoke`, `TestW3HE300`) now skip with a pointer to
-the Route B matrix; `TestW2W3NumericPassthrough` still passes (verified
-Go 1.26.0 numeric behavior: `LookupIP("ip4","192.0.2.9")` returns the
-address; the mismatched family returns a `no suitable address found`
-DNSError, no external query).
+`TestW3Matrix`, `TestW3Smoke`, `TestW3HE300`) skip with a pointer to the
+Route B matrix; `TestW2W3NumericPassthrough` still passes (verified Go
+1.26.0 numeric behavior: `LookupIP("ip4","192.0.2.9")` returns the address;
+the mismatched family returns a `no suitable address found` DNSError, no
+external query).
+
+### Rework (2026-09-08): DNS wake must hold the 250 ms stagger
+
+Review reproduced a timing defect in the new wake path: with the first
+dial in flight and no dial failure yet, a second family answering at
+150 ms (including a NODATA/failure wake) started the second dial early,
+because the start-window check used the failure-acceleration rule (100 ms
+since the last start) on every wake instead of the normal 250 ms stagger.
+Fix (`6416ca0`): track the earliest next-start moment explicitly
+(`nextReadyAt`), mirroring `dialTCPAddresses` window semantics - zero
+until the first start, then always measured from the last start at +250 ms,
+shortened to +100 ms only by an actual dial failure (a late failure
+re-arms the timer to fire immediately). A wake only re-checks candidate
+availability and termination; it never shortens or satisfies the window.
+Dynamic-candidate semantics are preserved: first family exhausted/failed
+while the other is still in flight never ends the race early, and a late
+success keeps racing and is dialed as soon as it is admitted after the
+window has elapsed.
+
+Deterministic coverage added to the untagged suite (synctest virtual time,
+exact ms): late family answer at 150 ms while the first dial is in flight
+(second dial at exactly the 250 ms stagger, 260 ms end-to-end); late
+family NODATA at 150 ms closing the feed (no early dial, no early
+termination - 504 at the 5 s per-attempt cap, 5010 ms end-to-end); first
+family's only address failing at 10 ms (race stays open across the 100 ms
+failure window and dials the late success at 300 ms).
 
 ### Step 3 — regression (Go 1.26.0, forwardproxy owner suite)
 
 ```bash
-cd /root/paseo/forwardproxy
+# run at the root of the forwardproxy checkout, branch codex/w2-dns-incremental-dial
 GOTOOLCHAIN=go1.26.0 go build ./...              # ok
 GOTOOLCHAIN=go1.26.0 go test -count=1 ./...      # ok (3.6 s)
-GOTOOLCHAIN=go1.26.0 go test -race -count=1 ./...   # ok (7.7 s)
-GOTOOLCHAIN=go1.26.0 go test -race -tags w2w3 -count=1 .   # ok, incl. 21/21 Route B (147.4 s)
-cd /root/paseo/forwardproxy && git diff --check  # clean
-cd /root/paseo/naiveproxy && git diff --check    # clean
+GOTOOLCHAIN=go1.26.0 go test -race -count=1 ./...   # ok (7.8 s)
+GOTOOLCHAIN=go1.26.0 go test -race -tags w2w3 -count=1 .   # ok, incl. 22/22 Route B (147.3 s)
+git diff --check                                 # clean (both repositories)
 ```
 
-The untagged suite gains `connect_dial_incremental_test.go` (13 new test
+The untagged suite gains `connect_dial_incremental_test.go` (16 test
 functions: skew both directions, dropped family, all-dropped, all-fail,
 all-denied, tcp4/tcp6 isolation, late denied, late-after-winner with
 goroutine-leak check, cancel-in-flight, interleave order, per-family
-order, dedup, pop-rule unit test). Existing Happy Eyeballs tests retain
+order, dedup, pop-rule unit test, and the three rework synctest scenarios
+above). Existing Happy Eyeballs tests retain
 their exact expected values; dual-stack cases pin the first-arrival family
 with a 10 ms virtual `synctest` delay (the legacy merged fixture modeled
 this implicitly with list order). The Caddy fork and quic-go fork are not
@@ -151,12 +190,15 @@ establishment policy. No NaiveProxy client change, no `NaiveConnection`
 TCP data path or padding change, no Caddy/quic-go fork change, no M1-M6
 marker change. Deployment not performed (W4 pattern, pending owner start).
 
-### Untracked experiment artifacts
+### Experiment delivery
 
-`experiments_w2w3_routeb_test.go` and the updated W2/W3 harness files
-remain untracked in `/root/paseo/forwardproxy` (consistent with the W2/W3
-precedent); `experiments/w2w3/results/w2_routeb_{matrix,summary}.jsonl`
-hold the matrix data.
+The Route B matrix harness, the W2/W3 harness files, the real-resolver
+probe, and the synthetic matrix evidence are committed in `53c3a0d`
+(`experiments_w2w3_*.go` at the package root behind `//go:build w2w3`,
+`experiments/w2w3/realprobe/`, `experiments/w2w3/results/*.jsonl`). Only
+the three real-resolver probe outputs containing host-specific resolver
+configuration remain untracked; their redacted aggregates are in the W2
+section above.
 
 ## Server CONNECT upstream submission (2026-09-08)
 
@@ -208,12 +250,14 @@ Existing deployed artifacts and historical audit conclusions are unchanged.
 ## CONNECT follow-up W2: DNS and address-order investigation (2026-09-08)
 
 W2 is complete (investigation only; no forwardproxy runtime change). All
-experiments are untracked in `/root/paseo/forwardproxy` (master `d50ef3f`) and
-behind the `//go:build w2w3` tag: the four `experiments_w2w3_*_test.go`
-files sit at the package root because they must be in `package forwardproxy`
-to reach the unexported handler/dial APIs; all experiment data lives under
-`experiments/w2w3/results/*.jsonl`. Untagged `go build ./...` and
-`go test ./...` are unaffected and pass; `git diff --check` is clean.
+experiments sit behind the `//go:build w2w3` tag: the
+`experiments_w2w3_*_test.go` files are at the package root because they
+must be in `package forwardproxy` to reach the unexported handler/dial
+APIs; experiment data lives under `experiments/w2w3/results/*.jsonl`. The
+harness and evidence were later committed on the W2 implementation branch
+(`53c3a0d`, see the W2 implementation section above). Untagged
+`go build ./...` and `go test ./...` are unaffected and pass; `git diff
+--check` is clean.
 
 ### Resolver/toolchain inventory
 
@@ -374,7 +418,7 @@ re-sorting is introduced.
 ### Commands and results
 
 ```bash
-cd /root/paseo/forwardproxy
+# run at the root of the forwardproxy checkout (then master d50ef3f, clean)
 git status -sb    # master d50ef3f, clean
 GOTOOLCHAIN=go1.26.0 go version -m <release server binary> | head -1    # go1.26.0, CGO_ENABLED=0, linux/amd64
 GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW2W3DNSMatrix' -count=1 .    # ok 234.103s
@@ -382,7 +426,7 @@ GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW2W3OrderPreservation|TestW2W3
 GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW2W3IncrementalComparison' -count=1 .  # ok 151.23s
 cd experiments/w2w3/realprobe
 CGO_ENABLED=1 GOTOOLCHAIN=go1.26.0 go build -race -o /tmp/w2w3-realprobe-race . && /tmp/w2w3-realprobe-race results/w2_real_resolver_race.jsonl   # 0 data races
-cd /root/paseo/forwardproxy
+cd ..
 GOTOOLCHAIN=go1.26.0 go build ./... && GOTOOLCHAIN=go1.26.0 go test -count=1 ./...   # ok (untagged build/tests unaffected)
 git diff --check    # clean
 ```
@@ -542,14 +586,13 @@ Marker: `W3_RETAIN_SCHEDULER_OK`.
 ### Commands and results
 
 ```bash
-cd /root/paseo/forwardproxy    # master d50ef3f; tracked tree unchanged (experiment files untracked, //go:build w2w3)
+# run at the root of the forwardproxy checkout (then master d50ef3f; tracked tree unchanged, experiment files behind //go:build w2w3)
 GOTOOLCHAIN=go1.26.0 go vet -tags w2w3 .                                  # clean
 GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW3Smoke' -count=1 .     # ok (HE path end-to-end)
 GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW3Matrix' -count=1 .    # ok, 22/22 scenarios (510.7 s)
 GOTOOLCHAIN=go1.26.0 go test -tags w2w3 -run 'TestW3HE300' -count=1 .     # ok (6 scenarios x 10, 66.7 s)
 GOTOOLCHAIN=go1.26.0 go build ./... && GOTOOLCHAIN=go1.26.0 go test -count=1 ./...   # ok (untagged owner suite unaffected)
-git diff --check                                                         # clean
-cd /root/paseo/naiveproxy && git diff --check                            # clean (docs only)
+git diff --check    # clean (both repositories; forwardproxy checkout and this repository)
 ```
 
 ## Fast Open re-enablement W4 closeout (2026-09-08)
