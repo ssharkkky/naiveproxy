@@ -326,6 +326,8 @@ tests/socks5_udp_m2.sh
 tests/socks5_udp_m3.sh
 python3 tests/basic.py --naive="$NAIVE_BUILD_DIR/naive" --server_protocol=https
 python3 tests/basic.py --naive="$NAIVE_BUILD_DIR/naive" --server_protocol=http
+tests/fastopen_body_wakeup.sh
+tests/fastopen_cancel.sh
 ```
 
 All pass. `CONNECT_RESPONSE_MATRIX_OK` covers delayed H2/H3 responses
@@ -506,6 +508,9 @@ Result: GREEN, 3 consecutive runs (`FASTOPEN_ASYNC_FAILURE_OK`).
 - `tests/socks5_udp_m2.sh`: GREEN (`SOCKS5_UDP_M2_OK`).
 - `tests/socks5_udp_m3.sh`: GREEN (`SOCKS5_UDP_M3_OK`).
 - `tests/fastopen_async_failure.sh`: GREEN (new, above).
+- `tests/fastopen_body_wakeup.sh`: GREEN (`FASTOPEN_BODY_WAKEUP_OK`).
+- `tests/fastopen_cancel.sh`: GREEN (`FASTOPEN_CANCEL_OK`), covering active
+  and destroyed pending-read callback owners after Fast Open early completion.
 - `naive_quic_congestion_test`: GREEN (`M7_G1_CUBIC_NO_TAG_PRESERVED_OK`,
   `M7_G1_QUIC_CONGESTION_PARSER_OK`, `M7_G1_CLIENT_BBR_OK`).
 - Unit binaries: `naive_socks5_udp_test`,
