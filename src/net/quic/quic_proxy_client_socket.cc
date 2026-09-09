@@ -47,7 +47,6 @@ QuicProxyClientSocket::QuicProxyClientSocket(
       proxy_delegate_(proxy_delegate),
       user_agent_(user_agent),
       use_fastopen_(false),
-      read_headers_pending_(false),
       net_log_(net_log) {
   DCHECK(stream_->IsOpen());
 
@@ -281,6 +280,13 @@ void QuicProxyClientSocket::OnIOComplete(int result) {
   DCHECK_NE(STATE_DISCONNECTED, next_state_);
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
+    if (use_fastopen_ && read_headers_pending_ == false) {
+      if (rv != OK)
+        next_state_ = STATE_DISCONNECTED;
+      if (read_callback_ && rv != OK)
+        std::move(read_callback_).Run(rv);
+      return;
+    }
     // Connect() finished (successfully or unsuccessfully).
     DCHECK(!connect_callback_.is_null());
     std::move(connect_callback_).Run(rv);
@@ -326,23 +332,6 @@ int QuicProxyClientSocket::DoLoop(int last_io_result) {
         rv = DoReadReplyComplete(rv);
         net_log_.EndEventWithNetErrorCode(
             NetLogEventType::HTTP_TRANSACTION_TUNNEL_READ_HEADERS, rv);
-        // If reading the response itself fails after Fast Open returned from
-        // Connect(), there is no connect_callback_ left to invoke. Successful
-        // responses continue through the normal response-processing states;
-        // HTTP status failures are handled in STATE_PROCESS_RESPONSE_CODE.
-        if (use_fastopen_ && read_headers_pending_ && rv < 0) {
-          read_headers_pending_ = false;
-          // The pending application read observes the closed stream. Any
-          // subsequent data after this response must be ignored.
-          next_state_ = STATE_DISCONNECTED;
-          // A Fast Open Connect() can complete before the app issues a
-          // Read(); a pending read must observe this failure instead of
-          // waiting for a stream close that may never come.
-          FailPendingReadOnFastOpenFailure(rv);
-          // The Fast Open Connect() already completed; do not report this
-          // response through connect_callback_.
-          rv = ERR_IO_PENDING;
-        }
         break;
       case STATE_PROCESS_RESPONSE_HEADERS:
         DCHECK_EQ(OK, rv);
@@ -354,21 +343,6 @@ int QuicProxyClientSocket::DoLoop(int last_io_result) {
       case STATE_PROCESS_RESPONSE_CODE:
         DCHECK_EQ(OK, rv);
         rv = DoProcessResponseCode();
-        if (use_fastopen_ && read_headers_pending_) {
-          read_headers_pending_ = false;
-          if (rv < 0) {
-            // The pending application read observes the closed stream. Any
-            // subsequent data after this response must be ignored.
-            next_state_ = STATE_DISCONNECTED;
-            // A Fast Open Connect() can complete before the app issues a
-            // Read(); a pending read must observe this failure instead of
-            // waiting for a stream close that may never come.
-            FailPendingReadOnFastOpenFailure(rv);
-          }
-          // Fast Open already completed Connect(); do not invoke the
-          // consumed connect_callback_ for the later response.
-          rv = ERR_IO_PENDING;
-        }
         break;
       default:
         NOTREACHED() << "bad state";
@@ -602,6 +576,7 @@ int QuicProxyClientSocket::DoProcessResponseCode() {
 void QuicProxyClientSocket::OnReadResponseHeadersComplete(int result) {
   // Convert the now-populated quiche::HttpHeaderBlock to HttpResponseInfo
   if (use_fastopen_ && read_headers_pending_) {
+    read_headers_pending_ = false;
     if (next_state_ == STATE_DISCONNECTED)
       return;
     if (next_state_ == STATE_CONNECT_COMPLETE)
@@ -622,19 +597,6 @@ int QuicProxyClientSocket::ProcessResponseHeaders(
     return ERR_QUIC_PROTOCOL_ERROR;
   }
   return OK;
-}
-
-void QuicProxyClientSocket::FailPendingReadOnFastOpenFailure(int error) {
-  if (read_callback_.is_null()) {
-    // No pending application read; still cancel the response stream so a
-    // late body cannot be delivered after the failed CONNECT response.
-    stream_->Reset(quic::QUIC_STREAM_CANCELLED);
-    return;
-  }
-  read_buf_ = nullptr;
-  stream_->Reset(quic::QUIC_STREAM_CANCELLED);
-  // May destroy |this|; run last and use no members afterwards.
-  std::move(read_callback_).Run(error);
 }
 
 void QuicProxyClientSocket::OnBeforeTunnelRequestComplete(
