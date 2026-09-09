@@ -322,9 +322,11 @@ void SpdyProxyClientSocket::OnIOComplete(int result) {
   int rv = DoLoop(result);
   if (rv != ERR_IO_PENDING) {
     if (use_fastopen_ && read_headers_pending_ == false) {
-      if (rv < 0)
+      if (rv != OK)
         next_state_ = STATE_DISCONNECTED;
-      if (!read_callback_ || rv == OK) return;
+      if (read_callback_ && rv != OK)
+        std::move(read_callback_).Run(rv);
+      return;
     }
     std::move(read_callback_).Run(rv);
   }
